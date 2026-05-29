@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
 import { ordersApi } from '../../api/orders.api'
@@ -13,7 +13,7 @@ interface Summary {
 }
 
 const QUICK_ACTIONS = [
-  { icon: '📸', label: '扫码报修', route: 'OrderCreate', color: colors.danger },
+  { icon: '📸', label: '扫码查验', route: 'ScanMock', color: colors.danger },
   { icon: '📋', label: '创建工单', route: 'OrderCreate', color: colors.primary },
   { icon: '🔧', label: '工具箱', route: 'Toolbox', color: '#C77DFF' },
   { icon: '📦', label: '备件查询', route: 'Records', color: '#FFD93D' },
@@ -43,6 +43,27 @@ export function HomeScreen() {
     setRefreshing(true)
     await fetchSummary()
     setRefreshing(false)
+  }
+
+  const handleQuickAction = async (route: string) => {
+    if (route === 'ScanMock') {
+      try {
+        // Mock a QR scan by fetching devices and picking the first one
+        const { devicesApi } = await import('../../api/devices.api');
+        const res = await devicesApi.list();
+        if (res.items && res.items.length > 0) {
+          const deviceId = res.items[0].id;
+          navigation.navigate('DeviceDetail', { deviceId });
+        } else {
+          Alert.alert('提示', '数据库中暂无设备，请先在网页端添加设备');
+        }
+      } catch (e) {
+        console.error(e);
+        Alert.alert('扫描失败', '无法连接到服务器');
+      }
+    } else {
+      navigation.navigate(route);
+    }
   }
 
   const greeting = () => {
@@ -110,7 +131,7 @@ export function HomeScreen() {
               <TouchableOpacity
                 key={i}
                 style={styles.quickCard}
-                onPress={() => navigation.navigate(action.route)}
+                onPress={() => handleQuickAction(action.route)}
                 activeOpacity={0.75}
               >
                 <View style={[styles.quickIcon, { backgroundColor: action.color + '22' }]}>
