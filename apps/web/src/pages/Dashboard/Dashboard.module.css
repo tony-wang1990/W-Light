@@ -91,3 +91,58 @@
   color: var(--color-text-muted);
   font-size: 14px;
 }
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: white;
+  color: #6B7280;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.refreshBtn:hover { background: #F9FAFB; }
+.refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.chartHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chartHeader h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.chartBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #10B981;
+  background: rgba(16,185,129,0.1);
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}

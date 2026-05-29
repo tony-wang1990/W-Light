@@ -1,0 +1,256 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0 0 4px 0;
+}
+
+.pageSubtitle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.primaryBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+.primaryBtn:hover { opacity: 0.9; }
+.primaryBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.statLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.tableCard {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.tableHeader {
+  padding: 18px 24px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.tableHeader h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #F9FAFB;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.table td {
+  padding: 14px 20px;
+  font-size: 14px;
+  color: var(--color-text-dark);
+  border-bottom: 1px solid #F9FAFB;
+}
+
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #FAFAFA; }
+
+.planName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.freqBadge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dateCell {
+  color: #6B7280;
+  font-size: 13px;
+}
+
+.badgeActive {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(16,185,129,0.1);
+  color: #10B981;
+}
+
+.badgeInactive {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #F3F4F6;
+  color: #9CA3AF;
+}
+
+.dangerBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: rgba(239,68,68,0.08);
+  color: #EF4444;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dangerBtn:hover { background: rgba(239,68,68,0.15); }
+
+.loadingBox {
+  padding: 60px;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 14px;
+}
+
+.emptyBox {
+  padding: 60px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #9CA3AF;
+  font-size: 14px;
+}
+
+/* Modal */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  width: 460px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0 0 20px;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text-dark);
+  background: white;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.input:focus { outline: none; border-color: var(--color-primary); }
+
+.modalFooter {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.cancelBtn {
+  padding: 9px 18px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: white;
+  color: #6B7280;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.cancelBtn:hover { background: #F9FAFB; }

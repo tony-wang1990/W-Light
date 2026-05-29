@@ -265,3 +265,59 @@
 .actionBtn:hover {
   background-color: #BAE6FD;
 }
+
+.actionBtnGreen {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+.actionBtnGreen:hover { background-color: #A7F3D0; }
+
+.priorityP0 { background: rgba(239,68,68,0.15); color: #EF4444; }
+
+.orderDevice {
+  font-size: 11px;
+  color: #6B7280;
+  margin-bottom: 4px;
+}
+
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+}
+
+.filterSelect {
+  padding: 7px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 7px;
+  font-size: 13px;
+  color: #374151;
+  background: white;
+  cursor: pointer;
+}
+.filterSelect:focus { outline: none; border-color: #3B82F6; }
+
+.filterActive {
+  background-color: #EFF6FF;
+  border-color: #3B82F6;
+  color: #3B82F6;
+}
+
+.clearFilterBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #FEE2E2;
+  color: #EF4444;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.clearFilterBtn:hover { background: #FECACA; }

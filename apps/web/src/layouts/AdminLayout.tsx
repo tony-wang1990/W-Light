@@ -9,7 +9,9 @@ import {
   Package, 
   LogOut,
   User as UserIcon,
-  Menu
+  Menu,
+  ClipboardList,
+  Users as UsersIcon
 } from 'lucide-react';
 import styles from './AdminLayout.module.css';
 
@@ -18,6 +20,8 @@ const MENU_ITEMS = [
   { path: '/orders', label: '工单调度中心', icon: Briefcase },
   { path: '/devices', label: '设备台账管理', icon: Settings2 },
   { path: '/parts', label: '备件库存管理', icon: Package },
+  { path: '/inspections', label: '巡检管理', icon: ClipboardList },
+  { path: '/users', label: '用户权限管理', icon: UsersIcon },
   { path: '/toolbox', label: '专业工具箱', icon: Wrench },
 ];
 

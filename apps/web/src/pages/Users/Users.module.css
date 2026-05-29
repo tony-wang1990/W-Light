@@ -1,0 +1,89 @@
+.container { display: flex; flex-direction: column; gap: 24px; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; }
+.pageTitle { font-size: 24px; font-weight: 700; color: var(--color-text-dark); margin: 0 0 4px 0; }
+.pageSubtitle { font-size: 14px; color: var(--color-text-muted); margin: 0; }
+
+.primaryBtn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 18px; background: var(--color-primary); color: white;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
+}
+.primaryBtn:hover { opacity: 0.9; }
+.primaryBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.roleCards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.roleCard {
+  background: white; border-radius: 12px; padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border-top: 3px solid transparent; text-align: center;
+}
+.roleCount { font-size: 28px; font-weight: 700; }
+.roleName { font-size: 12px; color: #6B7280; margin-top: 4px; }
+
+.tableCard {
+  background: white; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;
+}
+.tableHeader { padding: 18px 24px; border-bottom: 1px solid #F3F4F6; }
+.tableHeader h3 { font-size: 15px; font-weight: 600; color: var(--color-text-dark); margin: 0; display: flex; align-items: center; }
+
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  padding: 12px 20px; text-align: left; font-size: 12px; font-weight: 600;
+  color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px;
+  background: #F9FAFB; border-bottom: 1px solid #F3F4F6;
+}
+.table td { padding: 14px 20px; font-size: 14px; border-bottom: 1px solid #F9FAFB; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #FAFAFA; }
+
+.userCell { display: flex; align-items: center; gap: 10px; }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+}
+.userName { font-weight: 600; color: var(--color-text-dark); }
+.phoneCell { font-family: monospace; color: #374151; font-size: 13px; }
+.dateCell { color: #6B7280; font-size: 13px; }
+
+.roleBadge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+
+.actionsCell { display: flex; gap: 8px; }
+.editBtn {
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: rgba(59,130,246,0.08); color: #3B82F6; border: none;
+  border-radius: 6px; font-size: 12px; cursor: pointer; transition: background 0.2s;
+}
+.editBtn:hover { background: rgba(59,130,246,0.15); }
+.dangerBtn {
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px;
+  background: rgba(239,68,68,0.08); color: #EF4444; border: none;
+  border-radius: 6px; font-size: 12px; cursor: pointer; transition: background 0.2s;
+}
+.dangerBtn:hover { background: rgba(239,68,68,0.15); }
+
+.loadingBox { padding: 60px; text-align: center; color: #9CA3AF; font-size: 14px; }
+.emptyBox { padding: 60px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #9CA3AF; font-size: 14px; }
+
+/* Modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal { background: white; border-radius: 16px; padding: 28px; width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modalTitle { font-size: 18px; font-weight: 700; color: var(--color-text-dark); margin: 0 0 20px; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.formGroup { display: flex; flex-direction: column; }
+.label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.input {
+  padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px;
+  font-size: 14px; color: var(--color-text-dark); background: white;
+  transition: border-color 0.2s;
+}
+.input:focus { outline: none; border-color: var(--color-primary); }
+.input:disabled { background: #F9FAFB; color: #9CA3AF; }
+.modalFooter { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+.cancelBtn {
+  padding: 9px 18px; border: 1px solid #E5E7EB; border-radius: 8px;
+  background: white; color: #6B7280; font-size: 14px; cursor: pointer; transition: background 0.2s;
+}
+.cancelBtn:hover { background: #F9FAFB; }

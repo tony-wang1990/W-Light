@@ -9,56 +9,139 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 class ReportsService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
+  /**
+   * 工单状态统计 — SQLite 兼容版本
+   * SQLite 不支持 EXTRACT(EPOCH) 和 to_char，使用 strftime 和 julianday
+   */
   async orderStats(projectId: string, startDate: string, endDate: string) {
     const rows = await this.ds.query(`
       SELECT 
-        status, priority, COUNT(*) as count,
-        AVG(EXTRACT(EPOCH FROM (COALESCE("closedAt","updatedAt") - "startedAt"))/3600) as avg_hours
+        status, 
+        priority, 
+        COUNT(*) as count,
+        AVG(
+          CASE 
+            WHEN startedAt IS NOT NULL THEN 
+              (julianday(COALESCE(closedAt, updatedAt)) - julianday(startedAt)) * 24
+            ELSE NULL 
+          END
+        ) as avg_hours
       FROM work_orders
-      WHERE "projectId" = $1 AND "createdAt" BETWEEN $2 AND $3
+      WHERE projectId = ? AND createdAt BETWEEN ? AND ?
       GROUP BY status, priority
     `, [projectId, startDate, endDate])
     return rows
   }
 
+  /**
+   * 故障类型趋势分析 — SQLite 兼容版本
+   * 使用 strftime 代替 to_char
+   */
   async faultAnalysis(projectId: string, months = 6) {
+    // SQLite: datetime('now', '-N months') 计算 N 个月前
     return this.ds.query(`
       SELECT 
-        to_char("createdAt", 'YYYY-MM') as month,
-        "faultType", COUNT(*) as count
+        strftime('%Y-%m', createdAt) as month,
+        faultType, 
+        COUNT(*) as count
       FROM work_orders
-      WHERE "projectId" = $1 AND "createdAt" > NOW() - INTERVAL '${months} months'
-      GROUP BY month, "faultType"
+      WHERE projectId = ? 
+        AND createdAt > datetime('now', '-${months} months')
+      GROUP BY month, faultType
       ORDER BY month DESC
     `, [projectId])
   }
 
+  /**
+   * 工程师绩效统计 — SQLite 兼容版本
+   */
   async engineerPerformance(projectId: string, startDate: string, endDate: string) {
     return this.ds.query(`
       SELECT 
-        u.name, u.id,
+        u.name, 
+        u.id,
         COUNT(o.id) as total_orders,
         SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as completed,
-        AVG(EXTRACT(EPOCH FROM (o."closedAt" - o."assignedAt"))/3600) as avg_response_hours
+        AVG(
+          CASE 
+            WHEN o.assignedAt IS NOT NULL AND o.closedAt IS NOT NULL
+            THEN (julianday(o.closedAt) - julianday(o.assignedAt)) * 24
+            ELSE NULL
+          END
+        ) as avg_response_hours
       FROM work_orders o
-      JOIN users u ON u.id = o."assigneeId"
-      WHERE o."projectId" = $1 AND o."createdAt" BETWEEN $2 AND $3
+      JOIN users u ON u.id = o.assigneeId
+      WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
       GROUP BY u.id, u.name
       ORDER BY completed DESC
     `, [projectId, startDate, endDate])
   }
 
+  /**
+   * 维修费用分析 — SQLite 兼容版本
+   */
   async repairCostAnalysis(projectId: string, startDate: string, endDate: string) {
     return this.ds.query(`
       SELECT
-        to_char("createdAt", 'YYYY-MM') as month,
-        SUM("repairCost") as total_cost,
+        strftime('%Y-%m', createdAt) as month,
+        SUM(repairCost) as total_cost,
         COUNT(*) as order_count,
-        AVG("repairCost") as avg_cost
+        AVG(repairCost) as avg_cost
       FROM work_orders
-      WHERE "projectId" = $1 AND "createdAt" BETWEEN $2 AND $3 AND "repairCost" IS NOT NULL
-      GROUP BY month ORDER BY month
+      WHERE projectId = ? 
+        AND createdAt BETWEEN ? AND ? 
+        AND repairCost IS NOT NULL
+      GROUP BY month 
+      ORDER BY month
     `, [projectId, startDate, endDate])
+  }
+
+  /**
+   * 最近7天工单趋势（Dashboard 图表用）
+   */
+  async weeklyTrend(projectId: string) {
+    const rows = await this.ds.query(`
+      SELECT 
+        strftime('%w', createdAt) as day_of_week,
+        strftime('%Y-%m-%d', createdAt) as date_str,
+        COUNT(*) as new_orders,
+        SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as solved
+      FROM work_orders
+      WHERE projectId = ? 
+        AND createdAt >= datetime('now', '-7 days')
+      GROUP BY date_str
+      ORDER BY date_str ASC
+    `, [projectId])
+    return rows
+  }
+
+  /**
+   * 设备状态分布（Dashboard 饼图用）
+   */
+  async deviceStatusDistribution(projectId: string) {
+    return this.ds.query(`
+      SELECT status, COUNT(*) as count
+      FROM devices
+      WHERE projectId = ?
+      GROUP BY status
+    `, [projectId])
+  }
+
+  /**
+   * 备件消耗排行（Dashboard 柱状图用）
+   */
+  async partsConsumptionRank(projectId: string) {
+    return this.ds.query(`
+      SELECT 
+        p.name,
+        SUM(CASE WHEN l.type = 'out' THEN l.quantity ELSE 0 END) as total_consumed
+      FROM spare_parts p
+      LEFT JOIN spare_part_logs l ON l.partId = p.id
+      WHERE p.projectId = ?
+      GROUP BY p.id, p.name
+      ORDER BY total_consumed DESC
+      LIMIT 5
+    `, [projectId])
   }
 }
 
@@ -75,7 +158,10 @@ class ReportsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.svc.orderStats(req.headers['x-project-id'], startDate, endDate)
+    const projectId = req.headers['x-project-id']
+    const start = startDate || new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
+    const end = endDate || new Date().toISOString().slice(0,10)
+    return this.svc.orderStats(projectId, start, end)
   }
 
   @Get('fault-analysis')
@@ -91,6 +177,21 @@ class ReportsController {
   @Get('repair-cost')
   repairCost(@Request() req, @Query('startDate') s: string, @Query('endDate') e: string) {
     return this.svc.repairCostAnalysis(req.headers['x-project-id'], s, e)
+  }
+
+  @Get('weekly-trend')
+  weeklyTrend(@Request() req) {
+    return this.svc.weeklyTrend(req.headers['x-project-id'])
+  }
+
+  @Get('device-status')
+  deviceStatus(@Request() req) {
+    return this.svc.deviceStatusDistribution(req.headers['x-project-id'])
+  }
+
+  @Get('parts-rank')
+  partsRank(@Request() req) {
+    return this.svc.partsConsumptionRank(req.headers['x-project-id'])
   }
 }
 

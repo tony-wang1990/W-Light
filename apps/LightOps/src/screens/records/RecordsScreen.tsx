@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, RefreshControl, ActivityIndicator, ScrollView,
+  TextInput, RefreshControl, ActivityIndicator, ScrollView, Alert,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useQuery } from '@tanstack/react-query'
@@ -277,48 +277,98 @@ function PartCard({ part }: { part: SparePart }) {
   )
 }
 
-// ── Inspections Tab ───────────────────────────────────────────────────────────
+// ── Inspections Tab — 真实 API 联调版本 ──────────────────────────────────────
 function InspectionsTab() {
-  const plans = [
-    { name: '主舞台摇头灯月检', next: '2026-06-01', freq: '每月', status: 'upcoming' },
-    { name: '配电柜季度检查', next: '2026-07-01', freq: '每季度', status: 'upcoming' },
-    { name: '追光灯周维护', next: '2026-05-30', freq: '每周', status: 'today' },
-    { name: 'DMX信号链路年检', next: '2026-12-01', freq: '每年', status: 'upcoming' },
-  ]
+  const [plans, setPlans] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [refreshing, setRefreshing] = React.useState(false)
+
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true)
+    else setRefreshing(true)
+    try {
+      const { inspectionsApi } = await import('../../api/inspections.api')
+      const data = await inspectionsApi.getPlans()
+      setPlans(data)
+    } catch (e) {
+      console.error('InspectionsTab load failed', e)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  React.useEffect(() => { load() }, [])
+
+  const handleRecord = async (planId: string) => {
+    Alert.alert('提交巡检记录', '请选择巡检结果：', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '✅ 正常',
+        onPress: async () => {
+          try {
+            const { inspectionsApi } = await import('../../api/inspections.api')
+            await inspectionsApi.createRecord(planId, 'normal', '巡检正常，无异常')
+            Alert.alert('✅ 记录成功', '巡检记录已提交')
+          } catch (e: any) { Alert.alert('错误', e.message) }
+        },
+      },
+      {
+        text: '⚠️ 有异常',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { inspectionsApi } = await import('../../api/inspections.api')
+            await inspectionsApi.createRecord(planId, 'abnormal', '巡检发现异常，需处理')
+            Alert.alert('⚠️ 记录成功', '异常巡检记录已提交，请跟进处理')
+          } catch (e: any) { Alert.alert('错误', e.message) }
+        },
+      },
+    ])
+  }
+
+  const FREQ_LABELS: Record<string, string> = {
+    daily: '📅 每日', weekly: '📆 每周', monthly: '🗓 每月',
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    )
+  }
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.base, paddingBottom: 80 }}>
-      <Text style={styles.sectionTitle}>本周巡检计划</Text>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: spacing.base, paddingBottom: 80 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
+    >
+      <Text style={styles.sectionTitle}>巡检计划（{plans.length} 个）</Text>
+      {plans.length === 0 && (
+        <View style={{ alignItems: 'center', paddingTop: 40 }}>
+          <Text style={{ fontSize: 40 }}>📋</Text>
+          <Text style={{ color: colors.textMuted, marginTop: 12 }}>暂无巡检计划，请在网页端创建</Text>
+        </View>
+      )}
       {plans.map((p, i) => (
-        <View key={i} style={[styles.inspectionCard, p.status === 'today' && styles.inspectionCardToday]}>
+        <View key={p.id || i} style={[styles.inspectionCard]}>
           <View style={styles.inspectionLeft}>
-            <Text style={styles.inspectionIcon}>{p.status === 'today' ? '📋' : '📅'}</Text>
+            <Text style={styles.inspectionIcon}>📋</Text>
           </View>
           <View style={styles.inspectionBody}>
             <Text style={styles.inspectionName}>{p.name}</Text>
-            <Text style={styles.inspectionMeta}>频率：{p.freq}</Text>
-            <Text style={[styles.inspectionNext, p.status === 'today' && { color: colors.warning }]}>
-              {p.status === 'today' ? '⚠️ 今日应检' : `下次：${p.next}`}
-            </Text>
+            <Text style={styles.inspectionMeta}>频率：{FREQ_LABELS[p.frequency] ?? p.frequency}</Text>
+            {p.nextInspectionAt && (
+              <Text style={styles.inspectionNext}>
+                下次：{new Date(p.nextInspectionAt).toLocaleDateString('zh-CN')}
+              </Text>
+            )}
           </View>
-          <TouchableOpacity style={styles.inspectionBtn}>
+          <TouchableOpacity style={styles.inspectionBtn} onPress={() => handleRecord(p.id)}>
             <Text style={styles.inspectionBtnText}>记录</Text>
           </TouchableOpacity>
-        </View>
-      ))}
-
-      <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>最近巡检记录</Text>
-      {[
-        { name: '摇头灯日常检查', date: '2026-05-27', inspector: '张工', result: '正常' },
-        { name: '配电盘电压检测', date: '2026-05-25', inspector: '李工', result: '正常' },
-        { name: '追光灯对焦调试', date: '2026-05-24', inspector: '王工', result: '有异常→已处理' },
-      ].map((r, i) => (
-        <View key={i} style={styles.recordRow}>
-          <View style={styles.recordDot} />
-          <View style={styles.recordBody}>
-            <Text style={styles.recordName}>{r.name}</Text>
-            <Text style={styles.recordMeta}>{r.date} · {r.inspector} · {r.result}</Text>
-          </View>
         </View>
       ))}
     </ScrollView>

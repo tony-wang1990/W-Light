@@ -3,9 +3,14 @@ import { MMKV } from 'react-native-mmkv'
 
 const storage = new MMKV()
 
-const API_BASE_URL = __DEV__
-  ? 'http://10.16.194.88:3000/v1'  // Android Emulator → localhost
-  : 'https://api.lightops.com/v1'
+// ─── API Base URL Config ──────────────────────────────────────────────────────
+// 修改此处为你的实际服务器 IP / 域名
+// 开发调试时：Android 模拟器用 10.0.2.2，真机需要填写电脑的局域网 IP
+// 生产部署时：改为 https://your-domain.com/v1
+const DEV_API_URL = 'http://10.0.2.2:3000/v1' // Android 模拟器默认访问宿主机 localhost
+const PROD_API_URL = 'https://api.lightops.example.com/v1'
+
+const API_BASE_URL = __DEV__ ? DEV_API_URL : PROD_API_URL
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
