@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
+import { Logo } from '../../components/common/Logo'
 
 export function LoginScreen() {
   const [phone, setPhone] = useState('')
@@ -34,17 +35,13 @@ export function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Logo & Title */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>⚡</Text>
-          </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header / Logo */}
+        <View style={styles.header}>
+          <Logo size={80} />
+          <View style={{ height: spacing.md }} />
           <Text style={styles.appTitle}>灯光运维</Text>
-          <Text style={styles.appSubtitle}>LightOps</Text>
+          <Text style={styles.appSubtitle}>W-Light</Text>
           <Text style={styles.appTagline}>文旅灯光运维一体化平台</Text>
         </View>
 
@@ -115,7 +112,7 @@ export function LoginScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            © 2025 LightOps — 文旅灯光运维管理系统 v1.0
+            © 2026 W-Light - 文旅灯光运维一体化平台 v1.0
           </Text>
         </View>
       </ScrollView>
@@ -134,28 +131,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: '100%',
   },
-  // Logo
-  logoSection: {
+  header: {
     alignItems: 'center',
-    marginBottom: spacing.xxxl,
-    paddingTop: spacing.xxxl,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.base,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  logoEmoji: {
-    fontSize: 40,
+    marginTop: 80,
+    marginBottom: 40,
   },
   appTitle: {
     fontSize: 28,

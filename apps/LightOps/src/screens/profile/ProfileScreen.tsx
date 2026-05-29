@@ -59,7 +59,7 @@ export function ProfileScreen() {
           {[
             { icon: '🔔', label: '通知设置' },
             { icon: '🌐', label: '服务器配置' },
-            { icon: '📱', label: '关于 LightOps' },
+            { icon: '📱', label: '关于 W-Light' },
           ].map((item, i) => (
             <TouchableOpacity key={i} style={styles.menuItem}>
               <Text style={styles.menuIcon}>{item.icon}</Text>
@@ -74,7 +74,7 @@ export function ProfileScreen() {
           <Text style={styles.logoutText}>退出登录</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>LightOps v1.0.0 · 文旅灯光运维一体化平台</Text>
+        <Text style={styles.version}>W-Light v1.0.0 · 文旅灯光运维一体化平台</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
