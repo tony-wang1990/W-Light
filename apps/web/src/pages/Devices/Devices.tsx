@@ -190,6 +190,17 @@ export default function Devices() {
           </div>
         </div>
       </div>
+
+      {isModalOpen && (
+        <DeviceModal 
+          device={editingDevice} 
+          onClose={() => setIsModalOpen(false)} 
+          onSaved={() => {
+            setIsModalOpen(false);
+            fetchDevices();
+          }} 
+        />
+      )}
     </div>
   );
 }

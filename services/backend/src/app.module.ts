@@ -34,7 +34,7 @@ import { HealthModule } from './modules/health/health.module'
           return {
             type: 'sqlite',
             database: config.get<string>('DB_DATABASE', 'lightops.sqlite'),
-            entities: [__dirname + '/modules/**/*.entity{.ts,.js}'],
+            entities: [__dirname + '/modules/**/*.entity{.ts,.js}', __dirname + '/modules/**/*.module{.ts,.js}'],
             synchronize: true, // Auto-create tables for local sqlite dev
             logging: true,
           };
@@ -47,7 +47,7 @@ import { HealthModule } from './modules/health/health.module'
           database: config.get<string>('DB_NAME', 'lightops'),
           username: config.get<string>('DB_USER', 'lightops'),
           password: config.get<string>('DB_PASSWORD', ''),
-          entities: [__dirname + '/modules/**/*.entity{.ts,.js}'],
+          entities: [__dirname + '/modules/**/*.entity{.ts,.js}', __dirname + '/modules/**/*.module{.ts,.js}'],
           synchronize: config.get<string>('NODE_ENV') === 'development', // 生产环境禁用！使用迁移
           logging: config.get<string>('NODE_ENV') === 'development',
           ssl: config.get<string>('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,

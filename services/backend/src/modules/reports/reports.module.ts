@@ -134,7 +134,7 @@ class ReportsService {
     return this.ds.query(`
       SELECT 
         p.name,
-        SUM(CASE WHEN l.type = 'out' THEN l.quantity ELSE 0 END) as total_consumed
+        SUM(CASE WHEN l.opType = 'outbound' THEN l.quantity ELSE 0 END) as total_consumed
       FROM spare_parts p
       LEFT JOIN spare_part_logs l ON l.partId = p.id
       WHERE p.projectId = ?

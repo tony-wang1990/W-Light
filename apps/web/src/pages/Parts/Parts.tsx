@@ -7,13 +7,11 @@ import styles from './Parts.module.css';
 
 interface Part {
   id: string;
-  partNo: string;
   name: string;
-  category: string;
-  specification: string;
+  model: string;
   unit: string;
-  currentStock: number;
-  safeStock: number;
+  stock: number;
+  minStock: number;
 }
 
 export default function Parts() {
@@ -133,28 +131,28 @@ export default function Parts() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '24px' }}>加载中...</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '24px' }}>加载中...</td></tr>
               ) : filteredParts.length === 0 ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', padding: '24px' }}>暂无数据</td></tr>
-              ) : filteredParts.map(part => {
-                const isWarning = part.currentStock < part.safeStock;
+              ) : filteredParts.map((part) => {
+                const isWarning = part.stock < part.minStock;
                 return (
                   <tr key={part.id}>
-                    <td className={styles.cellCode}>{part.partNo}</td>
+                    <td className={styles.cellCode}>{part.id.substring(0, 8).toUpperCase()}</td>
                     <td className={styles.cellMain}>
                       <strong>{part.name}</strong>
                     </td>
-                    <td><span className={styles.tag}>{part.category}</span></td>
-                    <td className={styles.cellMuted}>{part.specification || '-'}</td>
+                    <td><span className={styles.tag}>备件</span></td>
+                    <td className={styles.cellMuted}>{part.model || '-'}</td>
                     <td>
                       <strong style={{ fontSize: 16, color: isWarning ? '#DC2626' : '#111827' }}>
-                        {part.currentStock}
+                        {part.stock}
                       </strong> <span className={styles.cellMuted}>{part.unit}</span>
                     </td>
                     <td>
                       {isWarning ? (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#DC2626', fontSize: 12, fontWeight: 500 }}>
-                          <AlertTriangle size={14} /> 库存预警 (低于 {part.safeStock})
+                          <AlertTriangle size={14} /> 库存预警 (低于 {part.minStock})
                         </span>
                       ) : (
                         <span style={{ color: '#059669', fontSize: 12, fontWeight: 500 }}>充足</span>
@@ -173,7 +171,7 @@ export default function Parts() {
                           className={styles.secondaryBtn} 
                           style={{ padding: '4px 8px', fontSize: 12 }}
                           onClick={() => handleStockOp(part, 'out')}
-                          disabled={part.currentStock <= 0}
+                          disabled={part.stock <= 0}
                         >
                           <ArrowUpFromLine size={14} color="#DC2626" /> 出库
                         </button>
