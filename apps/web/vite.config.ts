@@ -19,4 +19,17 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    target: 'es2015',
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          vendor: ['axios', 'zustand', 'lucide-react', 'date-fns']
+        }
+      }
+    }
+  }
 })
