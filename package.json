@@ -1,0 +1,40 @@
+{
+  "name": "lightops",
+  "version": "1.0.0",
+  "description": "文旅灯光运维一体化APP — Monorepo",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter backend run start:dev",
+    "dev:mobile": "pnpm --filter mobile run start",
+    "build:backend": "pnpm --filter backend run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "format": "pnpm -r run format",
+    "db:migrate": "pnpm --filter backend run migration:run",
+    "db:seed": "pnpm --filter backend run seed:run",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "typescript": "^5.5.0"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,md,yml}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

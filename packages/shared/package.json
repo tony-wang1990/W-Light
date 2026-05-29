@@ -1,0 +1,7 @@
+{
+  "name": "@lightops/shared",
+  "version": "1.0.0",
+  "description": "Shared types and constants for LightOps",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'services/*'
+allowBuilds:
+  '@nestjs/core': true
+  '@shopify/react-native-skia': true
+  bcrypt: true
+  msgpackr-extract: true
+  protobufjs: true

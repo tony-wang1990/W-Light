@@ -1,0 +1,10 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@lightops/toolbox-core": ["../../packages/toolbox-core/src"],
+      "@lightops/shared": ["../../packages/shared/src"]
+    }
+  }
+}
