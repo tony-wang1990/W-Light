@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Clock, CheckCircle2, AlertCircle, Filter } from 'lucide-react';
 import { apiClient } from '../../api/client';
+import OrderModal from './components/OrderModal';
 import styles from './Orders.module.css';
 
 interface Order {
@@ -16,20 +17,38 @@ interface Order {
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/orders');
+      setOrders(res.items || res || []);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await apiClient.get('/orders');
-        setOrders(res.items || res || []);
-      } catch (err) {
-        console.error('Failed to fetch orders:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
+
+  const handleStatusUpdate = async (id: string, action: string) => {
+    try {
+      if (action === 'assign') {
+        const me = await apiClient.get('/auth/me');
+        await apiClient.put(`/orders/${id}/assign`, { assigneeId: me.id });
+      } else {
+        await apiClient.put(`/orders/${id}/${action}`);
+      }
+      fetchOrders();
+    } catch (err: any) {
+      alert(err.message || '操作失败');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     const s = status?.toLowerCase();
     switch (s) {
@@ -71,12 +90,23 @@ export default function Orders() {
                 </span>
               </div>
               <h4 className={styles.orderTitle}>{order.faultDesc.substring(0, 30)}...</h4>
-              <div className={styles.orderFooter}>
-                <div className={styles.orderMeta}>
-                  {getStatusIcon(order.status)}
-                  <span>{order.reporter?.name || '未知'}</span>
+              <div className={styles.cardFooter}>
+                <div className={styles.assignee}>
+                  <div className={styles.avatar}>W</div>
+                  <span>{order.assigneeName || '未指派'}</span>
                 </div>
-                <span className={styles.orderTime}>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                
+                <div className={styles.cardActions}>
+                  {order.status === 'pending' && (
+                    <button className={styles.actionBtn} onClick={() => handleStatusUpdate(order.id, 'assign')}>接单</button>
+                  )}
+                  {order.status === 'assigned' && (
+                    <button className={styles.actionBtn} onClick={() => handleStatusUpdate(order.id, 'start')}>开工</button>
+                  )}
+                  {order.status === 'processing' && (
+                    <button className={styles.actionBtn} onClick={() => handleStatusUpdate(order.id, 'submit')}>完工</button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -95,9 +125,14 @@ export default function Orders() {
           <h1 className={styles.pageTitle}>工单调度中心</h1>
           <p className={styles.pageSubtitle}>使用看板视图管理故障报修、巡检任务及维修进度。</p>
         </div>
-        <button className={styles.primaryBtn}>
-          <Plus size={16} /> 极速派单
-        </button>
+        <div className={styles.headerActions}>
+          <button className={styles.secondaryBtn}>
+            <Filter size={16} /> 筛选
+          </button>
+          <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
+            <Plus size={16} /> 新增派单
+          </button>
+        </div>
       </div>
 
       <div className={styles.kanbanBoard}>
@@ -105,6 +140,12 @@ export default function Orders() {
         {renderColumn(['assigned', 'processing'], '处理中 (In Progress)')}
         {renderColumn(['closed'], '已完成 (Done)')}
       </div>
+
+      <OrderModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={fetchOrders}
+      />
     </div>
   );
 }
