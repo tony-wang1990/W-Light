@@ -22,34 +22,17 @@ W-Light 是一款专为文旅灯光项目打造的**运维闭环管理与灯光�
 
 你只需要在你的云服务器上执行以下命令：
 
-### 1. 安装 Docker（如果服务器上还没装）
+### 🚀 一键部署代码（直接复制到服务器执行）
+
+无论你的服务器有没有装 Docker，直接复制下面这一整段代码，敲回车，然后去喝杯咖啡，它会自动完成**环境安装、代码下载、后台拉起**的所有动作：
+
 ```bash
-# 一键安装 Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# 启动 Docker 并设置开机自启
-sudo systemctl enable docker
-sudo systemctl start docker
-```
-
-### 2. 克隆代码库
-```bash
-# 下载项目代码
-git clone https://github.com/tony-wang1990/W-Light.git
-
-# 进入项目目录
-cd W-Light
-```
-
-### 3. 一键启动后端所有服务
-```bash
-# 启动所有后端服务 (-d 表示后台运行)
-sudo docker compose up -d
+if ! command -v docker &> /dev/null; then echo "安装 Docker..." && curl -fsSL https://get.docker.com | sudo sh && sudo systemctl enable --now docker; fi && rm -rf W-Light && git clone https://github.com/tony-wang1990/W-Light.git && cd W-Light && sudo docker compose up -d
 ```
 
 ✅ **成功标志**：
-运行完毕后，输入 `sudo docker ps`，如果看到 `lightops-api`、`lightops-postgres`、`lightops-redis`、`lightops-minio` 这几个容器都在运行，说明服务器端已经完美启动！
+命令行不再滚动，最后出现 `Started` 字样，并且执行 `sudo docker ps` 能看到 `lightops-api` 等几个容器，就说明服务器端完美跑通了！
+
 
 ---
 
