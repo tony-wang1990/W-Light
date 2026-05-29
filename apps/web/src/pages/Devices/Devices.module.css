@@ -1,0 +1,261 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0 0 4px 0;
+}
+
+.pageSubtitle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+}
+
+.primaryBtn, .secondaryBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.primaryBtn {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.primaryBtn:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.secondaryBtn {
+  background-color: var(--color-white);
+  color: var(--color-text-dark);
+  border: 1px solid var(--color-border);
+}
+
+.secondaryBtn:hover {
+  background-color: #F8F9FA;
+}
+
+/* Table Card */
+.tableCard {
+  background-color: var(--color-white);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #F8F9FA;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0 12px;
+  flex: 1;
+  max-width: 320px;
+}
+
+.searchIcon {
+  color: var(--color-text-muted);
+}
+
+.searchBox input {
+  background: none;
+  border: none;
+  padding: 10px 0;
+  font-size: 14px;
+  flex: 1;
+  outline: none;
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  color: var(--color-text-dark);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.filterBtn:hover {
+  background-color: #F8F9FA;
+}
+
+/* Table styles */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th {
+  padding: 16px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background-color: #F8F9FA;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table td {
+  padding: 16px 20px;
+  font-size: 14px;
+  color: var(--color-text-dark);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table tr:hover td {
+  background-color: #F8F9FA;
+}
+
+.cellId {
+  font-family: monospace;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.cellName {
+  font-weight: 500;
+}
+
+.cellCategory {
+  color: var(--color-text-muted);
+}
+
+.cellDate {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusOnline {
+  background-color: rgba(30, 174, 152, 0.1);
+  color: #1EAE98;
+}
+
+.statusMaintenance {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #F59E0B;
+}
+
+.statusOffline {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #DC3545;
+}
+
+.healthBar {
+  width: 80px;
+  height: 6px;
+  background-color: #E9ECEF;
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.healthProgress {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.healthText {
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.actionBtn {
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.actionBtn:hover {
+  background-color: #E9ECEF;
+  color: var(--color-text-dark);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.pageInfo {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.pageControls {
+  display: flex;
+  gap: 8px;
+}
+
+.pageBtn {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--color-text-dark);
+}
+
+.pageBtn:hover:not(:disabled) {
+  background-color: #F8F9FA;
+}
+
+.pageBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

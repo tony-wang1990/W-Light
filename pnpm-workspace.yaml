@@ -3,6 +3,7 @@ packages:
   - 'packages/*'
   - 'services/*'
 allowBuilds:
+  'esbuild': true
   '@nestjs/core': true
   '@shopify/react-native-skia': true
   bcrypt: true

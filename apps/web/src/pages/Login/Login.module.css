@@ -1,0 +1,255 @@
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  font-family: var(--font-family);
+}
+
+/* ── 左侧品牌区 ── */
+.leftPanel {
+  flex: 1;
+  background: linear-gradient(135deg, #0A2428 0%, #10353A 30%, #15877E 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  padding: 40px;
+}
+
+.leftContent {
+  max-width: 600px;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 60px;
+}
+
+.logoBox {
+  width: 80px;
+  height: 80px;
+  background-color: #1EAE98;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(30, 174, 152, 0.4);
+}
+
+.logoW {
+  font-size: 52px;
+  font-weight: 900;
+  color: #FFFFFF;
+  line-height: 1;
+}
+
+.brandInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandTitleSmall {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #8AE3DB;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.brandTitle {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.brandSubtitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: #D1F3F0;
+  margin-top: 4px;
+}
+
+.heroTitle {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+
+.heroDesc {
+  font-size: 16px;
+  color: #A3D8D3;
+  line-height: 1.6;
+  margin-bottom: 48px;
+}
+
+/* 特性卡片组 */
+.featureGrid {
+  display: flex;
+  gap: 16px;
+}
+
+.featureCard {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.featureTag {
+  display: inline-block;
+  background: rgba(30, 174, 152, 0.2);
+  color: #8AE3DB;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  border: 1px solid rgba(30, 174, 152, 0.3);
+}
+
+.featureCard h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.featureCard p {
+  font-size: 12px;
+  color: #A3D8D3;
+  line-height: 1.5;
+}
+
+/* ── 右侧登录区 ── */
+.rightPanel {
+  width: 500px;
+  background-color: #F4F6F8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.loginCard {
+  width: 380px;
+  background-color: var(--color-white);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  padding: 40px;
+}
+
+.loginHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.loginLogoSmall {
+  width: 36px;
+  height: 36px;
+  background-color: #1EAE98;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.loginTitleGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.loginTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 2px 0;
+}
+
+.loginSubtitle {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.formGroup input {
+  padding: 12px 14px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.formGroup input:focus {
+  border-color: #1EAE98;
+  box-shadow: 0 0 0 3px rgba(30, 174, 152, 0.1);
+}
+
+.submitBtn {
+  background-color: #15877E;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px;
+  border-radius: 6px;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background-color: #106c64;
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.footer {
+  position: absolute;
+  bottom: 24px;
+  font-size: 13px;
+  color: #9CA3AF;
+  display: flex;
+  gap: 10px;
+}
+
+.errorMessage {
+  color: #DC3545;
+  font-size: 12px;
+  background-color: #F8D7DA;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-align: center;
+}
