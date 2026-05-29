@@ -68,13 +68,13 @@ export class WorkOrder {
   @JoinColumn({ name: 'assigneeId' })
   assignee?: User
 
-  @Column({ type: 'enum', enum: OrderCategory, default: OrderCategory.FAULT })
+  @Column({ type: 'varchar', enum: OrderCategory, default: OrderCategory.FAULT })
   category: OrderCategory
 
-  @Column({ type: 'enum', enum: OrderPriority, default: OrderPriority.P2 })
+  @Column({ type: 'varchar', enum: OrderPriority, default: OrderPriority.P2 })
   priority: OrderPriority
 
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+  @Column({ type: 'varchar', enum: OrderStatus, default: OrderStatus.PENDING })
   status: OrderStatus
 
   @Column({ length: 50, nullable: true })
@@ -83,28 +83,28 @@ export class WorkOrder {
   @Column({ type: 'text' })
   faultDesc: string
 
-  @Column({ type: 'jsonb', default: '[]' })
+  @Column({ type: 'simple-json', default: '[]' })
   mediaUrls: string[]
 
   @Column({ length: 200, nullable: true })
   locationDesc?: string
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   faultAt?: Date
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   assignedAt?: Date
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   startedAt?: Date
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   submittedAt?: Date
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   closedAt?: Date
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   slaDeadline?: Date
 
   @Column({ default: false })

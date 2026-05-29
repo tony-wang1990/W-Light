@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { BullModule } from '@nestjs/bull'
 import { ScheduleModule } from '@nestjs/schedule'
 import { OrdersController } from './orders.controller'
 import { OrdersService } from './orders.service'
@@ -11,7 +10,6 @@ import { RepairLog } from './entities/repair-log.entity'
 @Module({
   imports: [
     TypeOrmModule.forFeature([WorkOrder, RepairLog]),
-    BullModule.registerQueue({ name: 'notifications' }),
     ScheduleModule.forRoot(),
   ],
   controllers: [OrdersController],

@@ -39,7 +39,7 @@ export class Device {
   @Column({ length: 100 })
   name: string
 
-  @Column({ type: 'enum', enum: DeviceCategory, default: DeviceCategory.LIGHT })
+  @Column({ type: 'varchar', enum: DeviceCategory, default: DeviceCategory.LIGHT })
   category: DeviceCategory
 
   @Column({ length: 100, nullable: true })
@@ -70,13 +70,13 @@ export class Device {
   @Column({ type: 'date', nullable: true })
   installDate?: string
 
-  @Column({ type: 'enum', enum: DeviceStatus, default: DeviceStatus.NORMAL })
+  @Column({ type: 'varchar', enum: DeviceStatus, default: DeviceStatus.NORMAL })
   status: DeviceStatus
 
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 100 })
   healthScore: number
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   lastMaintainAt?: Date
 
   @Column({ nullable: true })

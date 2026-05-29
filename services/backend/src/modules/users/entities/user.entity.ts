@@ -34,15 +34,15 @@ export class User {
   passwordHash: string
 
   @ApiProperty({ enum: UserRole, description: '角色' })
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.ENGINEER })
+  @Column({ type: 'varchar', enum: UserRole, default: UserRole.ENGINEER })
   role: UserRole
 
   @ApiProperty({ description: '可访问的项目ID列表' })
-  @Column({ type: 'jsonb', default: '[]' })
+  @Column({ type: 'simple-json', default: '[]' })
   projectIds: string[]
 
   @ApiProperty({ description: '技能标签' })
-  @Column({ type: 'jsonb', default: '[]' })
+  @Column({ type: 'simple-json', default: '[]' })
   skillTags: string[]
 
   @ApiProperty({ required: false })

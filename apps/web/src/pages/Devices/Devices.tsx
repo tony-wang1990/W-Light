@@ -1,35 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, QrCode, MoreHorizontal } from 'lucide-react';
+import { apiClient } from '../../api/client';
 import styles from './Devices.module.css';
 
-// 模拟设备数据
-const MOCK_DEVICES = Array.from({ length: 15 }).map((_, i) => ({
-  id: `DEV-2026-${(i + 1).toString().padStart(4, '0')}`,
-  name: i % 3 === 0 ? 'MA3 全尺寸控台' : i % 2 === 0 ? 'Martin MAC Viper Profile' : 'Claypaky Mythos 2',
-  category: i % 3 === 0 ? '控制台' : '摇头灯',
-  location: i % 2 === 0 ? '主舞台 A 区' : '观众席 B 区',
-  status: i % 5 === 0 ? 'MAINTENANCE' : (i % 8 === 0 ? 'OFFLINE' : 'ONLINE'),
-  lastInspect: '2026-05-28',
-  health: 100 - (i * 2),
-}));
+interface Device {
+  id: string;
+  deviceNo: string;
+  name: string;
+  category: string;
+  location: string;
+  status: string;
+  healthScore: number;
+  lastMaintainAt: string | null;
+}
 
 export default function Devices() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        const res = await apiClient.get('/devices');
+        // Backend returns standard response: { code: 200, data: { items: [], total: 0 } }
+        setDevices(res.data.items || res.data || []);
+      } catch (err) {
+        console.error('Failed to fetch devices:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDevices();
+  }, []);
 
   const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'ONLINE': return styles.statusOnline;
-      case 'MAINTENANCE': return styles.statusMaintenance;
-      case 'OFFLINE': return styles.statusOffline;
+    const s = status?.toLowerCase();
+    switch (s) {
+      case 'normal': return styles.statusOnline;
+      case 'maintenance': return styles.statusMaintenance;
+      case 'fault':
+      case 'offline': return styles.statusOffline;
       default: return '';
     }
   };
 
   const getStatusText = (status: string) => {
-    switch (status) {
-      case 'ONLINE': return '正常运行';
-      case 'MAINTENANCE': return '报修中';
-      case 'OFFLINE': return '离线';
+    const s = status?.toLowerCase();
+    switch (s) {
+      case 'normal': return '正常运行';
+      case 'maintenance': return '报修中';
+      case 'fault': return '故障';
+      case 'offline': return '离线';
       default: return '未知';
     }
   };
@@ -82,9 +104,11 @@ export default function Devices() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_DEVICES.map(device => (
+              {loading ? (
+                <tr><td colSpan={8} style={{ textAlign: 'center' }}>加载中...</td></tr>
+              ) : devices.map(device => (
                 <tr key={device.id}>
-                  <td className={styles.cellId}>{device.id}</td>
+                  <td className={styles.cellId}>{device.deviceNo}</td>
                   <td className={styles.cellName}>{device.name}</td>
                   <td className={styles.cellCategory}>{device.category}</td>
                   <td>{device.location}</td>
@@ -98,14 +122,14 @@ export default function Devices() {
                       <div 
                         className={styles.healthProgress} 
                         style={{ 
-                          width: `${device.health}%`,
-                          backgroundColor: device.health > 80 ? '#1EAE98' : (device.health > 60 ? '#F59E0B' : '#DC3545')
+                          width: `${device.healthScore}%`,
+                          backgroundColor: device.healthScore > 80 ? '#1EAE98' : (device.healthScore > 60 ? '#F59E0B' : '#DC3545')
                         }} 
                       />
                     </div>
-                    <span className={styles.healthText}>{device.health}分</span>
+                    <span className={styles.healthText}>{device.healthScore}分</span>
                   </td>
-                  <td className={styles.cellDate}>{device.lastInspect}</td>
+                  <td className={styles.cellDate}>{device.lastMaintainAt ? new Date(device.lastMaintainAt).toLocaleDateString() : '从未'}</td>
                   <td>
                     <button className={styles.actionBtn}>
                       <MoreHorizontal size={18} />

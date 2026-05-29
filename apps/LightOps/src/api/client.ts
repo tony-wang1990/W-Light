@@ -4,7 +4,7 @@ import { MMKV } from 'react-native-mmkv'
 const storage = new MMKV()
 
 const API_BASE_URL = __DEV__
-  ? 'http://10.0.2.2:3000/v1'  // Android Emulator → localhost
+  ? 'http://10.16.194.88:3000/v1'  // Android Emulator → localhost
   : 'https://api.lightops.com/v1'
 
 const apiClient: AxiosInstance = axios.create({

@@ -27,31 +27,32 @@ import { HealthModule } from './modules/health/health.module'
     // TypeORM 数据库连接
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        database: config.get<string>('DB_NAME', 'lightops'),
-        username: config.get<string>('DB_USER', 'lightops'),
-        password: config.get<string>('DB_PASSWORD', ''),
-        entities: [__dirname + '/modules/**/*.entity{.ts,.js}'],
-        synchronize: config.get<string>('NODE_ENV') === 'development', // 生产环境禁用！使用迁移
-        logging: config.get<string>('NODE_ENV') === 'development',
-        ssl: config.get<string>('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
-      }),
-      inject: [ConfigService],
-    }),
-
-    // BullMQ Redis 队列
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        redis: {
-          host: config.get<string>('REDIS_HOST', 'localhost'),
-          port: config.get<number>('REDIS_PORT', 6379),
-          password: config.get<string>('REDIS_PASSWORD', ''),
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const dbType = config.get<string>('DB_TYPE', 'postgres');
+        
+        if (dbType === 'sqlite') {
+          return {
+            type: 'sqlite',
+            database: config.get<string>('DB_DATABASE', 'lightops.sqlite'),
+            entities: [__dirname + '/modules/**/*.entity{.ts,.js}'],
+            synchronize: true, // Auto-create tables for local sqlite dev
+            logging: true,
+          };
+        }
+        
+        return {
+          type: 'postgres',
+          host: config.get<string>('DB_HOST', 'localhost'),
+          port: config.get<number>('DB_PORT', 5432),
+          database: config.get<string>('DB_NAME', 'lightops'),
+          username: config.get<string>('DB_USER', 'lightops'),
+          password: config.get<string>('DB_PASSWORD', ''),
+          entities: [__dirname + '/modules/**/*.entity{.ts,.js}'],
+          synchronize: config.get<string>('NODE_ENV') === 'development', // 生产环境禁用！使用迁移
+          logging: config.get<string>('NODE_ENV') === 'development',
+          ssl: config.get<string>('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
+        };
+      },
       inject: [ConfigService],
     }),
 

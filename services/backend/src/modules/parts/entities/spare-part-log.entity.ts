@@ -6,7 +6,7 @@ export enum StockOpType { INBOUND = 'inbound', OUTBOUND = 'outbound' }
 export class SparePartLog {
   @PrimaryGeneratedColumn('uuid') id: string
   @Column() partId: string
-  @Column({ type: 'enum', enum: StockOpType }) opType: StockOpType
+  @Column({ type: 'varchar', enum: StockOpType }) opType: StockOpType
   @Column({ type: 'decimal', precision: 10, scale: 2 }) quantity: number
   @Column({ nullable: true }) orderId?: string
   @Column() operatorId: string

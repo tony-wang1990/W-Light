@@ -31,7 +31,7 @@ export class Project {
   @JoinColumn({ name: 'managerId' })
   manager?: User
 
-  @Column({ type: 'enum', enum: ProjectStatus, default: ProjectStatus.ACTIVE })
+  @Column({ type: 'varchar', enum: ProjectStatus, default: ProjectStatus.ACTIVE })
   status: ProjectStatus
 
   @CreateDateColumn()

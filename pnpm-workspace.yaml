@@ -6,6 +6,7 @@ allowBuilds:
   'esbuild': true
   '@nestjs/core': true
   '@shopify/react-native-skia': true
+  sqlite3: true
   bcrypt: true
   msgpackr-extract: true
   protobufjs: true

@@ -30,7 +30,7 @@ export class RepairLog {
   @Column({ type: 'text' })
   stepDesc: string
 
-  @Column({ type: 'jsonb', default: '[]' })
+  @Column({ type: 'simple-json', default: '[]' })
   photoUrls: string[]
 
   @Column({ length: 100, nullable: true })
