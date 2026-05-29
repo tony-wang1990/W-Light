@@ -18,18 +18,10 @@ export default function Login() {
     setLoading(true);
     setErrorMsg('');
     try {
-      // ==== 临时演示模式 ====
-      if (phone === 'admin' && password === 'admin') {
-        setTimeout(() => {
-          setLoading(false);
-          navigate('/dashboard');
-        }, 500);
-        return;
-      }
-      // ====================
+
 
       const res = await apiClient.post('/auth/login', { phone, password });
-      useAuthStore.getState().setAuth(res.data.accessToken, res.data.user);
+      useAuthStore.getState().setAuth(res.accessToken, res.user);
       setLoading(false);
       navigate('/dashboard');
     } catch (error: any) {
@@ -113,7 +105,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="请输入密码 (如: admin)"
+                placeholder="请输入密码 (如: Admin@123)"
                 required
               />
             </div>

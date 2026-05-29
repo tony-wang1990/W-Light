@@ -24,7 +24,7 @@ export default function Devices() {
       try {
         const res = await apiClient.get('/devices');
         // Backend returns standard response: { code: 200, data: { items: [], total: 0 } }
-        setDevices(res.data.items || res.data || []);
+        setDevices(res.items || res || []);
       } catch (err) {
         console.error('Failed to fetch devices:', err);
       } finally {

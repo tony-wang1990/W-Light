@@ -21,7 +21,7 @@ export default function Orders() {
     const fetchOrders = async () => {
       try {
         const res = await apiClient.get('/orders');
-        setOrders(res.data.items || res.data || []);
+        setOrders(res.items || res || []);
       } catch (err) {
         console.error('Failed to fetch orders:', err);
       } finally {

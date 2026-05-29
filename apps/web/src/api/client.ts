@@ -16,10 +16,7 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => {
-    // Standard response format: { code: 200, data: ..., msg: '...' }
-    if (response.data.code !== 200 && response.data.code !== 201) {
-      return Promise.reject(new Error(response.data.msg || 'Request failed'));
-    }
+    // NestJS directly returns the data or throws standard HTTP errors
     return response.data;
   },
   (error) => {
