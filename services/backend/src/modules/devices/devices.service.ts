@@ -7,7 +7,10 @@ import { Device, DeviceStatus } from './entities/device.entity'
 export class DevicesService {
   constructor(@InjectRepository(Device) private readonly repo: Repository<Device>) {}
 
-  create(dto: Partial<Device>) { return this.repo.save(this.repo.create(dto)) }
+  create(dto: Partial<Device>) { 
+    if (!dto.qrCode) dto.qrCode = dto.deviceNo || `DEV-${Date.now()}`
+    return this.repo.save(this.repo.create(dto)) 
+  }
 
   findAll(projectId: string, category?: string, status?: string) {
     const qb = this.repo.createQueryBuilder('d').where('d.projectId = :projectId', { projectId })

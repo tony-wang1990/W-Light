@@ -13,7 +13,9 @@ export class DevicesController {
 
   @Post()
   @ApiOperation({ summary: '新增设备' })
-  create(@Body() dto: Partial<Device>) { return this.svc.create(dto) }
+  create(@Body() dto: Partial<Device>, @Request() req) { 
+    return this.svc.create({ ...dto, projectId: req.headers['x-project-id'] }) 
+  }
 
   @Post('batch-import')
   @ApiOperation({ summary: '批量导入设备' })

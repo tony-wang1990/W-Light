@@ -7,10 +7,15 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
+  const state = useAuthStore.getState();
+  const token = state.token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  const projectId = state.user?.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6';
+  config.headers['X-Project-Id'] = projectId;
+  
   return config;
 });
 
