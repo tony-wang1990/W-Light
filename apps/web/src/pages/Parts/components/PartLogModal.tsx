@@ -13,7 +13,7 @@ interface PartLogModalProps {
 export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }: PartLogModalProps) {
   const [formData, setFormData] = useState({
     quantity: 1,
-    remark: '',
+    note: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
     if (isOpen) {
       setFormData({
         quantity: 1,
-        remark: type === 'in' ? '采购入库' : '领料出库',
+        note: type === 'in' ? '采购入库' : '领料出库',
       });
       setErrorMsg('');
     }
@@ -41,8 +41,8 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (type === 'out' && formData.quantity > part.currentStock) {
-      setErrorMsg('库存不足！当前库存只有 ' + part.currentStock);
+    if (type === 'out' && formData.quantity > part.stock) {
+      setErrorMsg('库存不足！当前库存只有 ' + part.stock);
       return;
     }
     
@@ -50,16 +50,31 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
     setErrorMsg('');
     try {
       const { apiClient } = await import('../../../api/client');
-      // Using the backend endpoints we created:
-      // POST /parts/:id/inbound or POST /parts/:id/outbound
-      await apiClient.post(`/parts/${part.id}/${type === 'in' ? 'inbound' : 'outbound'}`, {
+      // Get current user for operatorId
+      const me = await apiClient.get('/auth/me');
+      // POST /spare-parts/logs with correct opType: 'inbound' or 'outbound'
+      await apiClient.post('/spare-parts/logs', {
+        partId: part.id,
+        opType: type === 'in' ? 'inbound' : 'outbound',
         quantity: formData.quantity,
-        remark: formData.remark,
+        note: formData.note,
+        operatorId: me.id,
       });
       onSuccess();
       onClose();
     } catch (error: any) {
-      setErrorMsg(error.message || '操作失败');
+      // Fallback: try direct inbound/outbound endpoints
+      try {
+        const { apiClient } = await import('../../../api/client');
+        await apiClient.post(`/parts/${part.id}/${type === 'in' ? 'inbound' : 'outbound'}`, {
+          quantity: formData.quantity,
+          note: formData.note,
+        });
+        onSuccess();
+        onClose();
+      } catch (err2: any) {
+        setErrorMsg(error.message || '操作失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -84,9 +99,8 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
           <div style={{ padding: '24px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
             <div style={{ fontWeight: 600, color: '#111827', fontSize: 16 }}>{part.name}</div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: '#6B7280' }}>
-              <span>编号: {part.partNo}</span>
-              <span>规格: {part.specification || '无'}</span>
-              <span>当前库存: <strong style={{color: type === 'out' ? '#DC2626' : '#111827'}}>{part.currentStock} {part.unit}</strong></span>
+              <span>型号: {part.model || '无'}</span>
+              <span>当前库存: <strong style={{color: type === 'out' ? '#DC2626' : '#111827'}}>{part.stock} {part.unit}</strong></span>
             </div>
           </div>
 
@@ -99,15 +113,15 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
                 value={formData.quantity} 
                 onChange={handleChange} 
                 min={1} 
-                max={type === 'out' ? part.currentStock : undefined}
+                max={type === 'out' ? part.stock : undefined}
                 required 
               />
             </div>
             <div className={styles.formGroup} style={{ gridColumn: 'span 2' }}>
               <label>备注说明</label>
               <input 
-                name="remark" 
-                value={formData.remark} 
+                name="note" 
+                value={formData.note} 
                 onChange={handleChange} 
                 placeholder="请输入说明，例如：用于A区主舞台光束灯维修" 
                 required 

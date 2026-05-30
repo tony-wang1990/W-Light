@@ -106,6 +106,23 @@ export default function Dashboard() {
         setStats(prev => ({ ...prev, engineers: String(userList.length || '-') }));
       } catch { /* ignore */ }
 
+      // 5. 今日巡检计划数
+      try {
+        const inspRes = await apiClient.get('/inspections/plans');
+        const plans = Array.isArray(inspRes) ? inspRes : inspRes.items || [];
+        // Count active plans that have nextInspectionAt today or earlier
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayPlans = plans.filter((p: any) => {
+          if (!p.isActive) return false;
+          if (!p.nextInspectionAt) return p.frequency === 'daily';
+          const next = new Date(p.nextInspectionAt);
+          next.setHours(0, 0, 0, 0);
+          return next <= today;
+        });
+        setStats(prev => ({ ...prev, todayInspections: String(todayPlans.length || plans.filter((p: any) => p.isActive).length) }));
+      } catch { /* ignore */ }
+
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Dashboard load error:', err);

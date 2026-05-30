@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Plus, QrCode, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Search, Filter, Plus, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import DeviceModal from './components/DeviceModal';
+import DeviceDetailModal from './components/DeviceDetailModal';
 import styles from './Devices.module.css';
 
 interface Device {
@@ -13,6 +14,10 @@ interface Device {
   status: string;
   healthScore: number;
   lastMaintainAt: string | null;
+  model?: string;
+  manufacturer?: string;
+  qrCode?: string;
+  projectId?: string;
 }
 
 export default function Devices() {
@@ -23,12 +28,12 @@ export default function Devices() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | undefined>();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
 
   const fetchDevices = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiClient.get('/devices');
-      // Backend returns standard response: { code: 200, data: { items: [], total: 0 } }
       setDevices(res.items || res || []);
     } catch (err) {
       console.error('Failed to fetch devices:', err);
@@ -63,6 +68,12 @@ export default function Devices() {
     setActiveMenuId(null);
   };
 
+  const handleRowClick = (device: Device, e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+    setSelectedDevice(device);
+  };
+
   const getStatusStyle = (status: string) => {
     const s = status?.toLowerCase();
     switch (s) {
@@ -84,6 +95,12 @@ export default function Devices() {
       default: return '未知';
     }
   };
+
+  const filteredDevices = devices.filter(d =>
+    (d.name || '').includes(searchTerm) ||
+    (d.deviceNo || '').includes(searchTerm) ||
+    (d.location || '').includes(searchTerm)
+  );
 
   return (
     <div className={styles.container}>
@@ -134,8 +151,10 @@ export default function Devices() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center' }}>加载中...</td></tr>
-              ) : devices.map(device => (
-                <tr key={device.id}>
+              ) : filteredDevices.length === 0 ? (
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: '#9CA3AF' }}>暂无设备数据</td></tr>
+              ) : filteredDevices.map(device => (
+                <tr key={device.id} onClick={(e) => handleRowClick(device, e)} style={{ cursor: 'pointer' }}>
                   <td className={styles.cellId}>{device.deviceNo}</td>
                   <td className={styles.cellName}>{device.name}</td>
                   <td className={styles.cellCategory}>{device.category}</td>
@@ -150,27 +169,27 @@ export default function Devices() {
                       <div 
                         className={styles.healthProgress} 
                         style={{ 
-                          width: `${device.healthScore}%`,
-                          backgroundColor: device.healthScore > 80 ? '#1EAE98' : (device.healthScore > 60 ? '#F59E0B' : '#DC3545')
+                          width: `${device.healthScore || 0}%`,
+                          backgroundColor: (device.healthScore || 0) > 80 ? '#1EAE98' : ((device.healthScore || 0) > 60 ? '#F59E0B' : '#DC3545')
                         }} 
                       />
                     </div>
-                    <span className={styles.healthText}>{device.healthScore}分</span>
+                    <span className={styles.healthText}>{device.healthScore || 0}分</span>
                   </td>
                   <td className={styles.cellDate}>{device.lastMaintainAt ? new Date(device.lastMaintainAt).toLocaleDateString() : '从未'}</td>
                   <td style={{ position: 'relative' }}>
                     <button 
                       className={styles.actionBtn}
-                      onClick={() => setActiveMenuId(activeMenuId === device.id ? null : device.id)}
+                      onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === device.id ? null : device.id); }}
                     >
                       <MoreHorizontal size={18} />
                     </button>
                     {activeMenuId === device.id && (
                       <div className={styles.dropdownMenu}>
-                        <button onClick={() => handleEditDevice(device)}>
+                        <button onClick={(e) => { e.stopPropagation(); handleEditDevice(device); }}>
                           <Edit size={14} /> 编辑
                         </button>
-                        <button className={styles.dangerBtn} onClick={() => handleDeleteDevice(device.id)}>
+                        <button className={styles.dangerBtn} onClick={(e) => { e.stopPropagation(); handleDeleteDevice(device.id); }}>
                           <Trash2 size={14} /> 删除
                         </button>
                       </div>
@@ -183,22 +202,26 @@ export default function Devices() {
         </div>
         
         <div className={styles.pagination}>
-          <span className={styles.pageInfo}>共 1,248 条记录，当前 1/84 页</span>
-          <div className={styles.pageControls}>
-            <button className={styles.pageBtn} disabled>上一页</button>
-            <button className={styles.pageBtn}>下一页</button>
-          </div>
+          <span className={styles.pageInfo}>共 {filteredDevices.length} 条记录</span>
         </div>
       </div>
 
       {isModalOpen && (
         <DeviceModal 
+          isOpen={isModalOpen}
           device={editingDevice} 
           onClose={() => setIsModalOpen(false)} 
-          onSaved={() => {
+          onSuccess={() => {
             setIsModalOpen(false);
             fetchDevices();
           }} 
+        />
+      )}
+
+      {selectedDevice && (
+        <DeviceDetailModal
+          device={selectedDevice}
+          onClose={() => setSelectedDevice(null)}
         />
       )}
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import OrderModal from './components/OrderModal';
+import OrderDetailDrawer from './components/OrderDetailDrawer';
 import styles from './Orders.module.css';
 
 interface Order {
@@ -12,8 +13,9 @@ interface Order {
   priority: string;
   assigneeName?: string;
   reporter?: { name: string };
-  device?: { name: string };
+  device?: { name: string; deviceNo?: string };
   createdAt: string;
+  category?: string;
 }
 
 const STATUS_OPTIONS = [
@@ -40,6 +42,7 @@ export default function Orders() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [showFilter, setShowFilter] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -92,6 +95,12 @@ export default function Orders() {
     }
   };
 
+  const handleCardClick = (order: Order, e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+    setSelectedOrder(order);
+  };
+
   const renderColumn = (statuses: string[], title: string) => {
     const columnOrders = orders.filter(o => statuses.includes(o.status?.toLowerCase()));
     return (
@@ -102,7 +111,12 @@ export default function Orders() {
         </div>
         <div className={styles.orderList}>
           {columnOrders.map(order => (
-            <div key={order.id} className={styles.orderCard}>
+            <div 
+              key={order.id} 
+              className={styles.orderCard}
+              onClick={(e) => handleCardClick(order, e)}
+              style={{ cursor: 'pointer' }}
+            >
               <div className={styles.orderHeader}>
                 <span className={styles.orderId}>{order.orderNo}</span>
                 <span className={`${styles.priorityBadge} ${getPriorityStyle(order.priority)}`}>
@@ -122,16 +136,16 @@ export default function Orders() {
                 </div>
                 <div className={styles.cardActions}>
                   {order.status === 'pending' && (
-                    <button className={styles.actionBtn} onClick={() => handleStatusUpdate(order.id, 'assign')}>接单</button>
+                    <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); handleStatusUpdate(order.id, 'assign'); }}>接单</button>
                   )}
                   {order.status === 'assigned' && (
-                    <button className={styles.actionBtn} onClick={() => handleStatusUpdate(order.id, 'accept')}>确认接单</button>
+                    <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); handleStatusUpdate(order.id, 'accept'); }}>确认接单</button>
                   )}
                   {order.status === 'processing' && (
-                    <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={() => handleStatusUpdate(order.id, 'submit')}>提交验收</button>
+                    <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={(e) => { e.stopPropagation(); handleStatusUpdate(order.id, 'submit'); }}>提交验收</button>
                   )}
                   {order.status === 'reviewing' && (
-                    <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={() => handleStatusUpdate(order.id, 'accept-check')}>通过验收</button>
+                    <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={(e) => { e.stopPropagation(); handleStatusUpdate(order.id, 'accept-check'); }}>通过验收</button>
                   )}
                 </div>
               </div>
@@ -205,9 +219,17 @@ export default function Orders() {
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchOrders}
       />
+
+      {selectedOrder && (
+        <OrderDetailDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onUpdated={() => {
+            setSelectedOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
     </div>
   );
 }
-
-
-

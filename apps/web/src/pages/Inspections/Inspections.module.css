@@ -254,3 +254,20 @@
   transition: background 0.2s;
 }
 .cancelBtn:hover { background: #F9FAFB; }
+
+.recordBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: rgba(59,130,246,0.08);
+  color: #3B82F6;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.recordBtn:hover { background: rgba(59,130,246,0.15); }
+.recordBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, ClipboardCheck, Calendar, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { Plus, ClipboardCheck, Calendar, CheckCircle2, AlertCircle, Trash2, Send } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import styles from './Inspections.module.css';
 
@@ -31,6 +31,12 @@ export default function Inspections() {
   const [form, setForm] = useState({ name: '', frequency: 'weekly' });
   const [saving, setSaving] = useState(false);
 
+  // Record modal state
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<InspectionPlan | null>(null);
+  const [recordForm, setRecordForm] = useState({ status: 'normal', resultDesc: '' });
+  const [submittingRecord, setSubmittingRecord] = useState(false);
+
   const fetchPlans = useCallback(async () => {
     setLoading(true);
     try {
@@ -49,7 +55,11 @@ export default function Inspections() {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      await apiClient.post('/inspections/plans', form);
+      const me = await apiClient.get('/auth/me');
+      await apiClient.post('/inspections/plans', {
+        ...form,
+        projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6',
+      });
       setShowModal(false);
       setForm({ name: '', frequency: 'weekly' });
       fetchPlans();
@@ -67,6 +77,31 @@ export default function Inspections() {
       fetchPlans();
     } catch (err: any) {
       alert(err.message || '删除失败');
+    }
+  };
+
+  const handleOpenRecord = (plan: InspectionPlan) => {
+    setSelectedPlan(plan);
+    setRecordForm({ status: 'normal', resultDesc: '' });
+    setShowRecordModal(true);
+  };
+
+  const handleSubmitRecord = async () => {
+    if (!selectedPlan) return;
+    setSubmittingRecord(true);
+    try {
+      await apiClient.post('/inspections/records', {
+        planId: selectedPlan.id,
+        status: recordForm.status,
+        resultDesc: recordForm.resultDesc,
+      });
+      setShowRecordModal(false);
+      setSelectedPlan(null);
+      alert('巡检记录提交成功！');
+    } catch (err: any) {
+      alert(err.message || '提交失败');
+    } finally {
+      setSubmittingRecord(false);
     }
   };
 
@@ -165,9 +200,19 @@ export default function Inspections() {
                     </span>
                   </td>
                   <td>
-                    <button className={styles.dangerBtn} onClick={() => handleDelete(plan.id)}>
-                      <Trash2 size={13} /> 停用
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className={styles.recordBtn}
+                        onClick={() => handleOpenRecord(plan)}
+                        disabled={!plan.isActive}
+                        title="提交巡检记录"
+                      >
+                        <Send size={13} /> 提交记录
+                      </button>
+                      <button className={styles.dangerBtn} onClick={() => handleDelete(plan.id)}>
+                        <Trash2 size={13} /> 停用
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -176,7 +221,7 @@ export default function Inspections() {
         )}
       </div>
 
-      {/* Create Modal */}
+      {/* Create Plan Modal */}
       {showModal && (
         <div className={styles.overlay} onClick={() => setShowModal(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
@@ -206,6 +251,68 @@ export default function Inspections() {
               <button className={styles.cancelBtn} onClick={() => setShowModal(false)}>取消</button>
               <button className={styles.primaryBtn} onClick={handleCreate} disabled={saving}>
                 {saving ? '保存中...' : '创建计划'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Record Modal */}
+      {showRecordModal && selectedPlan && (
+        <div className={styles.overlay} onClick={() => setShowRecordModal(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>提交巡检记录</h2>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>巡检计划</label>
+              <div style={{ 
+                padding: '10px 12px', 
+                background: '#F9FAFB', 
+                border: '1px solid #E5E7EB', 
+                borderRadius: 8, 
+                fontSize: 14, 
+                color: '#374151',
+                fontWeight: 500 
+              }}>
+                {selectedPlan.name}
+              </div>
+            </div>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>巡检状态 *</label>
+              <select
+                className={styles.input}
+                value={recordForm.status}
+                onChange={e => setRecordForm(f => ({ ...f, status: e.target.value }))}
+              >
+                <option value="normal">✅ 正常</option>
+                <option value="abnormal">⚠️ 异常</option>
+              </select>
+            </div>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>巡检结果描述</label>
+              <textarea
+                className={styles.input}
+                style={{ resize: 'vertical', minHeight: 100 }}
+                value={recordForm.resultDesc}
+                onChange={e => setRecordForm(f => ({ ...f, resultDesc: e.target.value }))}
+                placeholder={recordForm.status === 'normal' 
+                  ? '设备运行正常，无异常情况...' 
+                  : '请描述发现的异常问题及处理情况...'}
+                rows={4}
+              />
+            </div>
+            
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelBtn} onClick={() => setShowRecordModal(false)}>取消</button>
+              <button 
+                className={styles.primaryBtn} 
+                onClick={handleSubmitRecord} 
+                disabled={submittingRecord}
+                style={{ backgroundColor: recordForm.status === 'abnormal' ? '#F59E0B' : undefined }}
+              >
+                {submittingRecord ? '提交中...' : '确认提交'}
               </button>
             </div>
           </div>

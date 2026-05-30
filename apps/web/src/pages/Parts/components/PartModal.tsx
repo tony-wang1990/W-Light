@@ -11,12 +11,12 @@ interface PartModalProps {
 
 export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModalProps) {
   const [formData, setFormData] = useState({
-    partNo: '',
     name: '',
-    category: '光源',
-    specification: '',
+    model: '',
     unit: '个',
-    safeStock: 5,
+    minStock: 5,
+    supplier: '',
+    supplierPhone: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -26,21 +26,21 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
     if (isOpen) {
       if (part) {
         setFormData({
-          partNo: part.partNo || '',
           name: part.name || '',
-          category: part.category || '光源',
-          specification: part.specification || '',
+          model: part.model || '',
           unit: part.unit || '个',
-          safeStock: part.safeStock || 5,
+          minStock: part.minStock ?? 5,
+          supplier: part.supplier || '',
+          supplierPhone: part.supplierPhone || '',
         });
       } else {
         setFormData({
-          partNo: `PT-${Math.floor(1000 + Math.random() * 9000)}`,
           name: '',
-          category: '光源',
-          specification: '',
+          model: '',
           unit: '个',
-          safeStock: 5,
+          minStock: 5,
+          supplier: '',
+          supplierPhone: '',
         });
       }
       setErrorMsg('');
@@ -53,7 +53,7 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
     const { name, value } = e.target;
     setFormData((prev) => ({ 
       ...prev, 
-      [name]: name === 'safeStock' ? Number(value) : value 
+      [name]: name === 'minStock' ? Number(value) : value 
     }));
   };
 
@@ -69,7 +69,7 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
         const me = await apiClient.get('/auth/me');
         await apiClient.post('/parts', {
           ...formData,
-          projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6'
+          projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6',
         });
       }
       onSuccess();
@@ -96,34 +96,28 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
           
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>备件编号</label>
-              <input name="partNo" value={formData.partNo} onChange={handleChange} required />
-            </div>
-            <div className={styles.formGroup}>
-              <label>备件名称</label>
+              <label>备件名称 *</label>
               <input name="name" value={formData.name} onChange={handleChange} required placeholder="例如: 欧司朗 330W 灯泡" />
             </div>
             <div className={styles.formGroup}>
-              <label>分类</label>
-              <select name="category" value={formData.category} onChange={handleChange}>
-                <option value="光源">光源</option>
-                <option value="线材">线材</option>
-                <option value="配件">配件</option>
-                <option value="五金">五金</option>
-                <option value="其他">其他</option>
-              </select>
+              <label>型号规格</label>
+              <input name="model" value={formData.model} onChange={handleChange} placeholder="例如: 330W 15R" />
             </div>
             <div className={styles.formGroup}>
-              <label>规格参数</label>
-              <input name="specification" value={formData.specification} onChange={handleChange} placeholder="例如: 330W 15R" />
-            </div>
-            <div className={styles.formGroup}>
-              <label>单位</label>
+              <label>单位 *</label>
               <input name="unit" value={formData.unit} onChange={handleChange} placeholder="例如: 个、米" required />
             </div>
             <div className={styles.formGroup}>
               <label>安全库存阈值</label>
-              <input type="number" name="safeStock" value={formData.safeStock} onChange={handleChange} min={0} required />
+              <input type="number" name="minStock" value={formData.minStock} onChange={handleChange} min={0} required />
+            </div>
+            <div className={styles.formGroup}>
+              <label>供应商</label>
+              <input name="supplier" value={formData.supplier} onChange={handleChange} placeholder="例如: 鑫海光电" />
+            </div>
+            <div className={styles.formGroup}>
+              <label>供应商电话</label>
+              <input name="supplierPhone" value={formData.supplierPhone} onChange={handleChange} placeholder="例如: 13800138000" />
             </div>
           </div>
           

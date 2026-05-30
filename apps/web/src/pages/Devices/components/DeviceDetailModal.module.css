@@ -1,0 +1,249 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  width: 560px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.deviceIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(0, 166, 126, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.deviceName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.deviceNo {
+  font-size: 12px;
+  font-family: monospace;
+  color: #6B7280;
+  background: #F3F4F6;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.closeBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #F3F4F6;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.closeBtn:hover { background: #E5E7EB; }
+
+.body {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.healthInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.healthBar {
+  flex: 1;
+  height: 8px;
+  background: #E5E7EB;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 80px;
+}
+
+.healthFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  background: #F9FAFB;
+  border-radius: 10px;
+}
+
+.infoLabel {
+  font-size: 11px;
+  color: #9CA3AF;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.infoValue {
+  font-size: 14px;
+  color: #111827;
+  font-weight: 500;
+}
+
+.qrSection {
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.qrHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.qrContent {
+  padding: 20px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.qrCodeDisplay {
+  flex-shrink: 0;
+}
+
+.qrCodeGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+}
+
+.qrRow {
+  display: flex;
+  gap: 2px;
+}
+
+.qrCell {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+}
+
+.qrCodeText {
+  flex: 1;
+}
+
+.qrCodeLabel {
+  font-size: 11px;
+  color: #9CA3AF;
+  font-weight: 500;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.qrCodeValue {
+  font-size: 12px;
+  font-family: monospace;
+  color: #374151;
+  word-break: break-all;
+  background: #F3F4F6;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.qrEmpty {
+  padding: 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #9CA3AF;
+}
+
+.qrEmpty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.qrEmpty span {
+  font-size: 11px;
+  font-family: monospace;
+  background: #F3F4F6;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: #6B7280;
+}

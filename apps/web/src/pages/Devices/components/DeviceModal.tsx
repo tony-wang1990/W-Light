@@ -63,12 +63,11 @@ export default function DeviceModal({ isOpen, onClose, onSuccess, device }: Devi
       if (device?.id) {
         await apiClient.put(`/devices/${device.id}`, formData);
       } else {
-        // Mock a projectId for now since user is admin and may not have one selected
-        // In a real app we would pick from a dropdown
         const me = await apiClient.get('/auth/me');
-        // Let's just create it directly
-        // Wait, the API requires projectId? Let's check backend DTO
-        await apiClient.post('/devices', formData);
+        await apiClient.post('/devices', {
+          ...formData,
+          projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6',
+        });
       }
       onSuccess();
       onClose();

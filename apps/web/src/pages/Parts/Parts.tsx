@@ -70,7 +70,7 @@ export default function Parts() {
   };
 
   const filteredParts = parts.filter(p => 
-    p.name.includes(searchTerm) || p.partNo.includes(searchTerm)
+    p.name.includes(searchTerm) || (p.model || '').includes(searchTerm)
   );
 
   return (
@@ -97,7 +97,7 @@ export default function Parts() {
         <div className={styles.statCard}>
           <span className={styles.statLabel}>库存不足警告</span>
           <h3 className={styles.statValue} style={{ color: '#DC2626' }}>
-            {parts.filter(p => p.currentStock < p.safeStock).length}
+            {parts.filter(p => p.stock < p.minStock).length}
           </h3>
         </div>
       </div>
