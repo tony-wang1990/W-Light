@@ -7,9 +7,16 @@ import { Device, DeviceStatus } from './entities/device.entity'
 export class DevicesService {
   constructor(@InjectRepository(Device) private readonly repo: Repository<Device>) {}
 
-  create(dto: Partial<Device>) { 
-    if (!dto.qrCode) dto.qrCode = dto.deviceNo || `DEV-${Date.now()}`
-    return this.repo.save(this.repo.create(dto)) 
+  private normalizeDevice(dto: Partial<Device>) {
+    const normalized = { ...dto }
+    if (!normalized.qrCode) {
+      normalized.qrCode = normalized.deviceNo || `DEV-${Date.now()}`
+    }
+    return normalized
+  }
+
+  create(dto: Partial<Device>) {
+    return this.repo.save(this.repo.create(this.normalizeDevice(dto)))
   }
 
   findAll(projectId: string, category?: string, status?: string, keyword?: string) {
@@ -49,6 +56,12 @@ export class DevicesService {
     return this.repo.save(Object.assign(d, dto))
   }
 
+  async remove(id: string): Promise<{ deleted: true }> {
+    const d = await this.findOne(id)
+    await this.repo.remove(d)
+    return { deleted: true }
+  }
+
   /** 更新设备健康分 */
   async updateHealthScore(id: string, score: number): Promise<void> {
     await this.repo.update(id, { healthScore: Math.max(0, Math.min(100, score)) })
@@ -60,12 +73,12 @@ export class DevicesService {
     return { device, hint: `已识别设备: ${device.name} (${device.deviceNo})` }
   }
 
-  async batchImport(devices: Partial<Device>[]): Promise<{ imported: number; errors: string[] }> {
+  async batchImport(devices: Partial<Device>[], projectId: string): Promise<{ imported: number; errors: string[] }> {
     const errors: string[] = []
     let imported = 0
     for (const d of devices) {
       try {
-        await this.repo.save(this.repo.create(d))
+        await this.repo.save(this.repo.create(this.normalizeDevice({ ...d, projectId: d.projectId || projectId })))
         imported++
       } catch (e) {
         errors.push(`${d.deviceNo}: ${e.message}`)

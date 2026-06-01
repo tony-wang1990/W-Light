@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Plus, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import QRCode from 'qrcode';
+import { Search, Filter, Plus, MoreHorizontal, Edit, Trash2, QrCode as QrCodeIcon, Printer, X } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import DeviceModal from './components/DeviceModal';
 import DeviceDetailModal from './components/DeviceDetailModal';
@@ -20,10 +21,27 @@ interface Device {
   projectId?: string;
 }
 
+interface QrLabel {
+  device: Device;
+  dataUrl: string;
+}
+
+function escapeHtml(value: string | undefined) {
+  return (value || '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char] || char));
+}
+
 export default function Devices() {
   const [searchTerm, setSearchTerm] = useState('');
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [qrLabels, setQrLabels] = useState<QrLabel[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | undefined>();
@@ -102,6 +120,77 @@ export default function Devices() {
     (d.location || '').includes(searchTerm)
   );
 
+  const handleGenerateQrLabels = async () => {
+    const targetDevices = filteredDevices.length > 0 ? filteredDevices : devices;
+    if (targetDevices.length === 0) {
+      alert('暂无可生成二维码的设备');
+      return;
+    }
+
+    setIsGeneratingQr(true);
+    try {
+      const labels = await Promise.all(targetDevices.map(async (device) => {
+        const qrValue = device.qrCode || device.deviceNo || device.id;
+        const dataUrl = await QRCode.toDataURL(qrValue, {
+          width: 192,
+          margin: 1,
+          errorCorrectionLevel: 'M',
+        });
+        return { device: { ...device, qrCode: qrValue }, dataUrl };
+      }));
+      setQrLabels(labels);
+    } catch (error) {
+      console.error('Failed to generate QR labels:', error);
+      alert('生成二维码失败');
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  const handlePrintQrLabels = () => {
+    const printWindow = window.open('', '_blank', 'width=960,height=720');
+    if (!printWindow) {
+      alert('浏览器阻止了打印窗口，请允许弹窗后重试');
+      return;
+    }
+
+    const labelHtml = qrLabels.map(({ device, dataUrl }) => `
+      <section class="label">
+        <img src="${dataUrl}" alt="${escapeHtml(device.deviceNo)}" />
+        <div class="meta">
+          <strong>${escapeHtml(device.deviceNo)}</strong>
+          <span>${escapeHtml(device.name)}</span>
+          <small>${escapeHtml(device.location || device.category)}</small>
+        </div>
+      </section>
+    `).join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>W-Light 设备二维码标签</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 16px; font-family: Arial, "Microsoft YaHei", sans-serif; color: #111827; }
+            .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+            .label { min-height: 136px; border: 1px solid #111827; border-radius: 8px; padding: 10px; display: flex; gap: 10px; align-items: center; break-inside: avoid; }
+            img { width: 96px; height: 96px; flex: 0 0 auto; }
+            .meta { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+            strong { font-size: 15px; font-family: Consolas, monospace; word-break: break-all; }
+            span { font-size: 14px; font-weight: 600; }
+            small { font-size: 12px; color: #4B5563; }
+            @media print { body { padding: 0; } .grid { gap: 8px; } .label { border-color: #000; } }
+          </style>
+        </head>
+        <body><main class="grid">${labelHtml}</main></body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -110,7 +199,10 @@ export default function Devices() {
           <p className={styles.pageSubtitle}>管理所有场馆设备、生成资产二维码与健康度跟踪。</p>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn}>导出台账</button>
+          <button className={styles.exportBtn} onClick={handleGenerateQrLabels} disabled={isGeneratingQr}>
+            <QrCodeIcon size={18} />
+            {isGeneratingQr ? '生成中...' : '批量二维码'}
+          </button>
           <button className={styles.addBtn} onClick={handleAddDevice}>
             <Plus size={18} />
             新增设备
@@ -223,6 +315,40 @@ export default function Devices() {
           device={selectedDevice}
           onClose={() => setSelectedDevice(null)}
         />
+      )}
+
+      {qrLabels.length > 0 && (
+        <div className={styles.qrModalOverlay}>
+          <div className={styles.qrModal}>
+            <div className={styles.qrModalHeader}>
+              <div>
+                <h2>设备二维码标签</h2>
+                <p>共 {qrLabels.length} 台设备，可打印后贴到设备或点位旁。</p>
+              </div>
+              <button className={styles.closeQrBtn} onClick={() => setQrLabels([])}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.qrModalActions}>
+              <button className={styles.addBtn} onClick={handlePrintQrLabels}>
+                <Printer size={18} />
+                打印标签
+              </button>
+            </div>
+            <div className={styles.qrLabelGrid}>
+              {qrLabels.map(({ device, dataUrl }) => (
+                <div className={styles.qrLabel} key={device.id}>
+                  <img src={dataUrl} alt={device.deviceNo} className={styles.qrImage} />
+                  <div className={styles.qrLabelMeta}>
+                    <strong>{device.deviceNo}</strong>
+                    <span>{device.name}</span>
+                    <small>{device.location || device.category}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

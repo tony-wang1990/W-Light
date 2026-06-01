@@ -181,6 +181,16 @@
   flex-shrink: 0;
 }
 
+.qrImage {
+  width: 112px;
+  height: 112px;
+  display: block;
+  padding: 6px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+}
+
 .qrCodeGrid {
   display: flex;
   flex-direction: column;

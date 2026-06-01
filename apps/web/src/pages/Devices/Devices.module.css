@@ -66,6 +66,11 @@
   background-color: #E5E7EB;
 }
 
+.exportBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Table Card */
 .tableCard {
   background-color: var(--color-white);
@@ -395,3 +400,121 @@
 }
 
 .cancelBtn:hover { background: #F9FAFB; }
+
+.qrModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1100;
+}
+
+.qrModal {
+  width: min(960px, 96vw);
+  max-height: 90vh;
+  overflow: hidden;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+}
+
+.qrModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.qrModalHeader h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #111827;
+}
+
+.qrModalHeader p {
+  margin: 6px 0 0;
+  color: #6B7280;
+  font-size: 13px;
+}
+
+.closeQrBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #F3F4F6;
+  color: #4B5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.closeQrBtn:hover {
+  background: #E5E7EB;
+}
+
+.qrModalActions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  background: #F9FAFB;
+}
+
+.qrLabelGrid {
+  padding: 20px 24px 24px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.qrLabel {
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 112px;
+  background: #FFFFFF;
+}
+
+.qrImage {
+  width: 88px;
+  height: 88px;
+  flex: 0 0 auto;
+}
+
+.qrLabelMeta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.qrLabelMeta strong {
+  font-size: 14px;
+  color: #111827;
+  font-family: Consolas, monospace;
+  word-break: break-all;
+}
+
+.qrLabelMeta span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.qrLabelMeta small {
+  font-size: 12px;
+  color: #6B7280;
+}

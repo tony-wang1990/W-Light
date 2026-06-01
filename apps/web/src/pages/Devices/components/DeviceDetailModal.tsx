@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { X, QrCode, MapPin, Tag, Cpu, Building, Activity } from 'lucide-react';
 import styles from './DeviceDetailModal.module.css';
 
@@ -18,6 +19,28 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
   const statusInfo = STATUS_MAP[device.status?.toLowerCase()] || { label: '未知', color: '#9CA3AF' };
   const healthScore = device.healthScore || 0;
   const healthColor = healthScore > 80 ? '#10B981' : healthScore > 60 ? '#F59E0B' : '#EF4444';
+  const qrValue = device.qrCode || device.deviceNo || device.id;
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    if (!qrValue) {
+      setQrDataUrl('');
+      return;
+    }
+
+    QRCode.toDataURL(qrValue, { width: 220, margin: 1, errorCorrectionLevel: 'M' })
+      .then((url) => {
+        if (mounted) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (mounted) setQrDataUrl('');
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [qrValue]);
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -110,32 +133,18 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
               <QrCode size={16} color="#374151" />
               <span>设备二维码</span>
             </div>
-            {device.qrCode ? (
+            {qrValue ? (
               <div className={styles.qrContent}>
                 <div className={styles.qrCodeDisplay}>
-                  <div className={styles.qrCodeGrid}>
-                    {/* Visual QR representation */}
-                    {Array.from({ length: 7 }).map((_, row) => (
-                      <div key={row} className={styles.qrRow}>
-                        {Array.from({ length: 7 }).map((_, col) => {
-                          // Corner squares
-                          const isCorner = (row < 2 || row > 4) && (col < 2 || col > 4);
-                          const hash = (device.qrCode.charCodeAt((row * 7 + col) % device.qrCode.length) + row + col) % 2;
-                          return (
-                            <div
-                              key={col}
-                              className={styles.qrCell}
-                              style={{ backgroundColor: isCorner || hash === 0 ? '#111827' : 'white' }}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
+                  {qrDataUrl ? (
+                    <img src={qrDataUrl} alt={qrValue} className={styles.qrImage} />
+                  ) : (
+                    <QrCode size={96} color="#D1D5DB" />
+                  )}
                 </div>
                 <div className={styles.qrCodeText}>
                   <div className={styles.qrCodeLabel}>二维码数据</div>
-                  <div className={styles.qrCodeValue}>{device.qrCode}</div>
+                  <div className={styles.qrCodeValue}>{qrValue}</div>
                 </div>
               </div>
             ) : (

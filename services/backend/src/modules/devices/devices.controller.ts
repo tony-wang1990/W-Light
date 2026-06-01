@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { DevicesService } from './devices.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
@@ -19,7 +19,9 @@ export class DevicesController {
 
   @Post('batch-import')
   @ApiOperation({ summary: '批量导入设备' })
-  batchImport(@Body() body: { devices: Partial<Device>[] }) { return this.svc.batchImport(body.devices) }
+  batchImport(@Body() body: { devices: Partial<Device>[] }, @Request() req) {
+    return this.svc.batchImport(body.devices, req.headers['x-project-id'])
+  }
 
   @Get()
   @ApiOperation({ summary: '设备列表' })
@@ -43,4 +45,8 @@ export class DevicesController {
   @Put(':id')
   @ApiOperation({ summary: '更新设备信息' })
   update(@Param('id') id: string, @Body() dto: Partial<Device>) { return this.svc.update(id, dto) }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '删除设备' })
+  remove(@Param('id') id: string) { return this.svc.remove(id) }
 }
