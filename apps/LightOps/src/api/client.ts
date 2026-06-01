@@ -1,19 +1,19 @@
 import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { MMKV } from 'react-native-mmkv'
+import {
+  API_BASE_URL_STORAGE_KEY,
+  DEFAULT_API_BASE_URL,
+  normalizeApiBaseUrl,
+} from '../config/api'
 
 const storage = new MMKV()
 
-// ─── API Base URL Config ──────────────────────────────────────────────────────
-// 修改此处为你的实际服务器 IP / 域名
-// 开发调试时：Android 模拟器用 10.0.2.2，真机需要填写电脑的局域网 IP
-// 生产部署时：改为 https://your-domain.com/v1
-const DEV_API_URL = 'http://10.0.2.2:3000/v1' // Android 模拟器默认访问宿主机 localhost
-const PROD_API_URL = 'https://api.lightops.example.com/v1'
-
-const API_BASE_URL = __DEV__ ? DEV_API_URL : PROD_API_URL
+function getApiBaseUrl() {
+  return normalizeApiBaseUrl(storage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL)
+}
 
 const axiosClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -27,6 +27,7 @@ axiosClient.interceptors.request.use(
     const token = storage.getString('access_token')
     const projectId = storage.getString('current_project_id')
 
+    config.baseURL = getApiBaseUrl()
     if (token) config.headers['Authorization'] = `Bearer ${token}`
     if (projectId) config.headers['X-Project-Id'] = projectId
 
@@ -87,7 +88,9 @@ axiosClient.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken })
+        const response = await axios.post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken }, {
+          timeout: 30000,
+        })
         const { accessToken } = response.data.data || response.data
         storage.set('access_token', accessToken)
         onTokenRefreshed(accessToken)

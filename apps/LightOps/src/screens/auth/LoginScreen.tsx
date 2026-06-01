@@ -3,14 +3,26 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native'
+import { MMKV } from 'react-native-mmkv'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { Logo } from '../../components/common/Logo'
+import {
+  API_BASE_URL_STORAGE_KEY,
+  DEFAULT_API_BASE_URL,
+  isValidApiBaseUrl,
+  normalizeApiBaseUrl,
+} from '../../config/api'
 import { getErrorMessage } from '../../utils/error'
+
+const storage = new MMKV()
 
 export function LoginScreen() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [serverUrl, setServerUrl] = useState(
+    () => storage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL,
+  )
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading } = useAuthStore()
 
@@ -24,7 +36,15 @@ export function LoginScreen() {
       return
     }
 
+    const normalizedServerUrl = normalizeApiBaseUrl(serverUrl)
+    if (!isValidApiBaseUrl(normalizedServerUrl)) {
+      Alert.alert('提示', '请输入以 http:// 或 https:// 开头的服务器地址')
+      return
+    }
+
     try {
+      storage.set(API_BASE_URL_STORAGE_KEY, normalizedServerUrl)
+      setServerUrl(normalizedServerUrl)
       await login({ phone: phone.trim(), password })
     } catch (err: unknown) {
       Alert.alert('登录失败', getErrorMessage(err, '手机号或密码错误'))
@@ -88,6 +108,24 @@ export function LoginScreen() {
                 <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Server Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>服务器地址</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, styles.inputFlex]}
+                value={serverUrl}
+                onChangeText={setServerUrl}
+                placeholder="https://your-domain.com/v1"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+            </View>
+            <Text style={styles.serverHint}>手机端和网页端共用同一个后端地址</Text>
           </View>
 
           {/* Login Button */}
@@ -238,6 +276,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.base,
     lineHeight: 18,
+  },
+  serverHint: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   // Footer
   footer: {
