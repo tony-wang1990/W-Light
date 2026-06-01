@@ -4,6 +4,7 @@ import { useNavigation, type NavigationProp, type ParamListBase } from '@react-n
 import { useAuthStore } from '../../store/authStore'
 import { ordersApi } from '../../api/orders.api'
 import { devicesApi } from '../../api/devices.api'
+import { inspectionsApi } from '../../api/inspections.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 interface Summary {
@@ -24,27 +25,32 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const { user } = useAuthStore()
   const [summary, setSummary] = useState<Summary>({ pending: 0, processing: 0, reviewing: 0, suspended: 0 })
+  const [todayInspections, setTodayInspections] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
 
-  const fetchSummary = async () => {
+  const fetchDashboard = async () => {
     try {
-      const data = await ordersApi.summary()
+      const [data, plans] = await Promise.all([
+        ordersApi.summary(),
+        inspectionsApi.getTodayPlans().catch(() => []),
+      ])
       setSummary({
         pending: (data.pending || 0) + (data.assigned || 0),
         processing: data.processing || 0,
         reviewing: data.reviewing || 0,
         suspended: data.suspended || 0,
       })
+      setTodayInspections(plans.length)
     } catch (error) {
       console.warn('Failed to load order summary', error)
     }
   }
 
-  useEffect(() => { fetchSummary() }, [])
+  useEffect(() => { fetchDashboard() }, [])
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchSummary()
+    await fetchDashboard()
     setRefreshing(false)
   }
 
@@ -159,9 +165,17 @@ export function HomeScreen() {
             <Text style={styles.reminderIcon}>📅</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.reminderTitle}>设备巡检提醒</Text>
-              <Text style={styles.reminderDesc}>今日计划巡检：主舞台灯光系统</Text>
+              <Text style={styles.reminderDesc}>
+                {todayInspections > 0 ? `今日到期巡检：${todayInspections} 项` : '今日暂无到期巡检计划'}
+              </Text>
             </View>
-            <TouchableOpacity style={styles.reminderBtn}>
+            <TouchableOpacity
+              style={styles.reminderBtn}
+              onPress={() => navigation.getParent()?.navigate('Records', {
+                screen: 'RecordsList',
+                params: { initialTab: 'inspections' },
+              })}
+            >
               <Text style={styles.reminderBtnText}>查看</Text>
             </TouchableOpacity>
           </View>

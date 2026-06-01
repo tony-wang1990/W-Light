@@ -3,7 +3,13 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, RefreshControl, ActivityIndicator, ScrollView, Alert,
 } from 'react-native'
-import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
+import {
+  useNavigation,
+  useRoute,
+  type NavigationProp,
+  type ParamListBase,
+  type RouteProp,
+} from '@react-navigation/native'
 import { useQuery } from '@tanstack/react-query'
 import { devicesApi } from '../../api/devices.api'
 import { partsApi } from '../../api/parts.api'
@@ -33,10 +39,18 @@ const DEVICE_CATEGORY_ICON: Record<string, string> = {
 
 export function RecordsScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
-  const [tab, setTab] = useState<TabKey>('devices')
+  const route = useRoute<RouteProp<{ RecordsList: { initialTab?: TabKey } | undefined }, 'RecordsList'>>()
+  const [tab, setTab] = useState<TabKey>(route.params?.initialTab ?? 'devices')
   const [keyword, setKeyword] = useState('')
   const [deviceStatus, setDeviceStatus] = useState<string>('')
   const [lowStockOnly, setLowStockOnly] = useState(false)
+
+  React.useEffect(() => {
+    if (route.params?.initialTab) {
+      setTab(route.params.initialTab)
+      setKeyword('')
+    }
+  }, [route.params?.initialTab])
 
   // --- Devices Query ---
   const {

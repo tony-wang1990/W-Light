@@ -43,7 +43,7 @@ export type ToolboxStackParamList = {
 
 // Records Stack
 export type RecordsStackParamList = {
-  RecordsList: undefined;
+  RecordsList: { initialTab?: 'devices' | 'parts' | 'inspections' } | undefined;
   DeviceDetail: { deviceId: string };
   RecordDetail: { orderId: string };
 };

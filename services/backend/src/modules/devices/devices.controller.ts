@@ -27,8 +27,9 @@ export class DevicesController {
     @Request() req,
     @Query('category') category?: string,
     @Query('status') status?: string,
+    @Query('keyword') keyword?: string,
   ) {
-    return this.svc.findAll(req.headers['x-project-id'], category, status)
+    return this.svc.findAll(req.headers['x-project-id'], category, status, keyword)
   }
 
   @Get('scan/:qrCode')

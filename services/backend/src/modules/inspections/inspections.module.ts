@@ -56,19 +56,57 @@ class InspectionsService {
 
   getPlans(projectId: string) { return this.planRepo.find({ where: { projectId, isActive: 1 } }) }
   
-  createRecord(dto: Partial<InspectionRecord>) { return this.recordRepo.save(this.recordRepo.create(dto)) }
+  private getNextInspectionAt(current: Date, frequency: string) {
+    const next = new Date(current)
+    if (frequency === InspectionFrequency.WEEKLY) next.setDate(next.getDate() + 7)
+    else if (frequency === InspectionFrequency.MONTHLY) next.setMonth(next.getMonth() + 1)
+    else next.setDate(next.getDate() + 1)
+    return next
+  }
+
+  async createRecord(dto: Partial<InspectionRecord>) {
+    const record = await this.recordRepo.save(this.recordRepo.create(dto))
+    if (dto.planId) {
+      const plan = await this.planRepo.findOne({ where: { id: dto.planId } })
+      if (plan) {
+        plan.nextInspectionAt = this.getNextInspectionAt(new Date(), plan.frequency)
+        await this.planRepo.save(plan)
+      }
+    }
+    return record
+  }
   
   getRecords(planId: string, page = 1, ps = 20) {
     return this.recordRepo.findAndCount({ where: { planId }, order: { inspectedAt: 'DESC' }, skip: (page-1)*ps, take: ps })
   }
   
-  getTodayPlans(assigneeId: string) {
-    return this.planRepo.find({ where: { assigneeId, isActive: 1 } })
+  getTodayPlans(assigneeId: string, projectId: string) {
+    return this.planRepo
+      .createQueryBuilder('p')
+      .where('p.projectId = :projectId', { projectId })
+      .andWhere('p.isActive = :isActive', { isActive: 1 })
+      .andWhere('(p.assigneeId = :assigneeId OR p.assigneeId IS NULL)', { assigneeId })
+      .andWhere('(p.nextInspectionAt IS NULL OR p.nextInspectionAt <= :now)', { now: new Date() })
+      .orderBy('p.nextInspectionAt', 'ASC')
+      .getMany()
   }
   
   async getStats(projectId: string) {
     const total = await this.planRepo.count({ where: { projectId, isActive: 1 } })
-    const todayRecords = await this.recordRepo.count()
+    const plans = await this.planRepo.find({ where: { projectId, isActive: 1 }, select: ['id'] })
+    const planIds = plans.map(plan => plan.id)
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 1)
+    const todayRecords = planIds.length === 0
+      ? 0
+      : await this.recordRepo
+        .createQueryBuilder('r')
+        .where('r.planId IN (:...planIds)', { planIds })
+        .andWhere('r.inspectedAt >= :start', { start })
+        .andWhere('r.inspectedAt < :end', { end })
+        .getCount()
     return { totalPlans: total, todayRecords }
   }
 }
@@ -90,7 +128,9 @@ class InspectionsController {
     return this.svc.updatePlan(id, dto)
   }
   
-  @Get('today') getTodayPlans(@Request() req) { return this.svc.getTodayPlans(req.user.id) }
+  @Get('today') getTodayPlans(@Request() req) {
+    return this.svc.getTodayPlans(req.user.id, req.headers['x-project-id'])
+  }
   
   @Post('records') createRecord(@Body() dto: Partial<InspectionRecord>, @Request() req) {
     return this.svc.createRecord({ ...dto, inspectorId: req.user.id })

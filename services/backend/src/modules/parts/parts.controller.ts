@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { PartsService } from './parts.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
@@ -12,11 +12,17 @@ export class PartsController {
   constructor(private readonly svc: PartsService) {}
 
   @Post()
-  create(@Body() dto: Partial<SparePart>) { return this.svc.create(dto) }
+  create(@Body() dto: Partial<SparePart>, @Request() req) {
+    return this.svc.create({ ...dto, projectId: dto.projectId || req.headers['x-project-id'] })
+  }
 
   @Get()
-  findAll(@Request() req, @Query('lowStockOnly') lowStockOnly?: string) {
-    return this.svc.findAll(req.headers['x-project-id'], lowStockOnly === 'true')
+  findAll(
+    @Request() req,
+    @Query('lowStockOnly') lowStockOnly?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    return this.svc.findAll(req.headers['x-project-id'], lowStockOnly === 'true', keyword)
   }
 
   @Get('low-stock-alerts')
@@ -27,6 +33,9 @@ export class PartsController {
 
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: Partial<SparePart>) { return this.svc.update(id, dto) }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) { return this.svc.remove(id) }
 
   @Post(':id/inbound')
   @ApiOperation({ summary: '入库' })
