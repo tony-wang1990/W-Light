@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Activity, Cpu } from 'lucide-react';
 import styles from './Toolbox.module.css';
 
@@ -6,7 +6,7 @@ export default function Toolbox() {
   // --- BPM State ---
   const [bpm, setBpm] = useState<number>(0);
   const tapsRef = useRef<number[]>([]);
-  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTap = () => {
     const now = Date.now();
@@ -144,7 +144,7 @@ export default function Toolbox() {
               ))}
             </div>
             <div style={{ marginTop: 16, fontSize: 13, color: '#64748B', textAlign: 'center' }}>
-              计算原理：二进制算法（第n位拨码代表 $2^{n-1}$）
+              计算原理：二进制算法（第 n 位拨码代表 2^(n-1)）
             </div>
           </div>
         </div>

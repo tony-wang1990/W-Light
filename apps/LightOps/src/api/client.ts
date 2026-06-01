@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { MMKV } from 'react-native-mmkv'
 
 const storage = new MMKV()
@@ -12,7 +12,7 @@ const PROD_API_URL = 'https://api.lightops.example.com/v1'
 
 const API_BASE_URL = __DEV__ ? DEV_API_URL : PROD_API_URL
 
-const apiClient: AxiosInstance = axios.create({
+const axiosClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
@@ -22,7 +22,7 @@ const apiClient: AxiosInstance = axios.create({
 })
 
 // ─── Request Interceptor ──────────────────────────────────────────────────────
-apiClient.interceptors.request.use(
+axiosClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = storage.getString('access_token')
     const projectId = storage.getString('current_project_id')
@@ -48,7 +48,7 @@ function onTokenRefreshed(token: string) {
   refreshSubscribers = []
 }
 
-apiClient.interceptors.response.use(
+axiosClient.interceptors.response.use(
   (response: AxiosResponse) => {
     const data = response.data
     // 统一解包 { code, data, msg } 格式
@@ -70,7 +70,7 @@ apiClient.interceptors.response.use(
         return new Promise(resolve => {
           subscribeTokenRefresh(token => {
             originalRequest.headers['Authorization'] = `Bearer ${token}`
-            resolve(apiClient(originalRequest))
+            resolve(axiosClient(originalRequest))
           })
         })
       }
@@ -92,7 +92,7 @@ apiClient.interceptors.response.use(
         storage.set('access_token', accessToken)
         onTokenRefreshed(accessToken)
         originalRequest.headers['Authorization'] = `Bearer ${accessToken}`
-        return apiClient(originalRequest)
+        return axiosClient(originalRequest)
       } catch {
         storage.delete('access_token')
         storage.delete('refresh_token')
@@ -107,4 +107,21 @@ apiClient.interceptors.response.use(
   },
 )
 
-export default apiClient
+const client = {
+  get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.get(url, config),
+
+  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.post(url, data, config),
+
+  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.put(url, data, config),
+
+  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.patch(url, data, config),
+
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.delete(url, config),
+}
+
+export default client

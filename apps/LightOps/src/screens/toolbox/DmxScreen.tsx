@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, FlatList,
+  ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import {
-  calculateDmxAddresses, DmxFixture, FIXTURE_PRESETS, checkAddressConflicts,
+  calculateDmxAddresses, FIXTURE_PRESETS,
 } from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { v4 as uuid } from 'uuid'
@@ -165,7 +165,7 @@ export function DmxScreen() {
 
             {/* Full Address List */}
             <Text style={styles.addrListTitle}>完整地址分配</Text>
-            {result.fixtures.map((f, i) => (
+            {result.fixtures.map(f => (
               <View key={f.id} style={styles.addrListRow}>
                 <Text style={styles.addrListName}>{f.name}</Text>
                 <Text style={styles.addrListValue}>

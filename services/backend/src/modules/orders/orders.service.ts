@@ -2,14 +2,15 @@ import {
   Injectable, NotFoundException, ForbiddenException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, DataSource, FindManyOptions } from 'typeorm'
+import { Repository, DataSource } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
 import { WorkOrder, OrderStatus, OrderPriority } from './entities/order.entity'
 import { RepairLog } from './entities/repair-log.entity'
-import { OrderStateMachine, SLA_COMPLETE_HOURS } from './order-state.machine'
+import { OrderStateMachine } from './order-state.machine'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { AssignOrderDto } from './dto/assign-order.dto'
 import { AddRepairLogDto } from './dto/add-repair-log.dto'
+import { PartsService } from '../parts/parts.service'
 
 @Injectable()
 export class OrdersService {
@@ -20,6 +21,7 @@ export class OrdersService {
     private readonly repairLogRepo: Repository<RepairLog>,
     private readonly stateMachine: OrderStateMachine,
     private readonly dataSource: DataSource,
+    private readonly partsService: PartsService,
   ) {}
 
   /** 生成工单号：WO-YYYYMMDD-XXXX */
@@ -55,6 +57,7 @@ export class OrdersService {
     priority?: OrderPriority,
     assigneeId?: string,
     keyword?: string,
+    deviceId?: string,
   ) {
     const qb = this.orderRepo
       .createQueryBuilder('o')
@@ -67,6 +70,7 @@ export class OrdersService {
     if (status) qb.andWhere('o.status = :status', { status })
     if (priority) qb.andWhere('o.priority = :priority', { priority })
     if (assigneeId) qb.andWhere('o.assigneeId = :assigneeId', { assigneeId })
+    if (deviceId) qb.andWhere('o.deviceId = :deviceId', { deviceId })
     if (keyword) {
       qb.andWhere(
         '(o.orderNo ILIKE :kw OR o.faultDesc ILIKE :kw OR device.name ILIKE :kw)',
@@ -162,7 +166,34 @@ export class OrdersService {
     if (![OrderStatus.PROCESSING, OrderStatus.REVIEWING].includes(order.status)) {
       throw new ForbiddenException('工单不在处理中或待验收状态，无法添加维修记录')
     }
-    const log = this.repairLogRepo.create({ ...dto, orderId, engineerId })
+
+    const partUsages = []
+    for (const usage of dto.partUsages || []) {
+      if (!usage.partId || !usage.quantity || Number(usage.quantity) <= 0) continue
+
+      const result = await this.partsService.outbound(
+        usage.partId,
+        Number(usage.quantity),
+        engineerId,
+        orderId,
+        usage.note || `工单 ${order.orderNo} 维修消耗`,
+      )
+
+      partUsages.push({
+        partId: usage.partId,
+        name: result.part.name,
+        quantity: Number(usage.quantity),
+        unit: result.part.unit,
+        note: usage.note,
+      })
+    }
+
+    const log = this.repairLogRepo.create({
+      ...dto,
+      partUsages,
+      orderId,
+      engineerId,
+    })
     return this.repairLogRepo.save(log)
   }
 

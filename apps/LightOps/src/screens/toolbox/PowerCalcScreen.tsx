@@ -1,12 +1,8 @@
 import React, { useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import {
-  calculatePower, calculateCurrent, calculateCircuitLoad,
-  POWER_PRESETS, PowerFixture,
-} from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 interface FixtureEntry {

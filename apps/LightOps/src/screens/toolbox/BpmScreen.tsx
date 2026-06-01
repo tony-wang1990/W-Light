@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Animated, Easing,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'

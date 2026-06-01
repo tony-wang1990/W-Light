@@ -18,10 +18,12 @@ export interface InspectionRecord {
 
 export const inspectionsApi = {
   getPlans: (): Promise<InspectionPlan[]> =>
-    apiClient.get('/inspections/plans').then(r => (Array.isArray(r) ? r : r.items || [])),
+    apiClient.get<InspectionPlan[] | { items: InspectionPlan[] }>('/inspections/plans')
+      .then(r => (Array.isArray(r) ? r : r.items || [])),
 
   getTodayPlans: (): Promise<InspectionPlan[]> =>
-    apiClient.get('/inspections/today').then(r => (Array.isArray(r) ? r : r.items || [])),
+    apiClient.get<InspectionPlan[] | { items: InspectionPlan[] }>('/inspections/today')
+      .then(r => (Array.isArray(r) ? r : r.items || [])),
 
   createRecord: (planId: string, status: string, resultDesc?: string): Promise<InspectionRecord> =>
     apiClient.post('/inspections/records', { planId, status, resultDesc }),

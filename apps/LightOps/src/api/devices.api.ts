@@ -9,42 +9,56 @@ export interface DeviceListParams {
   keyword?: string;
 }
 
+function toPaginatedDevices(
+  data: Device[] | PaginatedResponse<Device>,
+  page = 1,
+  pageSize = 50,
+): PaginatedResponse<Device> {
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page,
+      pageSize,
+      totalPages: 1,
+    };
+  }
+
+  return data;
+}
+
 export const devicesApi = {
   getList: async (
     params: DeviceListParams,
   ): Promise<PaginatedResponse<Device>> => {
-    const response = await client.get<PaginatedResponse<Device>>('/devices', {
+    const data = await client.get<Device[] | PaginatedResponse<Device>>('/devices', {
       params,
     });
-    return response.data;
+    return toPaginatedDevices(data, params.page, params.pageSize);
   },
 
   getById: async (id: string): Promise<Device> => {
-    const response = await client.get<Device>(`/devices/${id}`);
-    return response.data;
+    return client.get<Device>(`/devices/${id}`);
   },
 
   getByQrCode: async (qrCode: string): Promise<Device> => {
-    const response = await client.get<Device>('/devices/scan', {
-      params: { qrCode },
-    });
-    return response.data;
+    const data = await client.get<Device | { device: Device }>(
+      `/devices/scan/${encodeURIComponent(qrCode)}`,
+    );
+    return 'device' in data ? data.device : data;
   },
 
   create: async (data: Partial<Device>): Promise<Device> => {
-    const response = await client.post<Device>('/devices', data);
-    return response.data;
+    return client.post<Device>('/devices', data);
   },
 
   update: async (id: string, data: Partial<Device>): Promise<Device> => {
-    const response = await client.patch<Device>(`/devices/${id}`, data);
-    return response.data;
+    return client.put<Device>(`/devices/${id}`, data);
   },
 
   getHistory: async (
     id: string,
   ): Promise<{ date: string; score: number }[]> => {
-    const response = await client.get(`/devices/${id}/history`);
-    return response.data;
+    return client.get<{ date: string; score: number }[]>(`/devices/${id}/history`);
   },
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  FlatList, ScrollView,
+  FlatList,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { MA_MACROS, MA_TERMS, MaMacro } from '@lightops/toolbox-core'

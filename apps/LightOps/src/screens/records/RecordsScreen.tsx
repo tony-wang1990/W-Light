@@ -3,12 +3,15 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, RefreshControl, ActivityIndicator, ScrollView, Alert,
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
 import { useQuery } from '@tanstack/react-query'
 import { devicesApi } from '../../api/devices.api'
 import { partsApi } from '../../api/parts.api'
+import { inspectionsApi } from '../../api/inspections.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { Device, SparePart } from '../../types'
+import type { InspectionPlan } from '../../api/inspections.api'
+import { getErrorMessage } from '../../utils/error'
 
 type TabKey = 'devices' | 'parts' | 'inspections'
 
@@ -29,7 +32,7 @@ const DEVICE_CATEGORY_ICON: Record<string, string> = {
 }
 
 export function RecordsScreen() {
-  const navigation = useNavigation<any>()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const [tab, setTab] = useState<TabKey>('devices')
   const [keyword, setKeyword] = useState('')
   const [deviceStatus, setDeviceStatus] = useState<string>('')
@@ -200,6 +203,7 @@ function DeviceCard({ device, onPress }: { device: Device; onPress: () => void }
   const status = DEVICE_STATUS_LABEL[device.status] ?? { label: device.status, color: colors.textMuted }
   const icon = DEVICE_CATEGORY_ICON[device.category] ?? '📦'
   const health = device.healthScore ?? 100
+  const healthWidth = `${Math.max(0, Math.min(100, health))}%` as `${number}%`
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -224,7 +228,7 @@ function DeviceCard({ device, onPress }: { device: Device; onPress: () => void }
         <View style={styles.healthRow}>
           <View style={styles.healthBar}>
             <View style={[styles.healthFill, {
-              width: `${health}%` as any,
+              width: healthWidth,
               backgroundColor: health > 70 ? colors.success : health > 40 ? colors.warning : colors.danger,
             }]} />
           </View>
@@ -242,7 +246,7 @@ function DeviceCard({ device, onPress }: { device: Device; onPress: () => void }
 
 // ── Part Card ─────────────────────────────────────────────────────────────────
 function PartCard({ part }: { part: SparePart }) {
-  const isLow = (part.stockQty ?? 0) <= (part.minStock ?? 5)
+  const isLow = (part.stock ?? 0) <= (part.minStock ?? 5)
 
   return (
     <View style={[styles.card, isLow && styles.cardWarn]}>
@@ -258,11 +262,11 @@ function PartCard({ part }: { part: SparePart }) {
             </View>
           )}
         </View>
-        <Text style={styles.deviceNo}>型号：{part.spec ?? '-'} · 位置：{part.location ?? '-'}</Text>
+        <Text style={styles.deviceNo}>型号：{part.model ?? '-'}</Text>
         <View style={styles.stockRow}>
           <Text style={styles.stockVal}>
             库存：<Text style={[styles.stockNum, isLow && { color: colors.warning }]}>
-              {part.stockQty ?? 0}
+              {part.stock ?? 0}
             </Text> {part.unit ?? '个'}
           </Text>
           <Text style={styles.stockMin}>
@@ -279,7 +283,8 @@ function PartCard({ part }: { part: SparePart }) {
 
 // ── Inspections Tab — 真实 API 联调版本 ──────────────────────────────────────
 function InspectionsTab() {
-  const [plans, setPlans] = React.useState<any[]>([])
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const [plans, setPlans] = React.useState<InspectionPlan[]>([])
   const [loading, setLoading] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)
 
@@ -287,7 +292,6 @@ function InspectionsTab() {
     if (!silent) setLoading(true)
     else setRefreshing(true)
     try {
-      const { inspectionsApi } = await import('../../api/inspections.api')
       const data = await inspectionsApi.getPlans()
       setPlans(data)
     } catch (e) {
@@ -307,10 +311,9 @@ function InspectionsTab() {
         text: '✅ 正常',
         onPress: async () => {
           try {
-            const { inspectionsApi } = await import('../../api/inspections.api')
             await inspectionsApi.createRecord(planId, 'normal', '巡检正常，无异常')
             Alert.alert('✅ 记录成功', '巡检记录已提交')
-          } catch (e: any) { Alert.alert('错误', e.message) }
+          } catch (e: unknown) { Alert.alert('错误', getErrorMessage(e)) }
         },
       },
       {
@@ -318,10 +321,23 @@ function InspectionsTab() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const { inspectionsApi } = await import('../../api/inspections.api')
             await inspectionsApi.createRecord(planId, 'abnormal', '巡检发现异常，需处理')
-            Alert.alert('⚠️ 记录成功', '异常巡检记录已提交，请跟进处理')
-          } catch (e: any) { Alert.alert('错误', e.message) }
+            const plan = plans.find(item => item.id === planId)
+            Alert.alert('⚠️ 记录成功', '异常巡检记录已提交，是否立即创建维修工单？', [
+              { text: '稍后处理', style: 'cancel' },
+              {
+                text: '创建工单',
+                onPress: () => navigation.getParent()?.navigate('Orders', {
+                  screen: 'OrderCreate',
+                  params: {
+                    category: '故障维修',
+                    faultType: '巡检异常',
+                    initialFaultDesc: `巡检计划「${plan?.name || '未命名巡检'}」发现异常，请填写具体故障现象、位置和现场情况。`,
+                  },
+                }),
+              },
+            ])
+          } catch (e: unknown) { Alert.alert('错误', getErrorMessage(e)) }
         },
       },
     ])

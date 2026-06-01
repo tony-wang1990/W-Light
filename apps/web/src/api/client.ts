@@ -1,12 +1,12 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-export const apiClient = axios.create({
+const axiosClient = axios.create({
   baseURL: '/v1', // Using Vite proxy to localhost:3000/v1
   timeout: 10000,
 });
 
-apiClient.interceptors.request.use((config) => {
+axiosClient.interceptors.request.use((config) => {
   const state = useAuthStore.getState();
   const token = state.token;
   if (token) {
@@ -19,7 +19,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-apiClient.interceptors.response.use(
+axiosClient.interceptors.response.use(
   (response) => {
     // NestJS directly returns the data or throws standard HTTP errors
     return response.data;
@@ -32,3 +32,17 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const apiClient = {
+  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.get(url, config),
+
+  post: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.post(url, data, config),
+
+  put: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.put(url, data, config),
+
+  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    axiosClient.delete(url, config),
+};

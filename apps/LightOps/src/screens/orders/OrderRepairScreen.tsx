@@ -1,24 +1,108 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
 import { ordersApi } from '../../api/orders.api'
+import { partsApi } from '../../api/parts.api'
+import { uploadApi, type UploadedMedia } from '../../api/upload.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
+import type { SparePart } from '../../types'
+import type { OrdersStackParamList } from '../../navigation/types'
+import { getErrorMessage } from '../../utils/error'
 
 const STEP_TYPES = ['故障确认', '拆机检查', '更换配件', '参数调试', '功能测试', '恢复安装', '外委处理', '其他']
 
+interface PartUsageDraft {
+  partId: string
+  name: string
+  quantity: number
+  unit: string
+}
+
 export function OrderRepairScreen() {
   const navigation = useNavigation()
-  const route = useRoute<any>()
+  const route = useRoute<RouteProp<OrdersStackParamList, 'OrderRepair'>>()
   const { orderId } = route.params
 
   const [stepType, setStepType] = useState('故障确认')
   const [stepDesc, setStepDesc] = useState('')
   const [outsourceVendor, setOutsourceVendor] = useState('')
   const [outsourceCost, setOutsourceCost] = useState('')
+  const [parts, setParts] = useState<SparePart[]>([])
+  const [selectedPartId, setSelectedPartId] = useState('')
+  const [partQuantity, setPartQuantity] = useState('1')
+  const [partUsages, setPartUsages] = useState<PartUsageDraft[]>([])
+  const [media, setMedia] = useState<UploadedMedia[]>([])
+  const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    partsApi.getList({ pageSize: 100 })
+      .then(res => setParts(res.items))
+      .catch(error => console.warn('Failed to load parts', error))
+  }, [])
+
+  const handleAddPartUsage = () => {
+    const part = parts.find(item => item.id === selectedPartId)
+    const quantity = Number(partQuantity)
+    if (!part) {
+      Alert.alert('提示', '请选择要消耗的备件')
+      return
+    }
+    if (!quantity || quantity <= 0) {
+      Alert.alert('提示', '请输入正确的备件数量')
+      return
+    }
+    if (Number(part.stock) < quantity) {
+      Alert.alert('库存不足', `当前库存 ${part.stock} ${part.unit}`)
+      return
+    }
+
+    setPartUsages(prev => {
+      const existing = prev.find(item => item.partId === part.id)
+      if (existing) {
+        return prev.map(item =>
+          item.partId === part.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item,
+        )
+      }
+
+      return [
+        ...prev,
+        {
+          partId: part.id,
+          name: part.name,
+          quantity,
+          unit: part.unit || '个',
+        },
+      ]
+    })
+    setSelectedPartId('')
+    setPartQuantity('1')
+  }
+
+  const handleRemovePartUsage = (partId: string) => {
+    setPartUsages(prev => prev.filter(item => item.partId !== partId))
+  }
+
+  const handlePickMedia = async () => {
+    setUploading(true)
+    try {
+      const uploaded = await uploadApi.pickAndUpload('mixed')
+      if (uploaded.length > 0) setMedia(prev => [...prev, ...uploaded])
+    } catch (error: unknown) {
+      Alert.alert('上传失败', getErrorMessage(error, '请检查网络或文件大小'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleRemoveMedia = (url: string) => {
+    setMedia(prev => prev.filter(item => item.url !== url))
+  }
 
   const handleSubmit = async () => {
     if (!stepDesc.trim() || stepDesc.length < 5) {
@@ -31,19 +115,27 @@ export function OrderRepairScreen() {
       await ordersApi.addRepairLog(orderId, {
         stepType,
         stepDesc: stepDesc.trim(),
+        photoUrls: media.map(item => item.url),
         outsourceVendor: outsourceVendor.trim() || undefined,
         outsourceCost: outsourceCost ? Number(outsourceCost) : undefined,
+        partUsages: partUsages.map(item => ({
+          partId: item.partId,
+          quantity: item.quantity,
+          note: `${stepType}消耗`,
+        })),
       })
       Alert.alert('✅ 记录已保存', '维修步骤已添加', [
         { text: '继续添加', onPress: () => {
           setStepDesc('')
           setOutsourceVendor('')
           setOutsourceCost('')
+          setPartUsages([])
+          setMedia([])
         }},
         { text: '返回工单', onPress: () => navigation.goBack() },
       ])
-    } catch (e: any) {
-      Alert.alert('保存失败', e.message)
+    } catch (e: unknown) {
+      Alert.alert('保存失败', getErrorMessage(e))
     } finally {
       setSubmitting(false)
     }
@@ -131,11 +223,78 @@ export function OrderRepairScreen() {
           </View>
         )}
 
-        {/* Photo Hint */}
-        <View style={styles.photoHint}>
-          <Text style={styles.photoHintText}>
-            📷 可在记录保存后，通过「查看工单」→「上传图片」添加维修现场照片
-          </Text>
+        {/* Parts Usage */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>更换备件 <Text style={styles.optional}>（可选，保存后自动扣库存）</Text></Text>
+          {parts.length > 0 ? (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.partPicker}>
+                {parts.map(part => (
+                  <TouchableOpacity
+                    key={part.id}
+                    style={[styles.partChip, selectedPartId === part.id && styles.partChipActive]}
+                    onPress={() => setSelectedPartId(part.id)}
+                  >
+                    <Text style={[styles.partChipName, selectedPartId === part.id && styles.partChipTextActive]} numberOfLines={1}>
+                      {part.name}
+                    </Text>
+                    <Text style={[styles.partChipStock, selectedPartId === part.id && styles.partChipTextActive]}>
+                      库存 {part.stock}{part.unit}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={styles.partAddRow}>
+                <TextInput
+                  style={styles.partQtyInput}
+                  value={partQuantity}
+                  onChangeText={setPartQuantity}
+                  placeholder="数量"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="decimal-pad"
+                />
+                <TouchableOpacity style={styles.partAddBtn} onPress={handleAddPartUsage}>
+                  <Text style={styles.partAddBtnText}>加入消耗</Text>
+                </TouchableOpacity>
+              </View>
+              {partUsages.map(item => (
+                <View key={item.partId} style={styles.usageRow}>
+                  <Text style={styles.usageText}>{item.name} × {item.quantity}{item.unit}</Text>
+                  <TouchableOpacity onPress={() => handleRemovePartUsage(item.partId)}>
+                    <Text style={styles.usageRemove}>移除</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </>
+          ) : (
+            <Text style={styles.emptyPartText}>暂无备件数据，可先保存维修记录，后续在备件库补录。</Text>
+          )}
+        </View>
+
+        {/* Media Upload */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>维修照片/视频 <Text style={styles.optional}>（可选）</Text></Text>
+          <TouchableOpacity
+            style={[styles.uploadBtn, uploading && { opacity: 0.6 }]}
+            onPress={handlePickMedia}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.uploadBtnText}>+ 选择并上传附件</Text>
+            )}
+          </TouchableOpacity>
+          {media.map(item => (
+            <View key={item.url} style={styles.mediaRow}>
+              <Text style={styles.mediaName} numberOfLines={1}>
+                {item.mediaType === 'video' ? '🎬' : '🖼️'} {item.name}
+              </Text>
+              <TouchableOpacity onPress={() => handleRemoveMedia(item.url)}>
+                <Text style={styles.mediaRemove}>移除</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
 
         <View style={{ height: 80 }} />
@@ -171,6 +330,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: spacing.base, paddingTop: spacing.base },
   sectionLabel: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
   required: { color: colors.danger },
+  optional: { color: colors.textMuted, fontWeight: '400' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
@@ -207,11 +367,79 @@ const styles = StyleSheet.create({
   },
   costRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   costUnit: { fontSize: fontSize.md, color: colors.textMuted },
-  photoHint: {
-    margin: spacing.base,
-    backgroundColor: colors.surfaceElevated,
+  partPicker: { marginBottom: spacing.sm },
+  partChip: {
+    width: 132,
+    backgroundColor: colors.surface,
     borderRadius: radius.md,
-    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+    marginRight: spacing.sm,
   },
-  photoHintText: { fontSize: fontSize.xs, color: colors.textSecondary, lineHeight: 18 },
+  partChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  partChipName: { fontSize: fontSize.xs, color: colors.textPrimary, fontWeight: '700' },
+  partChipStock: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  partChipTextActive: { color: colors.white },
+  partAddRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  partQtyInput: {
+    width: 88,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    height: 42,
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+  },
+  partAddBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  partAddBtnText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '700' },
+  usageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '18',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  usageText: { fontSize: fontSize.xs, color: colors.textPrimary, fontWeight: '600' },
+  usageRemove: { fontSize: fontSize.xs, color: colors.danger, fontWeight: '700' },
+  emptyPartText: { fontSize: fontSize.xs, color: colors.textMuted, lineHeight: 18 },
+  uploadBtn: {
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary + '12',
+  },
+  uploadBtnText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '700' },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mediaName: { flex: 1, fontSize: fontSize.xs, color: colors.textSecondary },
+  mediaRemove: { fontSize: fontSize.xs, color: colors.danger, fontWeight: '700', marginLeft: spacing.sm },
 })

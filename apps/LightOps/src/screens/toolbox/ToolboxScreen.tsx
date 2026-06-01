@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 interface ToolCard {
@@ -27,9 +27,9 @@ const TOOLS: ToolCard[] = [
 ]
 
 export function ToolboxScreen() {
-  const navigation = useNavigation<any>()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
 
-  const renderCard = (tool: ToolCard, index: number) => (
+  const renderCard = (tool: ToolCard) => (
     <TouchableOpacity
       key={tool.route}
       style={styles.card}

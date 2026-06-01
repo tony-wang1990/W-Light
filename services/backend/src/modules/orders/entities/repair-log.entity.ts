@@ -39,6 +39,15 @@ export class RepairLog {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   outsourceCost?: number
 
+  @Column({ type: 'simple-json', default: '[]' })
+  partUsages: Array<{
+    partId: string
+    name?: string
+    quantity: number
+    unit?: string
+    note?: string
+  }>
+
   @CreateDateColumn()
   loggedAt: Date
 }

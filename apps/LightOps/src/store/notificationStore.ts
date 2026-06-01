@@ -18,7 +18,7 @@ interface NotificationActions {
 
 type NotificationStore = NotificationState & NotificationActions;
 
-export const useNotificationStore = create<NotificationStore>((set, get) => ({
+export const useNotificationStore = create<NotificationStore>((set) => ({
   // State
   notifications: [],
   unreadCount: 0,
@@ -33,8 +33,8 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         unreadCount: number;
       }>('/notifications');
       set({
-        notifications: response.data.items,
-        unreadCount: response.data.unreadCount,
+        notifications: response.items,
+        unreadCount: response.unreadCount,
         isLoading: false,
       });
     } catch {

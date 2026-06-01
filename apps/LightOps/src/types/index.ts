@@ -31,8 +31,18 @@ export interface Device {
   dmxAddress?: number
   channelCount?: number
   power?: number
+  warrantyExpire?: string
+  installDate?: string
   status: 'normal' | 'fault' | 'maintenance' | 'offline'
   healthScore: number
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
 }
 
 export type OrderStatus =
@@ -86,6 +96,13 @@ export interface RepairLog {
   photoUrls: string[]
   outsourceVendor?: string
   outsourceCost?: number
+  partUsages?: Array<{
+    partId: string
+    name?: string
+    quantity: number
+    unit?: string
+    note?: string
+  }>
   loggedAt: string
   engineer?: User
 }
@@ -136,7 +153,13 @@ export type MainTabParamList = {
 export type OrderStackParamList = {
   OrderList: undefined
   OrderDetail: { orderId: string }
-  OrderCreate: { deviceId?: string; qrCode?: string }
+  OrderCreate: {
+    deviceId?: string
+    qrCode?: string
+    category?: string
+    faultType?: string
+    initialFaultDesc?: string
+  }
   OrderRepair: { orderId: string }
 }
 

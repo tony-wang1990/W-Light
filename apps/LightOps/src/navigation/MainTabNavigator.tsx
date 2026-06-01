@@ -2,11 +2,11 @@ import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { View, Text, StyleSheet } from 'react-native'
 import { colors } from '../theme'
-import { HomeScreen } from '../screens/home/HomeScreen'
-import { OrderListScreen } from '../screens/orders/OrderListScreen'
-import { ToolboxScreen } from '../screens/toolbox/ToolboxScreen'
-import { RecordsScreen } from '../screens/records/RecordsScreen'
-import { ProfileScreen } from '../screens/profile/ProfileScreen'
+import { HomeStack } from './HomeStack'
+import { OrdersStack } from './OrdersStack'
+import { ToolboxStack } from './ToolboxStack'
+import { RecordsStack } from './RecordsStack'
+import { ProfileStack } from './ProfileStack'
 
 const Tab = createBottomTabNavigator()
 
@@ -43,7 +43,7 @@ export function MainTabNavigator() {
         tabBarStyle: styles.tabBar,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabel: ({ focused, color }) => (
+        tabBarLabel: ({ color }) => (
           <Text style={[styles.tabLabel, { color }]}>
             {tabLabels[route.name]}
           </Text>
@@ -51,11 +51,11 @@ export function MainTabNavigator() {
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Orders" component={OrderListScreen} />
-      <Tab.Screen name="Toolbox" component={ToolboxScreen} />
-      <Tab.Screen name="Records" component={RecordsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Home" component={HomeStack} />
+      <Tab.Screen name="Orders" component={OrdersStack} />
+      <Tab.Screen name="Toolbox" component={ToolboxStack} />
+      <Tab.Screen name="Records" component={RecordsStack} />
+      <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   )
 }

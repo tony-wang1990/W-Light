@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import type { OrderPriority } from '../../types'
-import { colors, radius, fontSize } from '../../theme'
+import { colors, radius } from '../../theme'
 
 const PRIORITY_CONFIG: Record<OrderPriority, { label: string; color: string }> = {
   P0: { label: 'P0 紧急', color: colors.p0 },

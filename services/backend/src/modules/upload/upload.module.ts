@@ -1,4 +1,4 @@
-import { Module, Controller, Post, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common'
+import { BadRequestException, Module, Controller, Post, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -25,6 +25,9 @@ class MinioService {
   }
 
   async upload(buffer: Buffer, originalName: string, mimetype: string): Promise<string> {
+    const exists = await this.client.bucketExists(this.bucket)
+    if (!exists) await this.client.makeBucket(this.bucket)
+
     const ext = path.extname(originalName)
     const objectName = `uploads/${new Date().getFullYear()}/${uuid()}${ext}`
     await this.client.putObject(this.bucket, objectName, buffer, buffer.length, { 'Content-Type': mimetype })
@@ -43,6 +46,7 @@ class UploadController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.buffer) throw new BadRequestException('请选择要上传的图片')
     const url = await this.minioService.upload(file.buffer, file.originalname, file.mimetype)
     return { url }
   }
@@ -51,6 +55,7 @@ class UploadController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
   async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.buffer) throw new BadRequestException('请选择要上传的视频')
     const url = await this.minioService.upload(file.buffer, file.originalname, file.mimetype)
     return { url }
   }

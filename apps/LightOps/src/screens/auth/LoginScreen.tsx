@@ -6,6 +6,7 @@ import {
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { Logo } from '../../components/common/Logo'
+import { getErrorMessage } from '../../utils/error'
 
 export function LoginScreen() {
   const [phone, setPhone] = useState('')
@@ -25,8 +26,8 @@ export function LoginScreen() {
 
     try {
       await login({ phone: phone.trim(), password })
-    } catch (err: any) {
-      Alert.alert('登录失败', err.message || '手机号或密码错误')
+    } catch (err: unknown) {
+      Alert.alert('登录失败', getErrorMessage(err, '手机号或密码错误'))
     }
   }
 

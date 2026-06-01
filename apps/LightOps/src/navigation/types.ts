@@ -13,9 +13,15 @@ export type HomeStackParamList = {
 
 // Orders Stack
 export type OrdersStackParamList = {
-  OrderList: { status?: string } | undefined;
+  OrderList: { status?: string; deviceId?: string; title?: string } | undefined;
   OrderDetail: { orderId: string };
-  OrderCreate: { deviceId?: string } | undefined;
+  OrderCreate: {
+    deviceId?: string
+    category?: string
+    faultType?: string
+    initialFaultDesc?: string
+  } | undefined;
+  OrderRepair: { orderId: string };
   AddRepairLog: { orderId: string };
   AssignOrder: { orderId: string };
 };

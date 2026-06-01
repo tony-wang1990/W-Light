@@ -6,11 +6,13 @@ import { OrdersService } from './orders.service'
 import { OrderStateMachine } from './order-state.machine'
 import { WorkOrder } from './entities/order.entity'
 import { RepairLog } from './entities/repair-log.entity'
+import { PartsModule } from '../parts/parts.module'
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([WorkOrder, RepairLog]),
     ScheduleModule.forRoot(),
+    PartsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService, OrderStateMachine],

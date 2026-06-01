@@ -1,10 +1,11 @@
 import apiClient from './client'
-import type { WorkOrder } from '../types'
+import type { RepairLog, WorkOrder } from '../types'
 
 export interface OrderListParams {
   status?: string
   priority?: string
   assigneeId?: string
+  deviceId?: string
   keyword?: string
   page?: number
   pageSize?: number
@@ -16,6 +17,19 @@ export interface PaginatedOrders {
   page: number
   pageSize: number
   totalPages: number
+}
+
+export interface RepairLogPayload {
+  stepType: string
+  stepDesc: string
+  photoUrls?: string[]
+  outsourceVendor?: string
+  outsourceCost?: number
+  partUsages?: Array<{
+    partId: string
+    quantity: number
+    note?: string
+  }>
 }
 
 export const ordersApi = {
@@ -67,15 +81,9 @@ export const ordersApi = {
   cancel: (id: string, reason: string): Promise<WorkOrder> =>
     apiClient.put(`/orders/${id}/cancel`, { reason }),
 
-  addRepairLog: (orderId: string, data: {
-    stepType: string
-    stepDesc: string
-    photoUrls?: string[]
-    outsourceVendor?: string
-    outsourceCost?: number
-  }): Promise<any> =>
+  addRepairLog: (orderId: string, data: RepairLogPayload): Promise<RepairLog> =>
     apiClient.post(`/orders/${orderId}/repair-logs`, data),
 
-  getRepairLogs: (orderId: string): Promise<any[]> =>
+  getRepairLogs: (orderId: string): Promise<RepairLog[]> =>
     apiClient.get(`/orders/${orderId}/repair-logs`),
 }

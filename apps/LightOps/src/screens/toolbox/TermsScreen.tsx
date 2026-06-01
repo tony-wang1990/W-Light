@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Clipboard,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { MA_TERMS, LightingTerm } from '@lightops/toolbox-core'
+import { MA_TERMS } from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 const CATEGORIES = ['全部', '控台操作', 'DMX协议', '色彩光学', '机构部件', '信号传输', '电气']

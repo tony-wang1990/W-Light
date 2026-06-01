@@ -3,12 +3,17 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert,
 } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import {
+  useNavigation,
+  useRoute,
+  type NavigationProp,
+  type ParamListBase,
+  type RouteProp,
+} from '@react-navigation/native'
 import { useQuery } from '@tanstack/react-query'
 import { devicesApi } from '../../api/devices.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
-import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import type { RecordsStackParamList } from '../../navigation/types'
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   normal:      { label: '正常', color: colors.success },
@@ -18,8 +23,8 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 }
 
 export function DeviceDetailScreen() {
-  const navigation = useNavigation<any>()
-  const route = useRoute<any>()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const route = useRoute<RouteProp<RecordsStackParamList, 'DeviceDetail'>>()
   const { deviceId } = route.params
 
   const { data: device, isLoading } = useQuery({
@@ -46,6 +51,7 @@ export function DeviceDetailScreen() {
   const status = STATUS_MAP[device.status] ?? { label: device.status, color: colors.textMuted }
   const health = device.healthScore ?? 100
   const healthColor = health > 70 ? colors.success : health > 40 ? colors.warning : colors.danger
+  const healthWidth = `${Math.max(0, Math.min(100, health))}%` as `${number}%`
 
   return (
     <View style={styles.container}>
@@ -82,7 +88,7 @@ export function DeviceDetailScreen() {
           </View>
           <View style={styles.healthBarBg}>
             <View style={[styles.healthBarFill, {
-              width: `${health}%` as any,
+              width: healthWidth,
               backgroundColor: healthColor,
             }]} />
           </View>
@@ -119,12 +125,21 @@ export function DeviceDetailScreen() {
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => navigation.navigate('OrderCreate', { deviceId: device.id, deviceName: device.name })}
+            onPress={() => navigation.getParent()?.navigate('Orders', {
+              screen: 'OrderCreate',
+              params: { deviceId: device.id },
+            })}
           >
             <Text style={styles.actionBtnIcon}>📋</Text>
             <Text style={styles.actionBtnText}>报修工单</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => navigation.getParent()?.navigate('Orders', {
+              screen: 'OrderList',
+              params: { deviceId: device.id, title: '维修历史' },
+            })}
+          >
             <Text style={styles.actionBtnIcon}>📈</Text>
             <Text style={styles.actionBtnText}>维修历史</Text>
           </TouchableOpacity>

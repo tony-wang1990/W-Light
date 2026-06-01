@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
 import { ordersApi } from '../../api/orders.api'
+import { devicesApi } from '../../api/devices.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 interface Summary {
@@ -20,7 +21,7 @@ const QUICK_ACTIONS = [
 ]
 
 export function HomeScreen() {
-  const navigation = useNavigation<any>()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const { user } = useAuthStore()
   const [summary, setSummary] = useState<Summary>({ pending: 0, processing: 0, reviewing: 0, suspended: 0 })
   const [refreshing, setRefreshing] = useState(false)
@@ -34,7 +35,9 @@ export function HomeScreen() {
         reviewing: data.reviewing || 0,
         suspended: data.suspended || 0,
       })
-    } catch {}
+    } catch (error) {
+      console.warn('Failed to load order summary', error)
+    }
   }
 
   useEffect(() => { fetchSummary() }, [])
@@ -49,11 +52,13 @@ export function HomeScreen() {
     if (route === 'ScanMock') {
       try {
         // Mock a QR scan by fetching devices and picking the first one
-        const { devicesApi } = await import('../../api/devices.api');
-        const res = await devicesApi.list();
+        const res = await devicesApi.getList({ pageSize: 1 });
         if (res.items && res.items.length > 0) {
           const deviceId = res.items[0].id;
-          navigation.navigate('DeviceDetail', { deviceId });
+          navigation.getParent()?.navigate('Records', {
+            screen: 'DeviceDetail',
+            params: { deviceId },
+          });
         } else {
           Alert.alert('提示', '数据库中暂无设备，请先在网页端添加设备');
         }
@@ -62,7 +67,11 @@ export function HomeScreen() {
         Alert.alert('扫描失败', '无法连接到服务器');
       }
     } else {
-      navigation.navigate(route);
+      if (route === 'OrderCreate') {
+        navigation.getParent()?.navigate('Orders', { screen: 'OrderCreate' });
+      } else {
+        navigation.getParent()?.navigate(route);
+      }
     }
   }
 
@@ -86,7 +95,7 @@ export function HomeScreen() {
             <Text style={styles.greeting}>{greeting()}，{user?.name || '灯光师'} 👋</Text>
             <Text style={styles.roleTag}>{user?.role === 'admin' ? '🔑 管理员' : '🔧 维修工程师'}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Notifications')}>
+          <TouchableOpacity style={styles.notificationBtn} onPress={() => Alert.alert('通知中心', '通知中心将在后续版本接入')}>
             <Text style={styles.notificationIcon}>🔔</Text>
           </TouchableOpacity>
         </View>

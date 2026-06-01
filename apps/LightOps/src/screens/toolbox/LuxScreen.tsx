@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { calculateLux, LUX_REFERENCES } from '@lightops/toolbox-core'
+import { LUX_REFERENCES } from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 type CalcMode = 'toLux' | 'toDistance'

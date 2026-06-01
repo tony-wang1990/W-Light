@@ -3,32 +3,33 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   RefreshControl, FlatList, TextInput,
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
-import { useAuthStore } from '../../store/authStore'
+import { useNavigation, useRoute, type NavigationProp, type ParamListBase, type RouteProp } from '@react-navigation/native'
 import { ordersApi } from '../../api/orders.api'
-import { StatusBadge } from '../../components/common/StatusBadge'
-import { PriorityTag } from '../../components/common/PriorityTag'
 import { OrderCard } from '../../components/order/OrderCard'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import type { WorkOrder } from '../../types'
+import type { OrdersStackParamList } from '../../navigation/types'
 
 const STATUS_FILTERS = [
-  { label: '全部', value: '' },
-  { label: '待处理', value: 'pending' },
-  { label: '处理中', value: 'processing' },
-  { label: '待验收', value: 'reviewing' },
-  { label: '已完成', value: 'closed' },
+  { label: '全部', value: '', countKey: 'total' },
+  { label: '待处理', value: 'pending', countKey: 'pending' },
+  { label: '处理中', value: 'processing', countKey: 'processing' },
+  { label: '待验收', value: 'reviewing', countKey: 'reviewing' },
+  { label: '已完成', value: 'closed', countKey: 'closed' },
 ]
 
 export function OrderListScreen() {
-  const navigation = useNavigation<any>()
+  const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const route = useRoute<RouteProp<OrdersStackParamList, 'OrderList'>>()
+  const routeDeviceId = route.params?.deviceId
+  const routeTitle = route.params?.title
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [total, setTotal] = useState(0)
+  const [summary, setSummary] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [page, setPage] = useState(1)
 
   const fetchOrders = useCallback(async (status = '', kw = '', pg = 1, reset = false) => {
     if (loading && !reset) return
@@ -36,6 +37,7 @@ export function OrderListScreen() {
     try {
       const result = await ordersApi.list({
         status: status || undefined,
+        deviceId: routeDeviceId,
         keyword: kw || undefined,
         page: pg,
         pageSize: 20,
@@ -46,34 +48,57 @@ export function OrderListScreen() {
         setOrders(prev => [...prev, ...result.items])
       }
       setTotal(result.total)
-    } catch (e) {
-      // Handle error
+    } catch {
+      // 首页统计和下拉刷新会保留当前列表，后续统一接入 toast 提醒。
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [loading])
+  }, [loading, routeDeviceId])
+
+  const fetchSummary = useCallback(async () => {
+    if (routeDeviceId) return
+    try {
+      const data = await ordersApi.summary()
+      setSummary(data)
+    } catch {
+      setSummary({})
+    }
+  }, [routeDeviceId])
 
   React.useEffect(() => {
     fetchOrders(selectedStatus, keyword, 1, true)
-  }, [selectedStatus])
+    fetchSummary()
+  }, [selectedStatus, routeDeviceId])
 
   const handleRefresh = () => {
     setRefreshing(true)
-    setPage(1)
+    fetchSummary()
     fetchOrders(selectedStatus, keyword, 1, true)
+  }
+
+  const getFilterCount = (countKey: string) => {
+    if (countKey === 'total') {
+      return Object.values(summary).reduce((sum, value) => sum + Number(value || 0), 0)
+    }
+    if (countKey === 'pending') {
+      return Number(summary.pending || 0) + Number(summary.assigned || 0)
+    }
+    return Number(summary[countKey] || 0)
   }
 
   const handleStatusFilter = (status: string) => {
     setSelectedStatus(status)
-    setPage(1)
   }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>工单管理</Text>
+        <View>
+          <Text style={styles.headerTitle}>{routeTitle || '工单管理'}</Text>
+          {routeDeviceId && <Text style={styles.headerSubTitle}>设备维修历史</Text>}
+        </View>
         <TouchableOpacity
           style={styles.createButton}
           onPress={() => navigation.navigate('OrderCreate')}
@@ -103,7 +128,9 @@ export function OrderListScreen() {
         style={styles.filterRow}
         contentContainerStyle={styles.filterContent}
       >
-        {STATUS_FILTERS.map(f => (
+        {STATUS_FILTERS.map(f => {
+          const count = routeDeviceId ? null : getFilterCount(f.countKey)
+          return (
           <TouchableOpacity
             key={f.value}
             style={[styles.filterChip, selectedStatus === f.value && styles.filterChipActive]}
@@ -112,10 +139,10 @@ export function OrderListScreen() {
             <Text
               style={[styles.filterLabel, selectedStatus === f.value && styles.filterLabelActive]}
             >
-              {f.label}
+              {f.label}{count !== null ? ` ${count}` : ''}
             </Text>
           </TouchableOpacity>
-        ))}
+        )})}
       </ScrollView>
 
       {/* Results count */}
@@ -166,6 +193,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerTitle: { fontSize: fontSize.xl, fontWeight: '700', color: colors.textPrimary },
+  headerSubTitle: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   createButton: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,

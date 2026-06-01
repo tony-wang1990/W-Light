@@ -23,4 +23,17 @@ export class AddRepairLogDto {
   @ApiProperty({ required: false, description: '外包费用（元）' })
   @IsOptional()
   outsourceCost?: number
+
+  @ApiProperty({
+    required: false,
+    description: '本次维修消耗的备件',
+    example: [{ partId: 'uuid', quantity: 2, note: '更换损坏电源模块' }],
+  })
+  @IsArray()
+  @IsOptional()
+  partUsages?: Array<{
+    partId: string
+    quantity: number
+    note?: string
+  }>
 }

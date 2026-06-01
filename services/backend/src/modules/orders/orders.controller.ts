@@ -37,11 +37,12 @@ export class OrdersController {
     @Query('priority') priority?: OrderPriority,
     @Query('assigneeId') assigneeId?: string,
     @Query('keyword') keyword?: string,
+    @Query('deviceId') deviceId?: string,
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 20,
   ) {
     const projectId = req.headers['x-project-id'] as string
-    return this.ordersService.findAll(projectId, +page, +pageSize, status, priority, assigneeId, keyword)
+    return this.ordersService.findAll(projectId, +page, +pageSize, status, priority, assigneeId, keyword, deviceId)
   }
 
   @Get('summary')

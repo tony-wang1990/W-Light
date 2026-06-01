@@ -3,10 +3,12 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
-import { useAuthStore } from '../../store/authStore'
+import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native'
 import { ordersApi } from '../../api/orders.api'
+import { uploadApi, type UploadedMedia } from '../../api/upload.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
+import { getErrorMessage } from '../../utils/error'
+import type { OrdersStackParamList } from '../../navigation/types'
 
 const CATEGORIES = ['故障维修', '定期保养', '设备安装', '紧急抢修']
 const PRIORITIES = [
@@ -20,15 +22,33 @@ const FAULT_TYPES = [
 ]
 
 export function OrderCreateScreen() {
-  const navigation = useNavigation()
-  const { user } = useAuthStore()
-
-  const [category, setCategory] = useState('故障维修')
+  const navigation = useNavigation<NavigationProp<OrdersStackParamList>>()
+  const route = useRoute<RouteProp<OrdersStackParamList, 'OrderCreate'>>()
+  const deviceId = route.params?.deviceId
+  const [category, setCategory] = useState(route.params?.category || '故障维修')
   const [priority, setPriority] = useState('P2')
-  const [faultType, setFaultType] = useState('')
-  const [faultDesc, setFaultDesc] = useState('')
+  const [faultType, setFaultType] = useState(route.params?.faultType || '')
+  const [faultDesc, setFaultDesc] = useState(route.params?.initialFaultDesc || '')
   const [locationDesc, setLocationDesc] = useState('')
+  const [media, setMedia] = useState<UploadedMedia[]>([])
+  const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  const handlePickMedia = async () => {
+    setUploading(true)
+    try {
+      const uploaded = await uploadApi.pickAndUpload('mixed')
+      if (uploaded.length > 0) setMedia(prev => [...prev, ...uploaded])
+    } catch (error: unknown) {
+      Alert.alert('上传失败', getErrorMessage(error, '请检查网络或文件大小'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleRemoveMedia = (url: string) => {
+    setMedia(prev => prev.filter(item => item.url !== url))
+  }
 
   const handleSubmit = async () => {
     if (!faultDesc.trim()) {
@@ -44,18 +64,20 @@ export function OrderCreateScreen() {
     try {
       const order = await ordersApi.create({
         category,
+        deviceId,
         priority,
         faultType: faultType || undefined,
         faultDesc: faultDesc.trim(),
+        mediaUrls: media.map(item => item.url),
         locationDesc: locationDesc.trim() || undefined,
         faultAt: new Date().toISOString(),
       })
       Alert.alert('✅ 工单已创建', `工单号：${order.orderNo}\n已提交，等待管理员派单`, [
-        { text: '查看工单', onPress: () => navigation.navigate('OrderDetail' as never, { orderId: order.id } as never) },
+        { text: '查看工单', onPress: () => navigation.navigate('OrderDetail', { orderId: order.id }) },
         { text: '返回列表', onPress: () => navigation.goBack() },
       ])
-    } catch (e: any) {
-      Alert.alert('创建失败', e.message)
+    } catch (e: unknown) {
+      Alert.alert('创建失败', getErrorMessage(e))
     } finally {
       setSubmitting(false)
     }
@@ -144,6 +166,13 @@ export function OrderCreateScreen() {
         </View>
 
         {/* Fault Description */}
+        {deviceId && (
+          <View style={styles.deviceHint}>
+            <Text style={styles.deviceHintText}>已关联扫码设备，提交后工单会进入该设备维修历史。</Text>
+          </View>
+        )}
+
+        {/* Fault Description */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
             故障描述 <Text style={styles.required}>*</Text>
@@ -174,11 +203,30 @@ export function OrderCreateScreen() {
           />
         </View>
 
-        {/* Photo Hint */}
-        <View style={styles.photoHint}>
-          <Text style={styles.photoHintText}>
-            💡 提示：提交工单后可在工单详情中添加故障照片和视频
-          </Text>
+        {/* Media Upload */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>现场照片/视频 <Text style={styles.optional}>（可选）</Text></Text>
+          <TouchableOpacity
+            style={[styles.uploadBtn, uploading && { opacity: 0.6 }]}
+            onPress={handlePickMedia}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.uploadBtnText}>+ 选择并上传附件</Text>
+            )}
+          </TouchableOpacity>
+          {media.map(item => (
+            <View key={item.url} style={styles.mediaRow}>
+              <Text style={styles.mediaName} numberOfLines={1}>
+                {item.mediaType === 'video' ? '🎬' : '🖼️'} {item.name}
+              </Text>
+              <TouchableOpacity onPress={() => handleRemoveMedia(item.url)}>
+                <Text style={styles.mediaRemove}>移除</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
 
         <View style={{ height: 80 }} />
@@ -216,6 +264,16 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
   required: { color: colors.danger },
   optional: { color: colors.textMuted, fontWeight: '400' },
+  deviceHint: {
+    marginHorizontal: spacing.base,
+    marginTop: spacing.base,
+    backgroundColor: colors.primary + '18',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '44',
+  },
+  deviceHintText: { fontSize: fontSize.xs, color: colors.primary, lineHeight: 18 },
   // Chips
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
@@ -267,12 +325,29 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textPrimary,
   },
-  // Photo Hint
-  photoHint: {
-    margin: spacing.base,
-    backgroundColor: colors.info + '22',
+  uploadBtn: {
+    height: 44,
     borderRadius: radius.md,
-    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary + '12',
   },
-  photoHintText: { fontSize: fontSize.xs, color: colors.info, lineHeight: 18 },
+  uploadBtnText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '700' },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mediaName: { flex: 1, fontSize: fontSize.xs, color: colors.textSecondary },
+  mediaRemove: { fontSize: fontSize.xs, color: colors.danger, fontWeight: '700', marginLeft: spacing.sm },
 })

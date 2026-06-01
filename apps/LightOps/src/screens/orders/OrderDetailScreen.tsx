@@ -1,24 +1,34 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native'
+import {
+  type NavigationProp,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native'
 import { ordersApi } from '../../api/orders.api'
+import { usersApi } from '../../api/users.api'
 import { StatusBadge } from '../../components/common/StatusBadge'
 import { PriorityTag } from '../../components/common/PriorityTag'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
-import type { WorkOrder, RepairLog } from '../../types'
+import type { OrdersStackParamList } from '../../navigation/types'
+import type { WorkOrder, RepairLog, User } from '../../types'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { getErrorMessage } from '../../utils/error'
 
 export function OrderDetailScreen() {
-  const navigation = useNavigation<any>()
-  const route = useRoute<any>()
+  const navigation = useNavigation<NavigationProp<OrdersStackParamList>>()
+  const route = useRoute<RouteProp<OrdersStackParamList, 'OrderDetail'>>()
   const { user } = useAuthStore()
   const { orderId } = route.params
 
   const [order, setOrder] = useState<WorkOrder | null>(null)
   const [logs, setLogs] = useState<RepairLog[]>([])
+  const [engineers, setEngineers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const fetchDetail = async () => {
     try {
@@ -28,31 +38,55 @@ export function OrderDetailScreen() {
       ])
       setOrder(orderData)
       setLogs(logsData)
-    } catch (e: any) {
-      Alert.alert('错误', e.message)
+    } catch (e: unknown) {
+      Alert.alert('错误', getErrorMessage(e, '加载工单详情失败'))
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
   useEffect(() => { fetchDetail() }, [orderId])
 
-  const handleAction = async (action: string, reason?: string) => {
+  useEffect(() => {
+    usersApi.list()
+      .then(users => setEngineers(users.filter(item => ['admin', 'engineer', 'inspector'].includes(item.role))))
+      .catch(error => console.warn('Failed to load engineers', error))
+  }, [])
+
+  const handleAction = async (action: string) => {
     if (!order) return
     try {
       let updated: WorkOrder
       switch (action) {
         case 'accept': updated = await ordersApi.accept(order.id); break
+        case 'reject': updated = await ordersApi.reject(order.id, '现场无法接单，请管理员重新派单'); break
+        case 'suspend': updated = await ordersApi.suspend(order.id, '等待备件、现场条件或进一步确认'); break
         case 'submit': updated = await ordersApi.submit(order.id); break
         case 'resume': updated = await ordersApi.resume(order.id); break
         case 'accept-check':
           updated = await ordersApi.acceptCheck(order.id); break
+        case 'reject-check':
+          updated = await ordersApi.rejectCheck(order.id, '验收退回，请补充维修记录或现场照片'); break
         default: return
       }
       setOrder(updated)
+      await fetchDetail()
       Alert.alert('✅ 成功', '操作已完成')
-    } catch (e: any) {
-      Alert.alert('操作失败', e.message)
+    } catch (e: unknown) {
+      Alert.alert('操作失败', getErrorMessage(e))
+    }
+  }
+
+  const handleAssign = async (assigneeId: string) => {
+    if (!order) return
+    try {
+      const updated = await ordersApi.assign(order.id, assigneeId)
+      setOrder(updated)
+      await fetchDetail()
+      Alert.alert('✅ 已派单', '工单已指派给维修人员')
+    } catch (e: unknown) {
+      Alert.alert('派单失败', getErrorMessage(e))
     }
   }
 
@@ -89,7 +123,20 @@ export function OrderDetailScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true)
+              fetchDetail()
+            }}
+            tintColor={colors.primary}
+          />
+        }
+      >
         {/* Order Number */}
         <Text style={styles.orderNo}>{order.orderNo}</Text>
 
@@ -115,6 +162,16 @@ export function OrderDetailScreen() {
           <View style={styles.descBox}>
             <Text style={styles.descText}>{order.faultDesc}</Text>
           </View>
+          {order.mediaUrls && order.mediaUrls.length > 0 && (
+            <View style={styles.mediaBox}>
+              <Text style={styles.mediaTitle}>现场附件</Text>
+              {order.mediaUrls.map((url, index) => (
+                <Text key={`${url}-${index}`} style={styles.mediaText} numberOfLines={1}>
+                  附件 {index + 1}: {url}
+                </Text>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Timeline */}
@@ -124,16 +181,72 @@ export function OrderDetailScreen() {
         </View>
 
         {/* Repair Logs */}
+        {isAdmin && ['pending', 'assigned'].includes(order.status) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>派单</Text>
+            {engineers.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {engineers.map(engineer => (
+                  <TouchableOpacity
+                    key={engineer.id}
+                    style={[
+                      styles.engineerChip,
+                      order.assigneeId === engineer.id && styles.engineerChipActive,
+                    ]}
+                    onPress={() => handleAssign(engineer.id)}
+                  >
+                    <Text style={[
+                      styles.engineerName,
+                      order.assigneeId === engineer.id && styles.engineerTextActive,
+                    ]}>
+                      {engineer.name}
+                    </Text>
+                    <Text style={[
+                      styles.engineerRole,
+                      order.assigneeId === engineer.id && styles.engineerTextActive,
+                    ]}>
+                      {engineer.role}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptyHint}>暂无可派单人员</Text>
+            )}
+          </View>
+        )}
+
+        {/* Repair Logs */}
         {logs.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>维修记录 ({logs.length})</Text>
-            {logs.map((log, i) => (
+            {logs.map(log => (
               <View key={log.id} style={styles.logItem}>
                 <View style={styles.logHeader}>
                   <Text style={styles.logStep}>{log.stepType}</Text>
                   <Text style={styles.logTime}>{format(new Date(log.loggedAt), 'MM-dd HH:mm')}</Text>
                 </View>
                 <Text style={styles.logDesc}>{log.stepDesc}</Text>
+                {log.photoUrls && log.photoUrls.length > 0 && (
+                  <View style={styles.mediaBox}>
+                    <Text style={styles.mediaTitle}>维修附件</Text>
+                    {log.photoUrls.map((url, index) => (
+                      <Text key={`${log.id}-${url}-${index}`} style={styles.mediaText} numberOfLines={1}>
+                        附件 {index + 1}: {url}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {log.partUsages && log.partUsages.length > 0 && (
+                  <View style={styles.partsUsedBox}>
+                    <Text style={styles.partsUsedTitle}>更换备件</Text>
+                    {log.partUsages.map(part => (
+                      <Text key={`${log.id}-${part.partId}`} style={styles.partsUsedText}>
+                        {part.name || part.partId} × {part.quantity}{part.unit || ''}
+                      </Text>
+                    ))}
+                  </View>
+                )}
                 {log.engineer && (
                   <Text style={styles.logEngineer}>👤 {log.engineer.name}</Text>
                 )}
@@ -149,12 +262,20 @@ export function OrderDetailScreen() {
       <View style={styles.actionBar}>
         {/* Engineer Actions */}
         {isAssignee && order.status === 'assigned' && (
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnPrimary]}
-            onPress={() => confirmAction('accept', '接单', '确认接收此工单并开始处理？')}
-          >
-            <Text style={styles.actionBtnText}>✅ 接单</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnDanger]}
+              onPress={() => confirmAction('reject', '拒单', '确认拒绝此工单并退回待派单？')}
+            >
+              <Text style={styles.actionBtnText}>拒单</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnPrimary]}
+              onPress={() => confirmAction('accept', '接单', '确认接收此工单并开始处理？')}
+            >
+              <Text style={styles.actionBtnText}>✅ 接单</Text>
+            </TouchableOpacity>
+          </>
         )}
         {isAssignee && order.status === 'processing' && (
           <>
@@ -163,6 +284,12 @@ export function OrderDetailScreen() {
               onPress={() => navigation.navigate('OrderRepair', { orderId: order.id })}
             >
               <Text style={styles.actionBtnTextSec}>+ 添加记录</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnDanger]}
+              onPress={() => confirmAction('suspend', '挂起工单', '确认暂时挂起此工单？')}
+            >
+              <Text style={styles.actionBtnText}>挂起</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, styles.actionBtnPrimary]}
@@ -185,7 +312,7 @@ export function OrderDetailScreen() {
           <>
             <TouchableOpacity
               style={[styles.actionBtn, styles.actionBtnDanger]}
-              onPress={() => Alert.alert('验收退回', '请填写退回原因')}
+              onPress={() => confirmAction('reject-check', '验收退回', '确认退回给维修人员继续处理？')}
             >
               <Text style={styles.actionBtnText}>↩️ 退回</Text>
             </TouchableOpacity>
@@ -300,6 +427,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   descText: { fontSize: fontSize.sm, color: colors.textPrimary, lineHeight: 22 },
+  mediaBox: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mediaTitle: { fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: '700' },
+  mediaText: { fontSize: fontSize.xs, color: colors.primary, lineHeight: 18 },
   logItem: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.md,
@@ -310,7 +447,31 @@ const styles = StyleSheet.create({
   logStep: { fontSize: fontSize.sm, fontWeight: '600', color: colors.primary },
   logTime: { fontSize: fontSize.xs, color: colors.textMuted },
   logDesc: { fontSize: fontSize.sm, color: colors.textPrimary, lineHeight: 20 },
+  partsUsedBox: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  partsUsedTitle: { fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: '700' },
+  partsUsedText: { fontSize: fontSize.xs, color: colors.textSecondary, lineHeight: 18 },
   logEngineer: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
+  engineerChip: {
+    width: 112,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  engineerChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  engineerName: { fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '700' },
+  engineerRole: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  engineerTextActive: { color: colors.white },
+  emptyHint: { fontSize: fontSize.xs, color: colors.textMuted },
   // Action Bar
   actionBar: {
     flexDirection: 'row',

@@ -12,36 +12,63 @@ export interface UsePartParams {
   partId: string;
   quantity: number;
   orderId: string;
+  note?: string;
+}
+
+export interface PartOutboundResult {
+  part: SparePart;
+  stockAlert: boolean;
+}
+
+function toPaginatedParts(
+  data: SparePart[] | PaginatedResponse<SparePart>,
+  page = 1,
+  pageSize = 50,
+): PaginatedResponse<SparePart> {
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page,
+      pageSize,
+      totalPages: 1,
+    };
+  }
+
+  return data;
 }
 
 export const partsApi = {
   getList: async (
     params: PartListParams,
   ): Promise<PaginatedResponse<SparePart>> => {
-    const response = await client.get<PaginatedResponse<SparePart>>('/parts', {
-      params,
+    const data = await client.get<SparePart[] | PaginatedResponse<SparePart>>('/parts', {
+      params: {
+        ...params,
+        lowStockOnly: params.lowStock,
+      },
     });
-    return response.data;
+    return toPaginatedParts(data, params.page, params.pageSize);
   },
 
   getById: async (id: string): Promise<SparePart> => {
-    const response = await client.get<SparePart>(`/parts/${id}`);
-    return response.data;
+    return client.get<SparePart>(`/parts/${id}`);
   },
 
   create: async (data: Partial<SparePart>): Promise<SparePart> => {
-    const response = await client.post<SparePart>('/parts', data);
-    return response.data;
+    return client.post<SparePart>('/parts', data);
   },
 
   update: async (id: string, data: Partial<SparePart>): Promise<SparePart> => {
-    const response = await client.patch<SparePart>(`/parts/${id}`, data);
-    return response.data;
+    return client.put<SparePart>(`/parts/${id}`, data);
   },
 
-  usePart: async (params: UsePartParams): Promise<SparePart> => {
-    const response = await client.post<SparePart>('/parts/use', params);
-    return response.data;
+  usePart: async (params: UsePartParams): Promise<PartOutboundResult> => {
+    return client.post<PartOutboundResult>(`/parts/${params.partId}/outbound`, {
+      quantity: params.quantity,
+      orderId: params.orderId,
+      note: params.note,
+    });
   },
 
   adjustStock: async (
@@ -49,15 +76,13 @@ export const partsApi = {
     quantity: number,
     note: string,
   ): Promise<SparePart> => {
-    const response = await client.post<SparePart>(`/parts/${id}/adjust`, {
+    return client.post<SparePart>(`/parts/${id}/inbound`, {
       quantity,
       note,
     });
-    return response.data;
   },
 
   getLowStock: async (): Promise<SparePart[]> => {
-    const response = await client.get<SparePart[]>('/parts/low-stock');
-    return response.data;
+    return client.get<SparePart[]>('/parts/low-stock-alerts');
   },
 };

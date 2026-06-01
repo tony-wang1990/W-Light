@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert,
+  ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { calcBeamAngle, calcSpotSize, BEAM_ANGLE_REFERENCES } from '@lightops/toolbox-core'
