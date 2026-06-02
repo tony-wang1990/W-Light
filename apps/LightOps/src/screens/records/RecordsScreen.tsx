@@ -16,7 +16,7 @@ import { partsApi } from '../../api/parts.api'
 import { inspectionsApi } from '../../api/inspections.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { Device, SparePart } from '../../types'
-import type { InspectionPlan } from '../../api/inspections.api'
+import type { InspectionPlan, InspectionRecord } from '../../api/inspections.api'
 import { getErrorMessage } from '../../utils/error'
 
 type TabKey = 'devices' | 'parts' | 'inspections'
@@ -35,6 +35,12 @@ const DEVICE_CATEGORY_ICON: Record<string, string> = {
   '音频': '🔊',
   '视频': '📹',
   '其他': '📦',
+}
+
+const INSPECTION_STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  normal: { label: '正常', color: colors.success },
+  abnormal: { label: '异常', color: colors.warning },
+  skipped: { label: '跳过', color: colors.textMuted },
 }
 
 export function RecordsScreen() {
@@ -299,6 +305,9 @@ function PartCard({ part }: { part: SparePart }) {
 function InspectionsTab() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const [plans, setPlans] = React.useState<InspectionPlan[]>([])
+  const [expandedPlanId, setExpandedPlanId] = React.useState<string | null>(null)
+  const [records, setRecords] = React.useState<InspectionRecord[]>([])
+  const [recordsLoading, setRecordsLoading] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)
 
@@ -318,6 +327,28 @@ function InspectionsTab() {
 
   React.useEffect(() => { load() }, [])
 
+  const loadRecords = async (planId: string) => {
+    setRecordsLoading(true)
+    try {
+      const data = await inspectionsApi.getRecords(planId, 1, 10)
+      setRecords(data.items)
+      setExpandedPlanId(planId)
+    } catch (e: unknown) {
+      Alert.alert('错误', getErrorMessage(e, '巡检记录加载失败'))
+    } finally {
+      setRecordsLoading(false)
+    }
+  }
+
+  const handleToggleRecords = async (planId: string) => {
+    if (expandedPlanId === planId) {
+      setExpandedPlanId(null)
+      setRecords([])
+      return
+    }
+    await loadRecords(planId)
+  }
+
   const handleRecord = async (planId: string) => {
     Alert.alert('提交巡检记录', '请选择巡检结果：', [
       { text: '取消', style: 'cancel' },
@@ -327,6 +358,7 @@ function InspectionsTab() {
           try {
             await inspectionsApi.createRecord(planId, 'normal', '巡检正常，无异常')
             await load(true)
+            if (expandedPlanId === planId) await loadRecords(planId)
             Alert.alert('✅ 记录成功', '巡检记录已提交')
           } catch (e: unknown) { Alert.alert('错误', getErrorMessage(e)) }
         },
@@ -344,6 +376,7 @@ function InspectionsTab() {
             )
             const plan = plans.find(item => item.id === planId)
             await load(true)
+            if (expandedPlanId === planId) await loadRecords(planId)
 
             if (record.orderId) {
               Alert.alert('⚠️ 已生成工单', `巡检计划「${plan?.name || '未命名巡检'}」已生成维修工单。`, [
@@ -391,23 +424,78 @@ function InspectionsTab() {
         </View>
       )}
       {plans.map((p, i) => (
-        <View key={p.id || i} style={[styles.inspectionCard]}>
-          <View style={styles.inspectionLeft}>
-            <Text style={styles.inspectionIcon}>📋</Text>
+        <React.Fragment key={p.id || i}>
+          <View style={[styles.inspectionCard]}>
+            <View style={styles.inspectionLeft}>
+              <Text style={styles.inspectionIcon}>📋</Text>
+            </View>
+            <View style={styles.inspectionBody}>
+              <Text style={styles.inspectionName}>{p.name}</Text>
+              <Text style={styles.inspectionMeta}>频率：{FREQ_LABELS[p.frequency] ?? p.frequency}</Text>
+              {p.nextInspectionAt && (
+                <Text style={styles.inspectionNext}>
+                  下次：{new Date(p.nextInspectionAt).toLocaleDateString('zh-CN')}
+                </Text>
+              )}
+            </View>
+            <View style={styles.inspectionActions}>
+              <TouchableOpacity style={styles.inspectionBtn} onPress={() => handleRecord(p.id)}>
+                <Text style={styles.inspectionBtnText}>记录</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.inspectionGhostBtn} onPress={() => handleToggleRecords(p.id)}>
+                <Text style={styles.inspectionGhostBtnText}>
+                  {expandedPlanId === p.id ? '收起' : '历史'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.inspectionBody}>
-            <Text style={styles.inspectionName}>{p.name}</Text>
-            <Text style={styles.inspectionMeta}>频率：{FREQ_LABELS[p.frequency] ?? p.frequency}</Text>
-            {p.nextInspectionAt && (
-              <Text style={styles.inspectionNext}>
-                下次：{new Date(p.nextInspectionAt).toLocaleDateString('zh-CN')}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity style={styles.inspectionBtn} onPress={() => handleRecord(p.id)}>
-            <Text style={styles.inspectionBtnText}>记录</Text>
-          </TouchableOpacity>
-        </View>
+          {expandedPlanId === p.id && (
+            <View style={styles.recordsPanel}>
+              {recordsLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : records.length === 0 ? (
+                <Text style={styles.recordEmpty}>暂无巡检记录</Text>
+              ) : records.map(record => {
+                const status = INSPECTION_STATUS_LABEL[record.status] ?? {
+                  label: record.status,
+                  color: colors.textMuted,
+                }
+                return (
+                  <View key={record.id} style={styles.recordRow}>
+                    <View style={[styles.recordDot, { backgroundColor: status.color }]} />
+                    <View style={styles.recordBody}>
+                      <View style={styles.recordHeader}>
+                        <Text style={styles.recordName}>{status.label}</Text>
+                        <Text style={styles.recordMeta}>
+                          {new Date(record.inspectedAt).toLocaleString('zh-CN', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Text>
+                      </View>
+                      {record.resultDesc && (
+                        <Text style={styles.recordDesc}>{record.resultDesc}</Text>
+                      )}
+                      {record.orderId && (
+                        <TouchableOpacity
+                          style={styles.recordOrderBtn}
+                          onPress={() => navigation.getParent()?.navigate('Orders', {
+                            screen: 'OrderDetail',
+                            params: { orderId: record.orderId },
+                          })}
+                        >
+                          <Text style={styles.recordOrderText}>查看关联工单</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          )}
+        </React.Fragment>
       ))}
     </ScrollView>
   )
@@ -588,14 +676,36 @@ const styles = StyleSheet.create({
   inspectionName: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textPrimary },
   inspectionMeta: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   inspectionNext: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  inspectionActions: { gap: spacing.xs, marginLeft: spacing.sm },
   inspectionBtn: {
     backgroundColor: colors.primary + '22',
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    alignItems: 'center',
   },
   inspectionBtnText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '700' },
+  inspectionGhostBtn: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  inspectionGhostBtnText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: '700' },
 
+  recordsPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: -spacing.xs,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  recordEmpty: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.md },
   recordRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.md },
   recordDot: {
     width: 8,
@@ -606,6 +716,17 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   recordBody: { flex: 1 },
+  recordHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   recordName: { fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '500' },
   recordMeta: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  recordDesc: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, lineHeight: 17 },
+  recordOrderBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary + '22',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  recordOrderText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '700' },
 })

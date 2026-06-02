@@ -106,8 +106,20 @@ class InspectionsService {
     return record
   }
   
-  getRecords(planId: string, page = 1, ps = 20) {
-    return this.recordRepo.findAndCount({ where: { planId }, order: { inspectedAt: 'DESC' }, skip: (page-1)*ps, take: ps })
+  async getRecords(projectId: string, planId?: string, page = 1, ps = 20) {
+    const qb = this.recordRepo
+      .createQueryBuilder('r')
+      .innerJoin(InspectionPlan, 'p', 'p.id = r.planId AND p.projectId = :projectId', { projectId })
+      .orderBy('r.inspectedAt', 'DESC')
+
+    if (planId) qb.andWhere('r.planId = :planId', { planId })
+
+    const [items, total] = await qb
+      .skip((page - 1) * ps)
+      .take(ps)
+      .getManyAndCount()
+
+    return { items, total, page, pageSize: ps, totalPages: Math.ceil(total / ps) }
   }
   
   getTodayPlans(assigneeId: string, projectId: string) {
@@ -166,8 +178,13 @@ class InspectionsController {
     return this.svc.createRecord(dto, req.user.id, req.headers['x-project-id'])
   }
   
-  @Get('records') getRecords(@Query('planId') planId: string, @Query('page') p = 1, @Query('pageSize') ps = 20) {
-    return this.svc.getRecords(planId, +p, +ps)
+  @Get('records') getRecords(
+    @Request() req,
+    @Query('planId') planId?: string,
+    @Query('page') p = 1,
+    @Query('pageSize') ps = 20,
+  ) {
+    return this.svc.getRecords(req.headers['x-project-id'], planId, +p, +ps)
   }
   
   @Get('stats') getStats(@Request() req) { return this.svc.getStats(req.headers['x-project-id']) }
