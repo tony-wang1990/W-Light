@@ -1,81 +1,260 @@
 /**
  * DMX 地址码计算工具
  *
- * DMX512 协议：每条 Universe 最多 512 个通道
- * 每台灯具占用连续通道，起始地址不重叠
+ * DMX512 协议：每条 Universe 最多 512 个通道。
+ * 现场常见诉求包括连续自动分配、手动固定地址、多 Universe 分链和冲突检查。
  */
 
 export interface DmxFixture {
   id: string
   name: string
   model?: string
-  channels: number     // 通道数
-  quantity: number     // 数量
-  startAddress: number // 起始地址（计算得出）
-  universe?: number    // 所属 Universe（1-based）
+  channels: number
+  quantity: number
+  startAddress: number
+  endAddress?: number
+  universe?: number
+  assignmentIds?: string[]
+}
+
+export type DmxFixtureInput = Omit<
+  DmxFixture,
+  'startAddress' | 'endAddress' | 'universe' | 'assignmentIds'
+> & {
+  startAddress?: number
+  universe?: number
+}
+
+export interface DmxAddressAssignment {
+  id: string
+  fixtureId: string
+  fixtureName: string
+  label: string
+  index: number
+  channels: number
+  universe: number
+  startAddress: number
+  endAddress: number
+}
+
+export interface DmxAddressConflict {
+  universe: number
+  fixtureA: string
+  fixtureB: string
+  addressStart: number
+  addressEnd: number
+}
+
+export interface DmxUniverseUsage {
+  universe: number
+  usedChannels: number
+  utilization: number
+  firstAddress: number
+  lastAddress: number
 }
 
 export interface DmxCalcResult {
   fixtures: DmxFixture[]
+  assignments: DmxAddressAssignment[]
   totalChannels: number
   universesNeeded: number
-  hasOverflow: boolean  // 是否超过 512 通道
+  hasOverflow: boolean
+  hasConflicts: boolean
+  conflicts: DmxAddressConflict[]
+  universeUsage: DmxUniverseUsage[]
   warnings: string[]
 }
 
 const DMX_MAX_CHANNELS = 512
 
+function normalizeAddress(value: number | undefined, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(Math.max(Math.floor(value as number), 1), DMX_MAX_CHANNELS)
+}
+
+function normalizeUniverse(value: number | undefined, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback
+  return Math.max(Math.floor(value as number), 1)
+}
+
+function advanceCursor(universe: number, address: number, channels: number) {
+  const nextAddress = address + channels
+  if (nextAddress > DMX_MAX_CHANNELS) {
+    return { universe: universe + 1, address: 1 }
+  }
+  return { universe, address: nextAddress }
+}
+
+function buildUniverseUsage(assignments: DmxAddressAssignment[]): DmxUniverseUsage[] {
+  const occupied = new Map<number, Set<number>>()
+
+  assignments.forEach(assignment => {
+    const channels = occupied.get(assignment.universe) ?? new Set<number>()
+    for (let channel = assignment.startAddress; channel <= assignment.endAddress; channel += 1) {
+      channels.add(channel)
+    }
+    occupied.set(assignment.universe, channels)
+  })
+
+  return Array.from(occupied.entries())
+    .map(([universe, channels]) => {
+      const sorted = Array.from(channels.values()).sort((a, b) => a - b)
+      const usedChannels = sorted.length
+
+      return {
+        universe,
+        usedChannels,
+        utilization: Math.round((usedChannels / DMX_MAX_CHANNELS) * 100),
+        firstAddress: sorted[0] ?? 0,
+        lastAddress: sorted[sorted.length - 1] ?? 0,
+      }
+    })
+    .sort((a, b) => a.universe - b.universe)
+}
+
+function findAddressConflicts(assignments: DmxAddressAssignment[]): DmxAddressConflict[] {
+  const conflicts: DmxAddressConflict[] = []
+
+  for (let i = 0; i < assignments.length; i += 1) {
+    for (let j = i + 1; j < assignments.length; j += 1) {
+      const a = assignments[i]
+      const b = assignments[j]
+      if (a.universe !== b.universe) continue
+
+      const addressStart = Math.max(a.startAddress, b.startAddress)
+      const addressEnd = Math.min(a.endAddress, b.endAddress)
+
+      if (addressStart <= addressEnd) {
+        conflicts.push({
+          universe: a.universe,
+          fixtureA: a.label,
+          fixtureB: b.label,
+          addressStart,
+          addressEnd,
+        })
+      }
+    }
+  }
+
+  return conflicts
+}
+
 /**
- * 计算 DMX 地址码分配
- * @param fixtures 灯具列表（不含 startAddress）
- * @param startFrom 起始地址（默认 1）
- * @returns 计算结果，含每台灯的起始地址
+ * 计算 DMX 地址码分配。
+ *
+ * 支持：
+ * - 连续自动分配
+ * - 每组灯具指定 Universe
+ * - 每组灯具固定起始地址
+ * - 数量展开为逐台地址段
  */
 export function calculateDmxAddresses(
-  fixtures: Omit<DmxFixture, 'startAddress' | 'universe'>[],
+  fixtures: DmxFixtureInput[],
   startFrom = 1,
 ): DmxCalcResult {
   const warnings: string[] = []
-  let currentAddress = startFrom
-  let currentUniverse = 1
+  const assignments: DmxAddressAssignment[] = []
+  const resultFixtures: DmxFixture[] = []
+
+  let cursorUniverse = 1
+  let cursorAddress = normalizeAddress(startFrom, 1)
   let totalChannels = 0
 
-  const result: DmxFixture[] = fixtures.map(fixture => {
-    const channelsNeeded = fixture.channels * fixture.quantity
+  fixtures.forEach(fixture => {
+    const requestedChannels = Math.floor(fixture.channels)
+    const requestedQuantity = Math.floor(fixture.quantity)
+    const channels = Math.min(Math.max(requestedChannels, 1), DMX_MAX_CHANNELS)
+    const quantity = Math.max(requestedQuantity, 0)
+    const assignmentIds: string[] = []
 
-    // 检查单台灯具通道数是否合法
-    if (fixture.channels < 1 || fixture.channels > 512) {
-      warnings.push(`${fixture.name}: 通道数 ${fixture.channels} 不合法（应为 1-512）`)
+    if (requestedChannels < 1 || requestedChannels > DMX_MAX_CHANNELS) {
+      warnings.push(`${fixture.name}: 通道数 ${fixture.channels} 不合法，已按 1-512 范围修正`)
+    }
+    if (requestedQuantity < 1) {
+      warnings.push(`${fixture.name}: 数量 ${fixture.quantity} 不合法，已跳过地址展开`)
     }
 
-    // 当前 Universe 是否还能容纳
-    const addressInUniverse = ((currentAddress - 1) % DMX_MAX_CHANNELS) + 1
-    if (addressInUniverse + fixture.channels - 1 > DMX_MAX_CHANNELS) {
-      // 跳转到下一个 Universe
-      currentUniverse += 1
-      currentAddress = (currentUniverse - 1) * DMX_MAX_CHANNELS + 1
+    const hasManualUniverse = Number.isFinite(fixture.universe)
+    const hasManualStart = Number.isFinite(fixture.startAddress)
+    let unitUniverse = hasManualUniverse
+      ? normalizeUniverse(fixture.universe, cursorUniverse)
+      : cursorUniverse
+    let unitAddress = hasManualStart
+      ? normalizeAddress(fixture.startAddress, cursorAddress)
+      : hasManualUniverse && unitUniverse !== cursorUniverse
+        ? 1
+        : cursorAddress
+
+    for (let index = 1; index <= quantity; index += 1) {
+      if (unitAddress + channels - 1 > DMX_MAX_CHANNELS) {
+        warnings.push(`${fixture.name} #${index}: U${unitUniverse}/${unitAddress} 容纳不下 ${channels}ch，已移到下一条 Universe`)
+        unitUniverse += 1
+        unitAddress = 1
+      }
+
+      const assignment: DmxAddressAssignment = {
+        id: `${fixture.id}-${index}`,
+        fixtureId: fixture.id,
+        fixtureName: fixture.name,
+        label: quantity > 1 ? `${fixture.name} #${index}` : fixture.name,
+        index,
+        channels,
+        universe: unitUniverse,
+        startAddress: unitAddress,
+        endAddress: unitAddress + channels - 1,
+      }
+
+      assignments.push(assignment)
+      assignmentIds.push(assignment.id)
+      totalChannels += channels
+
+      const nextCursor = advanceCursor(unitUniverse, unitAddress, channels)
+      unitUniverse = nextCursor.universe
+      unitAddress = nextCursor.address
     }
 
-    const fixtureWithAddress: DmxFixture = {
+    const firstAssignment = assignments.find(assignment => assignment.fixtureId === fixture.id)
+    const lastAssignment = [...assignments].reverse().find(assignment => assignment.fixtureId === fixture.id)
+
+    resultFixtures.push({
       ...fixture,
-      startAddress: currentAddress,
-      universe: Math.ceil(currentAddress / DMX_MAX_CHANNELS),
-    }
+      channels,
+      quantity,
+      startAddress: firstAssignment?.startAddress ?? unitAddress,
+      endAddress: lastAssignment?.endAddress,
+      universe: firstAssignment?.universe ?? unitUniverse,
+      assignmentIds,
+    })
 
-    totalChannels += channelsNeeded
-    currentAddress += channelsNeeded
-
-    return fixtureWithAddress
+    cursorUniverse = unitUniverse
+    cursorAddress = unitAddress
   })
 
-  const universesNeeded = Math.ceil(totalChannels / DMX_MAX_CHANNELS)
-  const hasOverflow = (startFrom - 1 + totalChannels) > DMX_MAX_CHANNELS
+  const sortedAssignments = assignments.sort((a, b) => (
+    a.universe - b.universe
+    || a.startAddress - b.startAddress
+    || a.label.localeCompare(b.label)
+  ))
+  const conflicts = findAddressConflicts(sortedAssignments)
+  const universeUsage = buildUniverseUsage(sortedAssignments)
+  const maxUniverse = Math.max(1, ...sortedAssignments.map(assignment => assignment.universe))
+  const hasOverflow = maxUniverse > 1
 
-  if (hasOverflow && universesNeeded <= 1) {
-    warnings.push(`总通道数 ${totalChannels} 超过单 Universe 上限（512），建议拆分到多个 Universe`)
+  if (hasOverflow) {
+    warnings.push(`地址分配已跨 ${maxUniverse} 条 Universe，请确认控台输出/节点配置一致`)
   }
 
-  return { fixtures: result, totalChannels, universesNeeded, hasOverflow, warnings }
+  return {
+    fixtures: resultFixtures,
+    assignments: sortedAssignments,
+    totalChannels,
+    universesNeeded: maxUniverse,
+    hasOverflow,
+    hasConflicts: conflicts.length > 0,
+    conflicts,
+    universeUsage,
+    warnings,
+  }
 }
 
 /**
@@ -96,25 +275,29 @@ export function nextFixtureAddress(currentStart: number, channels: number): numb
  * 检查地址列表是否有重叠
  */
 export function checkAddressConflicts(
-  fixtures: Pick<DmxFixture, 'name' | 'startAddress' | 'channels'>[],
-): Array<{ fixture1: string; fixture2: string; conflictAddress: number }> {
-  const conflicts: Array<{ fixture1: string; fixture2: string; conflictAddress: number }> = []
+  fixtures: Array<Pick<DmxFixture, 'name' | 'startAddress' | 'channels'> & {
+    endAddress?: number
+    universe?: number
+  }>,
+): Array<{ fixture1: string; fixture2: string; conflictAddress: number; universe: number }> {
+  const assignments = fixtures.map((fixture, index) => ({
+    id: `${fixture.name}-${index}`,
+    fixtureId: `${fixture.name}-${index}`,
+    fixtureName: fixture.name,
+    label: fixture.name,
+    index: 1,
+    channels: fixture.channels,
+    universe: fixture.universe ?? 1,
+    startAddress: fixture.startAddress,
+    endAddress: fixture.endAddress ?? fixture.startAddress + fixture.channels - 1,
+  }))
 
-  for (let i = 0; i < fixtures.length; i++) {
-    for (let j = i + 1; j < fixtures.length; j++) {
-      const a = fixtures[i]
-      const b = fixtures[j]
-      const aEnd = a.startAddress + a.channels - 1
-      const bEnd = b.startAddress + b.channels - 1
-
-      if (a.startAddress <= bEnd && b.startAddress <= aEnd) {
-        const conflictAddress = Math.max(a.startAddress, b.startAddress)
-        conflicts.push({ fixture1: a.name, fixture2: b.name, conflictAddress })
-      }
-    }
-  }
-
-  return conflicts
+  return findAddressConflicts(assignments).map(conflict => ({
+    fixture1: conflict.fixtureA,
+    fixture2: conflict.fixtureB,
+    conflictAddress: conflict.addressStart,
+    universe: conflict.universe,
+  }))
 }
 
 /**
