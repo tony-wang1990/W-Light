@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Share, Clipboard,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import {
   calculateTimecodeRange,
+  generateLtcWav,
   LTC_ROUTING_PRESETS,
   TIMECODE_FRAME_RATES,
+  type LtcWavResult,
   type TimecodeFrameRate,
 } from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
@@ -16,13 +18,22 @@ function toNumber(value: string, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function formatBytes(value: number) {
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`
+  return `${(value / 1024 / 1024).toFixed(1)} MB`
+}
+
 export function LtcScreen() {
   const navigation = useNavigation()
   const [startTimecode, setStartTimecode] = useState('01:00:00:00')
   const [frameRate, setFrameRate] = useState<TimecodeFrameRate>(25)
   const [minutes, setMinutes] = useState('5')
   const [seconds, setSeconds] = useState('0')
+  const [exportDuration, setExportDuration] = useState('30')
   const [routing, setRouting] = useState(LTC_ROUTING_PRESETS[0].name)
+  const [wavResult, setWavResult] = useState<LtcWavResult | null>(null)
+
+  const selectedRouting = LTC_ROUTING_PRESETS.find(item => item.name === routing) ?? LTC_ROUTING_PRESETS[0]
 
   const result = useMemo(() => {
     try {
@@ -39,7 +50,47 @@ export function LtcScreen() {
     }
   }, [frameRate, minutes, seconds, startTimecode])
 
-  const selectedRouting = LTC_ROUTING_PRESETS.find(item => item.name === routing) ?? LTC_ROUTING_PRESETS[0]
+  useEffect(() => {
+    setWavResult(null)
+  }, [exportDuration, frameRate, routing, startTimecode])
+
+  const handleGenerateWav = () => {
+    if (!result.ok) {
+      Alert.alert('无法生成', result.error)
+      return
+    }
+
+    try {
+      const wave = generateLtcWav({
+        startTimecode,
+        frameRate,
+        durationSeconds: toNumber(exportDuration, 30),
+        dropFrame: result.value.dropFrame,
+        leftChannel: selectedRouting.left,
+        rightChannel: selectedRouting.right,
+        sampleRate: 48000,
+      })
+      setWavResult(wave)
+      Alert.alert('已生成 WAV', `${wave.fileName}\n${formatBytes(wave.byteLength)}`)
+    } catch (error: unknown) {
+      Alert.alert('生成失败', error instanceof Error ? error.message : '请检查时码和导出时长')
+    }
+  }
+
+  const handleCopyWave = () => {
+    if (!wavResult) return
+    Clipboard.setString(wavResult.dataUri)
+    Alert.alert('已复制', 'WAV Data URI 已复制，可粘贴到支持 data URI 的工具中保存。')
+  }
+
+  const handleShareWave = async () => {
+    if (!wavResult) return
+
+    await Share.share({
+      title: wavResult.fileName,
+      message: `${wavResult.fileName}\n${wavResult.dataUri}`,
+    })
+  }
 
   return (
     <View style={styles.container}>
@@ -49,7 +100,7 @@ export function LtcScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.title}>LTC 时码工具</Text>
-        <Text style={styles.subtitle}>SMPTE 换算 · 帧率 · 双声道输出配置</Text>
+        <Text style={styles.subtitle}>SMPTE 换算 · 帧率 · 双声道 WAV 生成</Text>
 
         <View style={styles.card}>
           <Text style={styles.label}>开始时码</Text>
@@ -114,6 +165,55 @@ export function LtcScreen() {
           </TouchableOpacity>
         ))}
 
+        <View style={styles.card}>
+          <View style={styles.exportHeader}>
+            <View>
+              <Text style={styles.exportTitle}>WAV 音频导出</Text>
+              <Text style={styles.exportSubtitle}>48kHz · 16-bit PCM · Stereo</Text>
+            </View>
+            <Text style={styles.exportBadge}>LTC</Text>
+          </View>
+
+          <Text style={styles.label}>导出时长</Text>
+          <View style={styles.exportDurationRow}>
+            <NumberInput value={exportDuration} unit="sec" onChangeText={setExportDuration} />
+            {[10, 30, 60, 120].map(value => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.smallChip, exportDuration === String(value) && styles.chipActive]}
+                onPress={() => setExportDuration(String(value))}
+              >
+                <Text style={[styles.smallChipText, exportDuration === String(value) && styles.chipTextActive]}>
+                  {value}s
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateWav}>
+            <Text style={styles.generateBtnText}>生成 LTC WAV</Text>
+          </TouchableOpacity>
+
+          {wavResult && (
+            <View style={styles.waveResult}>
+              <ResultLine label="文件名" value={wavResult.fileName} />
+              <ResultLine label="大小" value={formatBytes(wavResult.byteLength)} />
+              <ResultLine label="音频" value={`${wavResult.durationSeconds}s / ${wavResult.totalFrames} frames`} />
+              {wavResult.warnings.map(warning => (
+                <Text key={warning} style={styles.warningText}>提示：{warning}</Text>
+              ))}
+              <View style={styles.exportActions}>
+                <TouchableOpacity style={styles.secondaryActionBtn} onPress={handleCopyWave}>
+                  <Text style={styles.secondaryActionText}>复制 Data URI</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.primaryActionBtn} onPress={handleShareWave}>
+                  <Text style={styles.primaryActionText}>分享导出</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+
         <View style={styles.noteCard}>
           <Text style={styles.noteTitle}>输出建议</Text>
           <Text style={styles.noteText}>
@@ -158,6 +258,15 @@ function ResultItem({ label, value }: { label: string; value: string }) {
   )
 }
 
+function ResultLine({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.resultLine}>
+      <Text style={styles.resultLineLabel}>{label}</Text>
+      <Text style={styles.resultLineValue} numberOfLines={2}>{value}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 56 },
@@ -198,6 +307,17 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: colors.primary, backgroundColor: colors.primary + '22' },
   chipText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: '700' },
   chipTextActive: { color: colors.primary },
+  smallChip: {
+    minHeight: 44,
+    minWidth: 54,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallChipText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: '700' },
   durationRow: { flexDirection: 'row', gap: spacing.sm },
   numberBox: {
     flex: 1,
@@ -252,6 +372,68 @@ const styles = StyleSheet.create({
   routingName: { fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '700' },
   routingUse: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 3, lineHeight: 17 },
   routingMeta: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '700' },
+  exportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.base,
+    gap: spacing.md,
+  },
+  exportTitle: { fontSize: fontSize.md, color: colors.textPrimary, fontWeight: '800' },
+  exportSubtitle: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 3 },
+  exportBadge: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    fontWeight: '800',
+    backgroundColor: colors.primary + '18',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  exportDurationRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.base },
+  generateBtn: {
+    minHeight: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  generateBtnText: { color: colors.white, fontSize: fontSize.md, fontWeight: '800' },
+  waveResult: {
+    marginTop: spacing.base,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  resultLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  resultLineLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: '700' },
+  resultLineValue: { flex: 1, textAlign: 'right', fontSize: fontSize.xs, color: colors.textPrimary, fontWeight: '700' },
+  exportActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  secondaryActionBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryActionText: { color: colors.textPrimary, fontSize: fontSize.xs, fontWeight: '800' },
+  primaryActionText: { color: colors.white, fontSize: fontSize.xs, fontWeight: '800' },
   noteCard: {
     marginHorizontal: spacing.base,
     backgroundColor: colors.surface,
