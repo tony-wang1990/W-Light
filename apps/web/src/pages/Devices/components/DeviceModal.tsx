@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { apiClient } from '../../../api/client';
 import styles from './DeviceModal.module.css';
 
 interface DeviceModalProps {
@@ -59,7 +60,6 @@ export default function DeviceModal({ isOpen, onClose, onSuccess, device }: Devi
     setLoading(true);
     setErrorMsg('');
     try {
-      const { apiClient } = await import('../../../api/client');
       if (device?.id) {
         await apiClient.put(`/devices/${device.id}`, formData);
       } else {

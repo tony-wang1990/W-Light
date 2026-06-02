@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { apiClient } from '../../../api/client';
 import styles from './PartModal.module.css';
 
 interface PartLogModalProps {
@@ -49,7 +50,6 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
     setLoading(true);
     setErrorMsg('');
     try {
-      const { apiClient } = await import('../../../api/client');
       // Get current user for operatorId
       const me = await apiClient.get('/auth/me');
       // POST /spare-parts/logs with correct opType: 'inbound' or 'outbound'
@@ -65,7 +65,6 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
     } catch (error: any) {
       // Fallback: try direct inbound/outbound endpoints
       try {
-        const { apiClient } = await import('../../../api/client');
         await apiClient.post(`/parts/${part.id}/${type === 'in' ? 'inbound' : 'outbound'}`, {
           quantity: formData.quantity,
           note: formData.note,

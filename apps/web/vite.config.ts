@@ -24,12 +24,21 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['recharts'],
-          vendor: ['axios', 'zustand', 'lucide-react', 'date-fns']
-        }
-      }
-    }
-  }
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('/react') || id.includes('\\react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            return 'react-vendor'
+          }
+          if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor') || id.includes('reselect')) {
+            return 'charts-vendor'
+          }
+          if (id.includes('lucide-react')) return 'icons-vendor'
+          if (id.includes('axios') || id.includes('zustand') || id.includes('date-fns') || id.includes('qrcode')) {
+            return 'app-vendor'
+          }
+          return undefined
+        },
+      },
+    },
+  },
 })

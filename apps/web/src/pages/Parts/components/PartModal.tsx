@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { apiClient } from '../../../api/client';
 import styles from './PartModal.module.css';
 
 interface PartModalProps {
@@ -62,7 +63,6 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
     setLoading(true);
     setErrorMsg('');
     try {
-      const { apiClient } = await import('../../../api/client');
       if (part?.id) {
         await apiClient.put(`/parts/${part.id}`, formData);
       } else {

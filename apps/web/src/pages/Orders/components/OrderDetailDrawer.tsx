@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, User, Clock, ChevronRight, MessageSquare, Send, UserCheck } from 'lucide-react';
+import { apiClient } from '../../../api/client';
 import styles from './OrderDetailDrawer.module.css';
 
 interface OrderDetailDrawerProps {
@@ -37,7 +38,6 @@ export default function OrderDetailDrawer({ order, onClose, onUpdated }: OrderDe
 
   const fetchRepairLogs = useCallback(async () => {
     try {
-      const { apiClient } = await import('../../../api/client');
       const res = await apiClient.get(`/orders/${order.id}/repair-logs`);
       setRepairLogs(Array.isArray(res) ? res : res.items || []);
     } catch (e) {
@@ -47,7 +47,6 @@ export default function OrderDetailDrawer({ order, onClose, onUpdated }: OrderDe
 
   const fetchUsers = useCallback(async () => {
     try {
-      const { apiClient } = await import('../../../api/client');
       const res = await apiClient.get('/users');
       setUsers(res.items || res || []);
     } catch (e) {
@@ -63,7 +62,6 @@ export default function OrderDetailDrawer({ order, onClose, onUpdated }: OrderDe
   const handleAction = async (action: string) => {
     setActionLoading(true);
     try {
-      const { apiClient } = await import('../../../api/client');
       if (action === 'assign-self') {
         const me = await apiClient.get('/auth/me');
         await apiClient.put(`/orders/${order.id}/assign`, { assigneeId: me.id });
@@ -82,7 +80,6 @@ export default function OrderDetailDrawer({ order, onClose, onUpdated }: OrderDe
   const handleAssignUser = async (userId: string) => {
     setAssignLoading(true);
     try {
-      const { apiClient } = await import('../../../api/client');
       await apiClient.put(`/orders/${order.id}/assign`, { assigneeId: userId });
       setShowAssignPicker(false);
       onUpdated();
@@ -98,7 +95,6 @@ export default function OrderDetailDrawer({ order, onClose, onUpdated }: OrderDe
     if (!logForm.description.trim()) return;
     setSubmittingLog(true);
     try {
-      const { apiClient } = await import('../../../api/client');
       await apiClient.post(`/orders/${order.id}/repair-logs`, {
         description: logForm.description,
         duration: logForm.duration ? Number(logForm.duration) : undefined,

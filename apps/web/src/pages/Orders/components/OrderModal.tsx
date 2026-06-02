@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { apiClient } from '../../../api/client';
 import styles from './OrderModal.module.css';
 
 interface OrderModalProps {
@@ -33,7 +34,6 @@ export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalPro
       // Fetch devices for the dropdown
       const fetchDevices = async () => {
         try {
-          const { apiClient } = await import('../../../api/client');
           const res = await apiClient.get('/devices');
           setDevices(res.items || res || []);
         } catch (e) {
@@ -56,7 +56,6 @@ export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalPro
     setLoading(true);
     setErrorMsg('');
     try {
-      const { apiClient } = await import('../../../api/client');
       // Mock projectId for now, backend will use it
       const me = await apiClient.get('/auth/me');
       await apiClient.post('/orders', {
