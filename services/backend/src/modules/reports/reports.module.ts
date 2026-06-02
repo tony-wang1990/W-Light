@@ -3,6 +3,7 @@ import { ReportsController } from './reports.controller'
 import { ReportsBackupService } from './reports-backup.service'
 import { ReportsExportService } from './reports-export.service'
 import { ReportsService } from './reports.service'
+import { ReportsStatsService } from './reports-stats.service'
 
-@Module({ controllers: [ReportsController], providers: [ReportsService, ReportsBackupService, ReportsExportService] })
+@Module({ controllers: [ReportsController], providers: [ReportsService, ReportsBackupService, ReportsExportService, ReportsStatsService] })
 export class ReportsModule {}
