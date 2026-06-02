@@ -60,6 +60,12 @@
   gap: 20px;
 }
 
+.reportGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
 .chartCard {
   background-color: var(--color-white);
   border-radius: 12px;
@@ -145,4 +151,40 @@
   padding: 3px 8px;
   border-radius: 20px;
   font-weight: 500;
+}
+
+.tableList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tableRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #F9FAFB;
+  color: var(--color-text-dark);
+  font-size: 13px;
+}
+
+.tableRow span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableRow strong {
+  flex-shrink: 0;
+  color: #111827;
+  font-size: 13px;
+}
+
+.emptyText {
+  color: var(--color-text-muted);
+  font-size: 13px;
 }
