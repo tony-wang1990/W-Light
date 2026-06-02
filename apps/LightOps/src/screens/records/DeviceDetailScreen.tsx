@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native'
 import {
   useNavigation,
@@ -60,8 +60,8 @@ export function DeviceDetailScreen() {
           <Text style={styles.backText}>‹ 返回</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>设备详情</Text>
-        <TouchableOpacity onPress={() => Alert.alert('提示', '报修功能将在工单创建页开启')}>
-          <Text style={styles.reportBtn}>🔧 报修</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('DeviceCreate', { deviceId: device.id })}>
+          <Text style={styles.reportBtn}>编辑</Text>
         </TouchableOpacity>
       </View>
 
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
   topTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.textPrimary },
-  reportBtn: { fontSize: fontSize.sm, color: colors.danger, fontWeight: '600' },
+  reportBtn: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
 
   // Hero
   heroCard: {

@@ -1,13 +1,20 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native'
-import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
-import { useQueryClient } from '@tanstack/react-query'
+import {
+  useNavigation,
+  useRoute,
+  type NavigationProp,
+  type ParamListBase,
+  type RouteProp,
+} from '@react-navigation/native'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { devicesApi } from '../../api/devices.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { getErrorMessage } from '../../utils/error'
+import type { RecordsStackParamList } from '../../navigation/types'
 
 const DEVICE_CATEGORIES = ['灯具', '控台', '配电', '音频', '视频', '其他']
 
@@ -19,7 +26,10 @@ function generateDeviceNo() {
 
 export function DeviceCreateScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const route = useRoute<RouteProp<RecordsStackParamList, 'DeviceCreate'>>()
   const queryClient = useQueryClient()
+  const deviceId = route.params?.deviceId
+  const isEditMode = Boolean(deviceId)
   const defaultDeviceNo = useMemo(() => generateDeviceNo(), [])
   const [deviceNo, setDeviceNo] = useState(defaultDeviceNo)
   const [name, setName] = useState('')
@@ -29,6 +39,23 @@ export function DeviceCreateScreen() {
   const [model, setModel] = useState('')
   const [qrCode, setQrCode] = useState(defaultDeviceNo)
   const [saving, setSaving] = useState(false)
+
+  const { data: editingDevice, isLoading } = useQuery({
+    queryKey: ['device', deviceId],
+    queryFn: () => devicesApi.getById(deviceId as string),
+    enabled: isEditMode,
+  })
+
+  useEffect(() => {
+    if (!editingDevice) return
+    setDeviceNo(editingDevice.deviceNo || '')
+    setName(editingDevice.name || '')
+    setCategory(editingDevice.category || '灯具')
+    setLocation(editingDevice.location || '')
+    setManufacturer(editingDevice.manufacturer || '')
+    setModel(editingDevice.model || '')
+    setQrCode(editingDevice.qrCode || editingDevice.deviceNo || '')
+  }, [editingDevice])
 
   const handleDeviceNoChange = (value: string) => {
     setDeviceNo(value)
@@ -47,7 +74,7 @@ export function DeviceCreateScreen() {
 
     setSaving(true)
     try {
-      const created = await devicesApi.create({
+      const payload = {
         deviceNo: deviceNo.trim(),
         name: name.trim(),
         category,
@@ -55,15 +82,17 @@ export function DeviceCreateScreen() {
         manufacturer: manufacturer.trim() || undefined,
         model: model.trim() || undefined,
         qrCode: qrCode.trim() || deviceNo.trim(),
-        status: 'normal',
-        healthScore: 100,
-      })
+      }
+      const saved = deviceId
+        ? await devicesApi.update(deviceId, payload)
+        : await devicesApi.create({ ...payload, status: 'normal', healthScore: 100 })
       await queryClient.invalidateQueries({ queryKey: ['devices'] })
-      Alert.alert('已新增设备', '设备已写入台账，可以继续报修或查看详情。', [
+      await queryClient.invalidateQueries({ queryKey: ['device', saved.id] })
+      Alert.alert(isEditMode ? '已更新设备' : '已新增设备', '设备信息已写入台账。', [
         { text: '返回台账', onPress: () => navigation.goBack() },
         {
           text: '查看详情',
-          onPress: () => navigation.navigate('DeviceDetail', { deviceId: created.id }),
+          onPress: () => navigation.navigate('DeviceDetail', { deviceId: saved.id }),
         },
       ])
     } catch (error: unknown) {
@@ -79,10 +108,15 @@ export function DeviceCreateScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>‹ 返回</Text>
         </TouchableOpacity>
-        <Text style={styles.topTitle}>新增设备</Text>
+        <Text style={styles.topTitle}>{isEditMode ? '编辑设备' : '新增设备'}</Text>
         <View style={styles.topSpacer} />
       </View>
 
+      {isLoading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.section}>
           <Field label="设备编号" value={deviceNo} onChangeText={handleDeviceNoChange} required />
@@ -113,9 +147,14 @@ export function DeviceCreateScreen() {
           disabled={saving}
           activeOpacity={0.8}
         >
-          {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.submitText}>保存设备</Text>}
+          {saving ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.submitText}>{isEditMode ? '保存修改' : '保存设备'}</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
+      )}
     </View>
   )
 }
@@ -163,6 +202,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
   topTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.textPrimary },
   topSpacer: { width: 54 },
+  loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.base, paddingBottom: 80 },
   section: {
     backgroundColor: colors.surface,
