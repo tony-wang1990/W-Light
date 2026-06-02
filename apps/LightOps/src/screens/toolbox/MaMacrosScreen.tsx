@@ -1,34 +1,60 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  FlatList,
+  FlatList, ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { MA_MACROS, MA_TERMS, MaMacro } from '@lightops/toolbox-core'
+import {
+  MA_MACROS,
+  MA_TERMS,
+  getMacroCategories,
+  getTermCategories,
+  type MaMacro,
+} from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 type TabType = 'macros' | 'terms'
+type MacroVersionFilter = '全部' | 'MA2' | 'MA3'
 
 export function MaMacrosScreen() {
   const navigation = useNavigation()
   const [tab, setTab] = useState<TabType>('macros')
   const [keyword, setKeyword] = useState('')
+  const [macroCategory, setMacroCategory] = useState('全部')
+  const [macroVersion, setMacroVersion] = useState<MacroVersionFilter>('全部')
+  const [termCategory, setTermCategory] = useState('全部')
+
+  const macroCategories = ['全部', ...getMacroCategories()]
+  const termCategories = ['全部', ...getTermCategories()]
 
   const filteredMacros = keyword
-    ? MA_MACROS.filter(m =>
-        m.name.includes(keyword) ||
-        m.command.toLowerCase().includes(keyword.toLowerCase()) ||
-        m.description.includes(keyword)
-      )
-    : MA_MACROS
+    ? MA_MACROS.filter(m => {
+        const q = keyword.toLowerCase()
+        const matchKeyword = m.name.includes(keyword) ||
+          m.command.toLowerCase().includes(q) ||
+          m.description.includes(keyword) ||
+          (m.example?.toLowerCase().includes(q) ?? false)
+        const matchCategory = macroCategory === '全部' || m.category === macroCategory
+        const matchVersion = macroVersion === '全部' || (m.versions?.includes(macroVersion) ?? false)
+        return matchKeyword && matchCategory && matchVersion
+      })
+    : MA_MACROS.filter(m => {
+        const matchCategory = macroCategory === '全部' || m.category === macroCategory
+        const matchVersion = macroVersion === '全部' || (m.versions?.includes(macroVersion) ?? false)
+        return matchCategory && matchVersion
+      })
 
   const filteredTerms = keyword
-    ? MA_TERMS.filter(t =>
-        t.cn.includes(keyword) ||
-        t.en.toLowerCase().includes(keyword.toLowerCase()) ||
-        (t.abbr && t.abbr.toLowerCase().includes(keyword.toLowerCase()))
-      )
-    : MA_TERMS
+    ? MA_TERMS.filter(t => {
+        const q = keyword.toLowerCase()
+        const matchKeyword = t.cn.includes(keyword) ||
+          t.en.toLowerCase().includes(q) ||
+          (t.abbr && t.abbr.toLowerCase().includes(q)) ||
+          (t.desc?.toLowerCase().includes(q) ?? false)
+        const matchCategory = termCategory === '全部' || t.category === termCategory
+        return matchKeyword && matchCategory
+      })
+    : MA_TERMS.filter(t => termCategory === '全部' || t.category === termCategory)
 
   return (
     <View style={styles.container}>
@@ -76,6 +102,27 @@ export function MaMacrosScreen() {
         )}
       </View>
 
+      {tab === 'macros' ? (
+        <>
+          <FilterChips
+            values={macroCategories}
+            active={macroCategory}
+            onChange={setMacroCategory}
+          />
+          <FilterChips
+            values={['全部', 'MA2', 'MA3']}
+            active={macroVersion}
+            onChange={value => setMacroVersion(value as MacroVersionFilter)}
+          />
+        </>
+      ) : (
+        <FilterChips
+          values={termCategories}
+          active={termCategory}
+          onChange={setTermCategory}
+        />
+      )}
+
       {/* Macros List */}
       {tab === 'macros' && (
         <FlatList
@@ -98,12 +145,43 @@ export function MaMacrosScreen() {
                 {item.abbr && <Text style={styles.termAbbr}>{item.abbr}</Text>}
               </View>
               <Text style={styles.termEn}>{item.en}</Text>
+              {item.desc && <Text style={styles.termDesc}>{item.desc}</Text>}
             </View>
           )}
           contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: 80 }}
         />
       )}
     </View>
+  )
+}
+
+function FilterChips({
+  values,
+  active,
+  onChange,
+}: {
+  values: string[]
+  active: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filterRow}
+    >
+      {values.map(value => (
+        <TouchableOpacity
+          key={value}
+          style={[styles.filterChip, active === value && styles.filterChipActive]}
+          onPress={() => onChange(value)}
+        >
+          <Text style={[styles.filterText, active === value && styles.filterTextActive]}>
+            {value}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   )
 }
 
@@ -204,6 +282,18 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16, marginRight: spacing.sm },
   searchInput: { flex: 1, fontSize: fontSize.sm, color: colors.textPrimary },
   clearBtn: { color: colors.textMuted, fontSize: 14 },
+  filterRow: { paddingHorizontal: spacing.base, gap: spacing.sm, paddingBottom: spacing.sm },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: '600' },
+  filterTextActive: { color: colors.white },
   // Macro Card
   macroCard: {
     backgroundColor: colors.surface,
@@ -257,4 +347,5 @@ const styles = StyleSheet.create({
   termCn: { fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '500' },
   termAbbr: { fontSize: 10, color: colors.primary, marginTop: 2 },
   termEn: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: 'right', flex: 1 },
+  termDesc: { fontSize: 10, color: colors.textMuted, textAlign: 'right', marginTop: 2, lineHeight: 14 },
 })
