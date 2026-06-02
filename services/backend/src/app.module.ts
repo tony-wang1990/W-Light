@@ -28,16 +28,25 @@ import { HealthModule } from './modules/health/health.module'
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => {
-        const dbType = config.get<string>('DB_TYPE', 'postgres');
+        const dbType = config.get<string>('DB_TYPE', 'postgres')
+        const isDevelopment = config.get<string>('NODE_ENV') === 'development'
+        const entities = [__dirname + '/modules/**/*.entity{.ts,.js}', __dirname + '/modules/**/*.module{.ts,.js}']
+        const migrations = [__dirname + '/database/migrations/*{.ts,.js}']
+        const synchronize = config.get<string>(
+          'DB_SYNCHRONIZE',
+          dbType === 'sqlite' ? 'true' : 'false',
+        ) === 'true'
+        const logging = config.get<string>('DB_LOGGING', isDevelopment ? 'true' : 'false') === 'true'
         
         if (dbType === 'sqlite') {
           return {
             type: 'sqlite',
             database: config.get<string>('DB_DATABASE', 'lightops.sqlite'),
-            entities: [__dirname + '/modules/**/*.entity{.ts,.js}', __dirname + '/modules/**/*.module{.ts,.js}'],
-            synchronize: true, // Auto-create tables for local sqlite dev
-            logging: true,
-          };
+            entities,
+            migrations,
+            synchronize,
+            logging,
+          }
         }
         
         return {
@@ -47,11 +56,13 @@ import { HealthModule } from './modules/health/health.module'
           database: config.get<string>('DB_NAME', 'lightops'),
           username: config.get<string>('DB_USER', 'lightops'),
           password: config.get<string>('DB_PASSWORD', ''),
-          entities: [__dirname + '/modules/**/*.entity{.ts,.js}', __dirname + '/modules/**/*.module{.ts,.js}'],
-          synchronize: config.get<string>('NODE_ENV') === 'development', // 生产环境禁用！使用迁移
-          logging: config.get<string>('NODE_ENV') === 'development',
-          ssl: config.get<string>('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
-        };
+          entities,
+          migrations,
+          migrationsRun: config.get<string>('DB_MIGRATIONS_RUN', 'false') === 'true',
+          synchronize,
+          logging,
+          ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+        }
       },
       inject: [ConfigService],
     }),

@@ -62,6 +62,24 @@ curl http://127.0.0.1:3000/v1/health
 
 如果健康检查路由后续调整，以后端实际路由为准。
 
+## 数据库迁移
+
+生产环境不要依赖 `synchronize` 自动改表，建议使用迁移脚本管理 PostgreSQL 结构。
+
+首次部署或每次拉取包含数据库结构变更的新代码后，先构建后端，再运行迁移：
+
+```bash
+corepack pnpm install
+corepack pnpm --filter backend run build
+corepack pnpm --filter backend run migration:run
+```
+
+常用环境变量：
+
+- `DB_SYNCHRONIZE=false`：生产环境保持关闭。
+- `DB_MIGRATIONS_RUN=false`：默认手动执行迁移；如确认要随 API 启动自动执行，可改为 `true`。
+- `DB_SSL=false`：本机 Docker PostgreSQL 通常关闭；连接外部托管数据库且要求 SSL 时再改为 `true`。
+
 ## 反向代理
 
 正式使用时建议用 Nginx 或 Caddy 提供 HTTPS。Web 静态文件走 `/`，API 走 `/v1`。
@@ -119,6 +137,9 @@ corepack pnpm --filter web run build
 ```bash
 cd W-Light
 git pull
+corepack pnpm install
+corepack pnpm --filter backend run build
+corepack pnpm --filter backend run migration:run
 docker compose up -d --build
 docker compose ps
 ```

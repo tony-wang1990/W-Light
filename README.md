@@ -171,7 +171,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 后端报表 SQL 兼容 PostgreSQL 与 SQLite。
 - [x] 后端 Date 实体列去除 SQLite-only `datetime` 类型。
 - [x] 备份下载查询改用 TypeORM repository，减少数据库方言依赖。
-- [ ] 生产数据库迁移脚本补齐，替代生产环境 `synchronize`。
+- [x] 生产数据库迁移脚本补齐，替代生产环境 `synchronize`。
 - [ ] 后端查询方言二次审计，覆盖搜索、分页、统计、导出接口。
 - [ ] Android `JAVA_HOME`/SDK/release 签名打包验证。
 - [ ] iOS Xcode 工程、签名和真机安装验证。
@@ -220,6 +220,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 移动端附件选择失败时可保留本机 URI 暂存；新建工单和维修记录提交前会重试上传，若仍断网则随离线队列保存，并在队列同步时先恢复上传附件再提交业务数据。 |
 | 2026-06-02 | 阶段 5 报表/离线/交付 | 已完成 | 阶段 5 MVP checklist 已全部完成：报表、Excel、备份恢复、离线队列、列表缓存、附件恢复上传、加密存储、原生工程和交付验收文档均已落地；后续转入生产加固和专项体验优化。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 后端报表模块已改为 SQLite/PostgreSQL 双 SQL 分支，日期差、月份分组、周趋势、布尔统计和导出查询均适配 PostgreSQL；实体 Date 列去除 SQLite-only `datetime` 类型，备份下载改用 TypeORM repository；后端构建通过。 |
+| 2026-06-02 | 阶段 6 生产加固 | 进行中 | 已补齐后端 TypeORM CLI data-source、PostgreSQL 初始建表迁移、迁移脚本命令和 Oracle ARM 部署迁移说明；运行时数据库连接改为通过 `DB_SYNCHRONIZE`、`DB_MIGRATIONS_RUN`、`DB_SSL` 显式控制。 |
 
 ## 当前验证命令
 
@@ -244,7 +245,7 @@ corepack pnpm run build
 - 离线同步 MVP 当前覆盖工单创建、维修记录写入、附件暂存恢复上传和工单/设备/备件列表缓存；缓存数据暂未在界面显式标注“离线缓存”。
 - 备份恢复当前采用合并/同 ID 覆盖策略，不会删除备份中不存在的线上记录；如设备编号、二维码或手机号与现有数据唯一约束冲突，需要管理员清理后重试。
 - `apps/LightOps` 已补入 Android/iOS 原生工程目录，但当前机器未配置 `JAVA_HOME`，尚未在 Android SDK/Xcode 环境完成 Gradle、release 签名打包和真机安装验证。
-- 生产环境仍需补正式 TypeORM migrations，并把数据库结构变更从 `synchronize` 切到迁移脚本。
+- 后续每次新增/调整数据库结构，都需要继续生成新的 TypeORM migration，并在服务器更新代码后执行迁移。
 
 ## 本地运行
 

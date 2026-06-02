@@ -16,6 +16,9 @@ services:
       DB_NAME: lightops
       DB_USER: lightops
       DB_PASSWORD: lightops_dev_pwd
+      DB_SYNCHRONIZE: 'true'
+      DB_MIGRATIONS_RUN: 'false'
+      DB_SSL: 'false'
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: redis_dev_pwd

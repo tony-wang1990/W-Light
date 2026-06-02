@@ -10,8 +10,10 @@
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "test": "jest",
+    "migration:show": "typeorm migration:show -d dist/database/data-source.js",
     "migration:run": "typeorm migration:run -d dist/database/data-source.js",
-    "migration:generate": "typeorm migration:generate -d dist/database/data-source.js",
+    "migration:generate": "typeorm migration:generate src/database/migrations/AutoMigration -d dist/database/data-source.js",
+    "migration:create": "typeorm migration:create src/database/migrations/ManualMigration",
     "migration:revert": "typeorm migration:revert -d dist/database/data-source.js",
     "seed:run": "ts-node src/database/seeds/run-seeds.ts"
   },
