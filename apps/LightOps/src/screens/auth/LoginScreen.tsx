@@ -3,10 +3,10 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native'
-import { MMKV } from 'react-native-mmkv'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { Logo } from '../../components/common/Logo'
+import { secureStorage } from '../../storage/secureStorage'
 import {
   API_BASE_URL_STORAGE_KEY,
   DEFAULT_API_BASE_URL,
@@ -15,7 +15,7 @@ import {
 } from '../../config/api'
 import { getErrorMessage } from '../../utils/error'
 
-const storage = new MMKV()
+const storage = secureStorage
 
 export function LoginScreen() {
   const [phone, setPhone] = useState('')

@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import { MMKV } from 'react-native-mmkv'
 import { authApi, LoginPayload } from '../api/auth.api'
+import { secureStorage } from '../storage/secureStorage'
 
-const storage = new MMKV()
+const storage = secureStorage
 
 interface AuthUser {
   id: string

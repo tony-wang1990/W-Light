@@ -1,12 +1,12 @@
 import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { MMKV } from 'react-native-mmkv'
 import {
   API_BASE_URL_STORAGE_KEY,
   DEFAULT_API_BASE_URL,
   normalizeApiBaseUrl,
 } from '../config/api'
+import { secureStorage } from '../storage/secureStorage'
 
-const storage = new MMKV()
+const storage = secureStorage
 
 function getApiBaseUrl() {
   return normalizeApiBaseUrl(storage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL)
