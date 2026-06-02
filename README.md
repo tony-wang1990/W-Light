@@ -227,11 +227,14 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 移动端“扫码查验”已接入相机权限请求、二维码相机预览、扫码自动查询设备、成功后暂停识别和手动输入兜底；新增 `react-native-camera-kit`、`react-native-permissions` 依赖并配置 iOS Camera permission Pod；移动端 TypeScript/lint 与整仓构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | LTC 共享核心已补齐 80-bit frame word、sync word、BMC 编码、29.97 drop-frame 换算和 48kHz/16-bit stereo WAV Data URI 生成；移动端 LTC 页面支持配置导出时长、生成 WAV、复制 Data URI 和系统分享，移动端 TypeScript/lint、整仓构建及 1s WAV 运行时小验证通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 受限 | 已复查 Android release 验证环境：当前机器 `java` 不可用，`JAVA_HOME` 与 `ANDROID_HOME` 未配置；`apps/LightOps/android/gradlew.bat` 存在，待安装 JDK/Android SDK 后再执行 Gradle 打包验证。iOS 真机验证需 macOS/Xcode/CocoaPods 环境。 |
+| 2026-06-02 | 阶段 6 生产加固 | 进行中 | `packages/toolbox-core` 已补齐 TypeScript build 和无额外依赖的 esbuild 测试 runner，覆盖 DMX 地址展开/冲突、功率电流、29.97 drop-frame、LTC frame bits 与 WAV Data URI；根 `build` 已接入工具核心构建，toolbox-core build/test 与整仓构建通过。 |
 
 ## 当前验证命令
 
 ```bash
 corepack pnpm install
+corepack pnpm --filter @lightops/toolbox-core run build
+corepack pnpm --filter @lightops/toolbox-core run test
 corepack pnpm --filter backend run build
 corepack pnpm --filter web run build
 corepack pnpm --filter LightOps run lint
@@ -242,7 +245,6 @@ corepack pnpm run build
 ## 当前已知问题
 
 - `apps/mobile` 已标记为历史目录，后续需决定保留对比还是删除。
-- `packages/toolbox-core` 缺少 build/test 脚本。
 - 部分后端模块把实体、控制器、服务写在同一个文件内，后续需要拆分。
 - 移动端派单目前使用横向人员选择，后续需增加搜索、技能标签和忙闲状态。
 - 移动端扫码查验已接入相机扫码，仍需在 Android/iOS 真机包验证相机权限弹窗、二维码识别、弱光/反光现场识别率和 Camera Kit 原生链接。

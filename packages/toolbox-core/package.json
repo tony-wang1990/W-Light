@@ -2,6 +2,10 @@
   "name": "@lightops/toolbox-core",
   "version": "1.0.0",
   "description": "Offline toolbox calculation logic for LightOps",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "test": "node scripts/run-tests.cjs"
+  },
   "main": "src/index.ts",
   "types": "src/index.ts"
 }
