@@ -15,6 +15,12 @@ import { enqueueOfflineRequest, isLikelyOfflineError } from '../../offline/offli
 
 const STEP_TYPES = ['故障确认', '拆机检查', '更换配件', '参数调试', '功能测试', '恢复安装', '外委处理', '其他']
 
+const getMediaKey = (item: UploadedMedia) => item.url || item.localUri || item.name
+const getUploadedUrls = (items: UploadedMedia[]) =>
+  items.map(item => item.url).filter((url): url is string => Boolean(url))
+const getPendingMedia = (items: UploadedMedia[]) =>
+  items.filter(item => item.pendingUpload && item.localUri)
+
 interface PartUsageDraft {
   partId: string
   name: string
@@ -94,6 +100,9 @@ export function OrderRepairScreen() {
     try {
       const uploaded = await uploadApi.pickAndUpload('mixed')
       if (uploaded.length > 0) setMedia(prev => [...prev, ...uploaded])
+      if (uploaded.some(item => item.pendingUpload)) {
+        Alert.alert('附件已暂存', '部分附件暂未上传，将在提交或离线同步时自动重试。')
+      }
     } catch (error: unknown) {
       Alert.alert('上传失败', getErrorMessage(error, '请检查网络或文件大小'))
     } finally {
@@ -101,8 +110,8 @@ export function OrderRepairScreen() {
     }
   }
 
-  const handleRemoveMedia = (url: string) => {
-    setMedia(prev => prev.filter(item => item.url !== url))
+  const handleRemoveMedia = (key: string) => {
+    setMedia(prev => prev.filter(item => getMediaKey(item) !== key))
   }
 
   const handleSubmit = async () => {
@@ -112,20 +121,23 @@ export function OrderRepairScreen() {
     }
 
     setSubmitting(true)
-    const payload = {
-      stepType,
-      stepDesc: stepDesc.trim(),
-      photoUrls: media.map(item => item.url),
-      outsourceVendor: outsourceVendor.trim() || undefined,
-      outsourceCost: outsourceCost ? Number(outsourceCost) : undefined,
-      partUsages: partUsages.map(item => ({
-        partId: item.partId,
-        quantity: item.quantity,
-        note: `${stepType}消耗`,
-      })),
-    }
+    let preparedMedia = media
 
     try {
+      preparedMedia = await uploadApi.uploadPendingMedia(media)
+      setMedia(preparedMedia)
+      const payload = {
+        stepType,
+        stepDesc: stepDesc.trim(),
+        photoUrls: getUploadedUrls(preparedMedia),
+        outsourceVendor: outsourceVendor.trim() || undefined,
+        outsourceCost: outsourceCost ? Number(outsourceCost) : undefined,
+        partUsages: partUsages.map(item => ({
+          partId: item.partId,
+          quantity: item.quantity,
+          note: `${stepType}消耗`,
+        })),
+      }
       await ordersApi.addRepairLog(orderId, payload)
       Alert.alert('✅ 记录已保存', '维修步骤已添加', [
         { text: '继续添加', onPress: () => {
@@ -139,12 +151,26 @@ export function OrderRepairScreen() {
       ])
     } catch (e: unknown) {
       if (isLikelyOfflineError(e)) {
+        const payload = {
+          stepType,
+          stepDesc: stepDesc.trim(),
+          photoUrls: getUploadedUrls(preparedMedia),
+          outsourceVendor: outsourceVendor.trim() || undefined,
+          outsourceCost: outsourceCost ? Number(outsourceCost) : undefined,
+          partUsages: partUsages.map(item => ({
+            partId: item.partId,
+            quantity: item.quantity,
+            note: `${stepType}消耗`,
+          })),
+        }
         enqueueOfflineRequest({
           type: 'add-repair-log',
           title: `维修记录：${stepType}`,
           endpoint: `/orders/${orderId}/repair-logs`,
           method: 'post',
           body: payload,
+          pendingMedia: getPendingMedia(preparedMedia),
+          attachmentField: 'photoUrls',
         })
         Alert.alert('已离线保存', '当前网络不可用，维修记录已进入加密同步队列；恢复网络后可在“我的”页面手动同步。', [
           { text: '返回工单', onPress: () => navigation.goBack() },
@@ -303,11 +329,11 @@ export function OrderRepairScreen() {
             )}
           </TouchableOpacity>
           {media.map(item => (
-            <View key={item.url} style={styles.mediaRow}>
+            <View key={getMediaKey(item)} style={styles.mediaRow}>
               <Text style={styles.mediaName} numberOfLines={1}>
-                {item.mediaType === 'video' ? '🎬' : '🖼️'} {item.name}
+                {item.mediaType === 'video' ? '🎬' : '🖼️'} {item.pendingUpload ? '[待上传] ' : ''}{item.name}
               </Text>
-              <TouchableOpacity onPress={() => handleRemoveMedia(item.url)}>
+              <TouchableOpacity onPress={() => handleRemoveMedia(getMediaKey(item))}>
                 <Text style={styles.mediaRemove}>移除</Text>
               </TouchableOpacity>
             </View>

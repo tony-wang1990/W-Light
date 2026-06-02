@@ -22,6 +22,12 @@ const FAULT_TYPES = [
   '不亮', '频闪', '不受控', '颜色异常', '机构卡死', '漏电', '物理损坏', '网络故障', '其他'
 ]
 
+const getMediaKey = (item: UploadedMedia) => item.url || item.localUri || item.name
+const getUploadedUrls = (items: UploadedMedia[]) =>
+  items.map(item => item.url).filter((url): url is string => Boolean(url))
+const getPendingMedia = (items: UploadedMedia[]) =>
+  items.filter(item => item.pendingUpload && item.localUri)
+
 export function OrderCreateScreen() {
   const navigation = useNavigation<NavigationProp<OrdersStackParamList>>()
   const route = useRoute<RouteProp<OrdersStackParamList, 'OrderCreate'>>()
@@ -40,6 +46,9 @@ export function OrderCreateScreen() {
     try {
       const uploaded = await uploadApi.pickAndUpload('mixed')
       if (uploaded.length > 0) setMedia(prev => [...prev, ...uploaded])
+      if (uploaded.some(item => item.pendingUpload)) {
+        Alert.alert('附件已暂存', '部分附件暂未上传，将在提交或离线同步时自动重试。')
+      }
     } catch (error: unknown) {
       Alert.alert('上传失败', getErrorMessage(error, '请检查网络或文件大小'))
     } finally {
@@ -47,8 +56,8 @@ export function OrderCreateScreen() {
     }
   }
 
-  const handleRemoveMedia = (url: string) => {
-    setMedia(prev => prev.filter(item => item.url !== url))
+  const handleRemoveMedia = (key: string) => {
+    setMedia(prev => prev.filter(item => getMediaKey(item) !== key))
   }
 
   const handleSubmit = async () => {
@@ -62,18 +71,21 @@ export function OrderCreateScreen() {
     }
 
     setSubmitting(true)
-    const payload = {
-      category,
-      deviceId,
-      priority,
-      faultType: faultType || undefined,
-      faultDesc: faultDesc.trim(),
-      mediaUrls: media.map(item => item.url),
-      locationDesc: locationDesc.trim() || undefined,
-      faultAt: new Date().toISOString(),
-    }
+    let preparedMedia = media
 
     try {
+      preparedMedia = await uploadApi.uploadPendingMedia(media)
+      setMedia(preparedMedia)
+      const payload = {
+        category,
+        deviceId,
+        priority,
+        faultType: faultType || undefined,
+        faultDesc: faultDesc.trim(),
+        mediaUrls: getUploadedUrls(preparedMedia),
+        locationDesc: locationDesc.trim() || undefined,
+        faultAt: new Date().toISOString(),
+      }
       const order = await ordersApi.create(payload)
       Alert.alert('✅ 工单已创建', `工单号：${order.orderNo}\n已提交，等待管理员派单`, [
         { text: '查看工单', onPress: () => navigation.navigate('OrderDetail', { orderId: order.id }) },
@@ -81,12 +93,24 @@ export function OrderCreateScreen() {
       ])
     } catch (e: unknown) {
       if (isLikelyOfflineError(e)) {
+        const payload = {
+          category,
+          deviceId,
+          priority,
+          faultType: faultType || undefined,
+          faultDesc: faultDesc.trim(),
+          mediaUrls: getUploadedUrls(preparedMedia),
+          locationDesc: locationDesc.trim() || undefined,
+          faultAt: new Date().toISOString(),
+        }
         enqueueOfflineRequest({
           type: 'create-order',
           title: `新建工单：${faultType || category}`,
           endpoint: '/orders',
           method: 'post',
           body: payload,
+          pendingMedia: getPendingMedia(preparedMedia),
+          attachmentField: 'mediaUrls',
         })
         Alert.alert('已离线保存', '当前网络不可用，工单已进入加密同步队列；恢复网络后可在“我的”页面手动同步。', [
           { text: '返回列表', onPress: () => navigation.goBack() },
@@ -235,11 +259,11 @@ export function OrderCreateScreen() {
             )}
           </TouchableOpacity>
           {media.map(item => (
-            <View key={item.url} style={styles.mediaRow}>
+            <View key={getMediaKey(item)} style={styles.mediaRow}>
               <Text style={styles.mediaName} numberOfLines={1}>
-                {item.mediaType === 'video' ? '🎬' : '🖼️'} {item.name}
+                {item.mediaType === 'video' ? '🎬' : '🖼️'} {item.pendingUpload ? '[待上传] ' : ''}{item.name}
               </Text>
-              <TouchableOpacity onPress={() => handleRemoveMedia(item.url)}>
+              <TouchableOpacity onPress={() => handleRemoveMedia(getMediaKey(item))}>
                 <Text style={styles.mediaRemove}>移除</Text>
               </TouchableOpacity>
             </View>

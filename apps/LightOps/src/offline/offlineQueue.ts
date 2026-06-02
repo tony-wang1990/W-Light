@@ -1,4 +1,5 @@
 import apiClient from '../api/client'
+import { uploadApi, type UploadedMedia } from '../api/upload.api'
 import { secureStorage } from '../storage/secureStorage'
 
 type OfflineMethod = 'post' | 'put' | 'patch' | 'delete'
@@ -12,6 +13,8 @@ export interface OfflineQueueItem {
   endpoint: string
   method: OfflineMethod
   body?: unknown
+  pendingMedia?: UploadedMedia[]
+  attachmentField?: string
   createdAt: string
   attemptCount: number
   lastTriedAt?: string
@@ -109,6 +112,8 @@ export function enqueueOfflineRequest(input: {
   endpoint: string
   method: OfflineMethod
   body?: unknown
+  pendingMedia?: UploadedMedia[]
+  attachmentField?: string
 }) {
   const item: OfflineQueueItem = {
     id: createQueueId(),
@@ -117,6 +122,8 @@ export function enqueueOfflineRequest(input: {
     endpoint: input.endpoint,
     method: input.method,
     body: input.body,
+    pendingMedia: input.pendingMedia,
+    attachmentField: input.attachmentField,
     createdAt: new Date().toISOString(),
     attemptCount: 0,
   }
@@ -124,6 +131,30 @@ export function enqueueOfflineRequest(input: {
   const queue = readQueue()
   writeQueue([...queue, item])
   return item
+}
+
+async function prepareQueuedItem(item: OfflineQueueItem): Promise<OfflineQueueItem> {
+  if (!item.pendingMedia?.length || !item.attachmentField) return item
+
+  const uploaded = await uploadApi.uploadPendingMedia(item.pendingMedia)
+  const uploadedUrls = uploaded
+    .map(media => media.url)
+    .filter((url): url is string => Boolean(url))
+  const body = item.body && typeof item.body === 'object'
+    ? { ...(item.body as Record<string, unknown>) }
+    : {}
+  const currentUrls = Array.isArray(body[item.attachmentField])
+    ? body[item.attachmentField] as string[]
+    : []
+
+  return {
+    ...item,
+    body: {
+      ...body,
+      [item.attachmentField]: [...currentUrls, ...uploadedUrls],
+    },
+    pendingMedia: [],
+  }
 }
 
 async function sendQueuedItem(item: OfflineQueueItem) {
@@ -147,13 +178,15 @@ export async function syncOfflineQueue(): Promise<OfflineSyncResult> {
   let synced = 0
 
   for (const item of queue) {
+    let preparedItem = item
     try {
-      await sendQueuedItem(item)
+      preparedItem = await prepareQueuedItem(item)
+      await sendQueuedItem(preparedItem)
       synced += 1
     } catch (error: unknown) {
       const message = getErrorMessage(error)
       failedItems.push({
-        ...item,
+        ...preparedItem,
         attemptCount: item.attemptCount + 1,
         lastTriedAt: new Date().toISOString(),
         lastError: message,

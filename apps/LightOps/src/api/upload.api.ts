@@ -2,10 +2,13 @@ import { launchImageLibrary, type Asset, type MediaType } from 'react-native-ima
 import client from './client'
 
 export interface UploadedMedia {
-  url: string
+  url?: string
+  localUri?: string
   name: string
   mimeType: string
   mediaType: 'image' | 'video'
+  pendingUpload?: boolean
+  uploadError?: string
 }
 
 function getAssetName(asset: Asset) {
@@ -19,12 +22,13 @@ async function uploadAsset(asset: Asset): Promise<UploadedMedia> {
 
   const mimeType = asset.type || 'image/jpeg'
   const mediaType = mimeType.startsWith('video') ? 'video' : 'image'
+  const name = getAssetName(asset)
   const formData = new FormData()
 
   formData.append('file', {
     uri: asset.uri,
     type: mimeType,
-    name: getAssetName(asset),
+    name,
   } as unknown as Blob)
 
   const response = await client.post<{ url: string }>(
@@ -35,9 +39,22 @@ async function uploadAsset(asset: Asset): Promise<UploadedMedia> {
 
   return {
     url: response.url,
-    name: getAssetName(asset),
+    localUri: asset.uri,
+    name,
     mimeType,
     mediaType,
+  }
+}
+
+function createPendingMedia(asset: Asset, error?: unknown): UploadedMedia {
+  const mimeType = asset.type || 'image/jpeg'
+  return {
+    localUri: asset.uri,
+    name: getAssetName(asset),
+    mimeType,
+    mediaType: mimeType.startsWith('video') ? 'video' : 'image',
+    pendingUpload: true,
+    uploadError: error instanceof Error ? error.message : undefined,
   }
 }
 
@@ -54,6 +71,31 @@ export const uploadApi = {
     if (result.errorMessage) throw new Error(result.errorMessage)
 
     const assets = result.assets || []
-    return Promise.all(assets.map(uploadAsset))
+    const uploaded: UploadedMedia[] = []
+    for (const asset of assets) {
+      try {
+        uploaded.push(await uploadAsset(asset))
+      } catch (error: unknown) {
+        uploaded.push(createPendingMedia(asset, error))
+      }
+    }
+    return uploaded
+  },
+
+  uploadPendingMedia: async (items: UploadedMedia[]): Promise<UploadedMedia[]> => {
+    const uploaded: UploadedMedia[] = []
+    for (const item of items) {
+      if (item.url || !item.localUri || !item.pendingUpload) {
+        uploaded.push(item)
+        continue
+      }
+
+      uploaded.push(await uploadAsset({
+        uri: item.localUri,
+        type: item.mimeType,
+        fileName: item.name,
+      }))
+    }
+    return uploaded
   },
 }
