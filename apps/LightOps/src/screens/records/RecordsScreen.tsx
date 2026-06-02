@@ -14,6 +14,8 @@ import { useQuery } from '@tanstack/react-query'
 import { devicesApi } from '../../api/devices.api'
 import { partsApi } from '../../api/parts.api'
 import { inspectionsApi } from '../../api/inspections.api'
+import { OfflineCacheBanner } from '../../components/common/OfflineCacheBanner'
+import { takeLastOfflineCacheHit, type OfflineCacheHit } from '../../offline/offlineCache'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { Device, SparePart } from '../../types'
 import type { InspectionPlan, InspectionRecord } from '../../api/inspections.api'
@@ -50,6 +52,10 @@ export function RecordsScreen() {
   const [keyword, setKeyword] = useState('')
   const [deviceStatus, setDeviceStatus] = useState<string>('')
   const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [offlineCacheHits, setOfflineCacheHits] = useState<Record<'devices' | 'parts', OfflineCacheHit | null>>({
+    devices: null,
+    parts: null,
+  })
 
   React.useEffect(() => {
     if (route.params?.initialTab) {
@@ -66,7 +72,11 @@ export function RecordsScreen() {
     isRefetching: devRefetching,
   } = useQuery({
     queryKey: ['devices', keyword, deviceStatus],
-    queryFn: () => devicesApi.getList({ keyword, status: deviceStatus || undefined, pageSize: 50 }),
+    queryFn: async () => {
+      const data = await devicesApi.getList({ keyword, status: deviceStatus || undefined, pageSize: 50 })
+      setOfflineCacheHits(prev => ({ ...prev, devices: takeLastOfflineCacheHit('/devices') }))
+      return data
+    },
     enabled: tab === 'devices',
   })
 
@@ -78,7 +88,11 @@ export function RecordsScreen() {
     isRefetching: partsRefetching,
   } = useQuery({
     queryKey: ['parts', keyword, lowStockOnly],
-    queryFn: () => partsApi.getList({ keyword, lowStock: lowStockOnly || undefined, pageSize: 50 }),
+    queryFn: async () => {
+      const data = await partsApi.getList({ keyword, lowStock: lowStockOnly || undefined, pageSize: 50 })
+      setOfflineCacheHits(prev => ({ ...prev, parts: takeLastOfflineCacheHit('/parts') }))
+      return data
+    },
     enabled: tab === 'parts',
   })
 
@@ -92,6 +106,11 @@ export function RecordsScreen() {
 
   const isLoading = tab === 'devices' ? devLoading : partsLoading
   const isRefreshing = tab === 'devices' ? devRefetching : partsRefetching
+  const activeOfflineCacheHit = tab === 'devices'
+    ? offlineCacheHits.devices
+    : tab === 'parts'
+      ? offlineCacheHits.parts
+      : null
 
   return (
     <View style={styles.container}>
@@ -184,6 +203,13 @@ export function RecordsScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {activeOfflineCacheHit && (
+        <OfflineCacheBanner
+          cachedAt={activeOfflineCacheHit.cachedAt}
+          title={tab === 'devices' ? '正在显示设备离线缓存' : '正在显示备件离线缓存'}
+        />
       )}
 
       {/* Loading */}

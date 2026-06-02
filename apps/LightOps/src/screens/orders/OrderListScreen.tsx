@@ -6,6 +6,8 @@ import {
 import { useNavigation, useRoute, type NavigationProp, type ParamListBase, type RouteProp } from '@react-navigation/native'
 import { ordersApi } from '../../api/orders.api'
 import { OrderCard } from '../../components/order/OrderCard'
+import { OfflineCacheBanner } from '../../components/common/OfflineCacheBanner'
+import { takeLastOfflineCacheHit, type OfflineCacheHit } from '../../offline/offlineCache'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import type { WorkOrder } from '../../types'
 import type { OrdersStackParamList } from '../../navigation/types'
@@ -30,6 +32,7 @@ export function OrderListScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [offlineCacheHit, setOfflineCacheHit] = useState<OfflineCacheHit | null>(null)
 
   const fetchOrders = useCallback(async (status = '', kw = '', pg = 1, reset = false) => {
     if (loading && !reset) return
@@ -42,6 +45,7 @@ export function OrderListScreen() {
         page: pg,
         pageSize: 20,
       })
+      setOfflineCacheHit(takeLastOfflineCacheHit('/orders'))
       if (reset || pg === 1) {
         setOrders(result.items)
       } else {
@@ -149,6 +153,13 @@ export function OrderListScreen() {
       <View style={styles.countRow}>
         <Text style={styles.countText}>共 {total} 条工单</Text>
       </View>
+
+      {offlineCacheHit && (
+        <OfflineCacheBanner
+          cachedAt={offlineCacheHit.cachedAt}
+          title="正在显示工单离线缓存"
+        />
+      )}
 
       {/* Order List */}
       <FlatList

@@ -5,7 +5,15 @@ interface CachedApiResponse<T> {
   data: T
 }
 
+export interface OfflineCacheHit {
+  cacheKey: string
+  url: string
+  cachedAt: string
+  servedAt: string
+}
+
 const cachePrefix = 'api_cache_v1'
+const lastCacheHitKey = `${cachePrefix}:last_hit`
 const cacheablePrefixes = ['/orders', '/devices', '/parts']
 
 function stableStringify(value: unknown): string {
@@ -52,4 +60,44 @@ export function getCachedApiResponse<T>(key: string): CachedApiResponse<T> | nul
     secureStorage.delete(key)
     return null
   }
+}
+
+export function recordOfflineCacheHit(hit: OfflineCacheHit) {
+  secureStorage.set(lastCacheHitKey, JSON.stringify(hit))
+}
+
+export function clearLastOfflineCacheHit(url?: string) {
+  if (!url) {
+    secureStorage.delete(lastCacheHitKey)
+    return
+  }
+
+  const hit = peekLastOfflineCacheHit()
+  if (hit?.url === url) secureStorage.delete(lastCacheHitKey)
+}
+
+export function peekLastOfflineCacheHit(): OfflineCacheHit | null {
+  const raw = secureStorage.getString(lastCacheHitKey)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || !('url' in parsed) || !('cachedAt' in parsed)) {
+      secureStorage.delete(lastCacheHitKey)
+      return null
+    }
+    return parsed as OfflineCacheHit
+  } catch {
+    secureStorage.delete(lastCacheHitKey)
+    return null
+  }
+}
+
+export function takeLastOfflineCacheHit(url?: string): OfflineCacheHit | null {
+  const hit = peekLastOfflineCacheHit()
+  if (!hit) return null
+  if (url && hit.url !== url) return null
+
+  secureStorage.delete(lastCacheHitKey)
+  return hit
 }

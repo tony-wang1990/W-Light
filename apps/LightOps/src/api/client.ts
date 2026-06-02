@@ -5,9 +5,11 @@ import {
   normalizeApiBaseUrl,
 } from '../config/api'
 import {
+  clearLastOfflineCacheHit,
   getApiCacheKey,
   getCachedApiResponse,
   isCacheableApiGet,
+  recordOfflineCacheHit,
   setCachedApiResponse,
 } from '../offline/offlineCache'
 import { secureStorage } from '../storage/secureStorage'
@@ -124,11 +126,22 @@ const client = {
 
     try {
       const data = await axiosClient.get<T, T>(url, config)
-      if (cacheable) setCachedApiResponse(cacheKey, data)
+      if (cacheable) {
+        setCachedApiResponse(cacheKey, data)
+        clearLastOfflineCacheHit(url)
+      }
       return data
     } catch (error) {
       const cached = cacheable ? getCachedApiResponse<T>(cacheKey) : null
-      if (cached) return cached.data
+      if (cached) {
+        recordOfflineCacheHit({
+          cacheKey,
+          url,
+          cachedAt: cached.cachedAt,
+          servedAt: new Date().toISOString(),
+        })
+        return cached.data
+      }
       throw error
     }
   },
