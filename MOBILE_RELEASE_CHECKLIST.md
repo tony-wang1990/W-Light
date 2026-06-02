@@ -9,6 +9,7 @@
 - 当前已同步原生 module name `WLight`、显示名 `W-Light`、Android applicationId `com.wlight.lightops` 和 iOS Bundle Identifier `com.wlight.lightops`。
 - 正式 APK/AAB/IPA 仍需要在具备 Android SDK/Xcode/CocoaPods 的打包机上完成签名、依赖安装和真机验证。
 - 当前 Windows 工作机未配置 `JAVA_HOME`，因此 Android Gradle 尚未完成本机验证。
+- 本地敏感数据使用 MMKV 加密，MMKV 密钥通过 `react-native-keychain` 写入 iOS Keychain / Android Keystore，并保留旧 MVP 固定密钥迁移路径。
 
 ## 打包前置
 
@@ -20,7 +21,12 @@ corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm --filter LightOps run lint
 ```
 
-2. 检查原生工程信息：
+2. 确认原生依赖完成链接：
+
+- Android 使用 React Native autolinking。
+- iOS 打包前在 `apps/LightOps/ios` 执行 `pod install`，确保 `react-native-keychain`、`react-native-mmkv` 等原生依赖进入 Xcode workspace。
+
+3. 检查原生工程信息：
 
 - Android `applicationId` 建议：`com.wlight.lightops`
 - iOS Bundle Identifier 建议：`com.wlight.lightops`
@@ -149,6 +155,7 @@ open LightOps.xcworkspace
 ### 安全与交付
 
 - [ ] 手机端 token、用户、当前项目和服务器地址使用加密 MMKV 存储。
+- [ ] 首次安装和升级安装时 Keychain/Keystore 可创建/读取 MMKV 密钥，旧本地加密数据可迁移。
 - [ ] 退出登录后本地 token 被清理。
 - [ ] Release 包不输出敏感 token 日志。
 - [ ] 后端生产环境关闭 TypeORM synchronize，改用迁移。
