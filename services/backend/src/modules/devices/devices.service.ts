@@ -46,7 +46,12 @@ export class DevicesService {
   }
 
   async findByQrCode(qrCode: string): Promise<Device> {
-    const d = await this.repo.findOne({ where: { qrCode } })
+    const d = await this.repo.findOne({
+      where: [
+        { qrCode },
+        { deviceNo: qrCode },
+      ],
+    })
     if (!d) throw new NotFoundException('未找到对应设备，请检查二维码')
     return d
   }

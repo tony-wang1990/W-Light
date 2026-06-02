@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, A
 import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
 import { ordersApi } from '../../api/orders.api'
-import { devicesApi } from '../../api/devices.api'
 import { inspectionsApi } from '../../api/inspections.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
@@ -15,7 +14,7 @@ interface Summary {
 }
 
 const QUICK_ACTIONS = [
-  { icon: '📸', label: '扫码查验', route: 'ScanMock', color: colors.danger },
+  { icon: '📸', label: '扫码查验', route: 'DeviceScan', color: colors.danger },
   { icon: '📋', label: '创建工单', route: 'OrderCreate', color: colors.primary },
   { icon: '🔧', label: '工具箱', route: 'Toolbox', color: '#C77DFF' },
   { icon: '📦', label: '备件查询', route: 'Records', color: '#FFD93D' },
@@ -55,23 +54,8 @@ export function HomeScreen() {
   }
 
   const handleQuickAction = async (route: string) => {
-    if (route === 'ScanMock') {
-      try {
-        // Mock a QR scan by fetching devices and picking the first one
-        const res = await devicesApi.getList({ pageSize: 1 });
-        if (res.items && res.items.length > 0) {
-          const deviceId = res.items[0].id;
-          navigation.getParent()?.navigate('Records', {
-            screen: 'DeviceDetail',
-            params: { deviceId },
-          });
-        } else {
-          Alert.alert('提示', '数据库中暂无设备，请先在网页端添加设备');
-        }
-      } catch (e) {
-        console.error(e);
-        Alert.alert('扫描失败', '无法连接到服务器');
-      }
+    if (route === 'DeviceScan') {
+      navigation.navigate('DeviceScan')
     } else {
       if (route === 'OrderCreate') {
         navigation.getParent()?.navigate('Orders', { screen: 'OrderCreate' });

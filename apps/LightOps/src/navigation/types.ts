@@ -8,6 +8,7 @@ export type AuthStackParamList = {
 // Home Stack
 export type HomeStackParamList = {
   HomeMain: undefined;
+  DeviceScan: undefined;
   Notifications: undefined;
 };
 
