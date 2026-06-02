@@ -39,9 +39,12 @@ export class UsersService {
   }
 
   async findAll(projectId?: string): Promise<User[]> {
-    const qb = this.repo.createQueryBuilder('u').where('u.isActive = true')
-    if (projectId) qb.andWhere(':pid = ANY(u."projectIds")', { pid: projectId })
-    return qb.orderBy('u.name').getMany()
+    const users = await this.repo.find({
+      where: { isActive: true },
+      order: { name: 'ASC' },
+    })
+    if (!projectId) return users
+    return users.filter(user => Array.isArray(user.projectIds) && user.projectIds.includes(projectId))
   }
 
   async findOne(id: string): Promise<User> {

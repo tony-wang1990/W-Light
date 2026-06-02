@@ -59,22 +59,27 @@ export class OrdersService {
     keyword?: string,
     deviceId?: string,
   ) {
+    const normalizedKeyword = keyword?.trim().toLowerCase()
     const qb = this.orderRepo
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.device', 'device')
       .leftJoinAndSelect('o.reporter', 'reporter')
       .leftJoinAndSelect('o.assignee', 'assignee')
-      .where('o.projectId = :projectId', { projectId })
-      .orderBy('o.createdAt', 'DESC')
+      .where('o."projectId" = :projectId', { projectId })
+      .orderBy('o."createdAt"', 'DESC')
 
     if (status) qb.andWhere('o.status = :status', { status })
     if (priority) qb.andWhere('o.priority = :priority', { priority })
-    if (assigneeId) qb.andWhere('o.assigneeId = :assigneeId', { assigneeId })
-    if (deviceId) qb.andWhere('o.deviceId = :deviceId', { deviceId })
-    if (keyword) {
+    if (assigneeId) qb.andWhere('o."assigneeId" = :assigneeId', { assigneeId })
+    if (deviceId) qb.andWhere('o."deviceId" = :deviceId', { deviceId })
+    if (normalizedKeyword) {
       qb.andWhere(
-        '(o.orderNo ILIKE :kw OR o.faultDesc ILIKE :kw OR device.name ILIKE :kw)',
-        { kw: `%${keyword}%` },
+        `(
+          LOWER(o."orderNo") LIKE :kw OR
+          LOWER(o."faultDesc") LIKE :kw OR
+          LOWER(COALESCE(device.name, '')) LIKE :kw
+        )`,
+        { kw: `%${normalizedKeyword}%` },
       )
     }
 
@@ -213,8 +218,8 @@ export class OrdersService {
       .createQueryBuilder()
       .update(WorkOrder)
       .set({ isOvertime: true })
-      .where('slaDeadline < :now', { now })
-      .andWhere('isOvertime = false')
+      .where('"slaDeadline" < :now', { now })
+      .andWhere('"isOvertime" = false')
       .andWhere('status NOT IN (:...closedStatuses)', {
         closedStatuses: [OrderStatus.CLOSED, OrderStatus.REJECTED],
       })
@@ -228,7 +233,7 @@ export class OrdersService {
       .createQueryBuilder('o')
       .select('o.status', 'status')
       .addSelect('COUNT(o.id)', 'count')
-      .where('o.projectId = :projectId', { projectId })
+      .where('o."projectId" = :projectId', { projectId })
       .groupBy('o.status')
       .getRawMany()
 

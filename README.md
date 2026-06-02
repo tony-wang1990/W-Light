@@ -172,7 +172,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 后端 Date 实体列去除 SQLite-only `datetime` 类型。
 - [x] 备份下载查询改用 TypeORM repository，减少数据库方言依赖。
 - [x] 生产数据库迁移脚本补齐，替代生产环境 `synchronize`。
-- [ ] 后端查询方言二次审计，覆盖搜索、分页、统计、导出接口。
+- [x] 后端查询方言二次审计，覆盖搜索、分页、统计、导出接口。
 - [ ] Android `JAVA_HOME`/SDK/release 签名打包验证。
 - [ ] iOS Xcode 工程、签名和真机安装验证。
 - [ ] 移动端 MMKV 密钥升级为 Keychain/Keystore 派生。
@@ -221,6 +221,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 5 报表/离线/交付 | 已完成 | 阶段 5 MVP checklist 已全部完成：报表、Excel、备份恢复、离线队列、列表缓存、附件恢复上传、加密存储、原生工程和交付验收文档均已落地；后续转入生产加固和专项体验优化。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 后端报表模块已改为 SQLite/PostgreSQL 双 SQL 分支，日期差、月份分组、周趋势、布尔统计和导出查询均适配 PostgreSQL；实体 Date 列去除 SQLite-only `datetime` 类型，备份下载改用 TypeORM repository；后端构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 已补齐后端 TypeORM CLI data-source、PostgreSQL 初始建表迁移、迁移脚本命令和 Oracle ARM 部署迁移说明；运行时数据库连接改为通过 `DB_SYNCHRONIZE`、`DB_MIGRATIONS_RUN`、`DB_SSL` 显式控制。 |
+| 2026-06-02 | 阶段 6 生产加固 | 进行中 | 完成后端查询方言二次审计：工单搜索去除 PostgreSQL 专属 `ILIKE`，用户项目过滤去除不适配 simple-json 的 `ANY(...)`，设备/备件/巡检/工单 QueryBuilder 条件统一补齐 camelCase 列名引用。 |
 
 ## 当前验证命令
 

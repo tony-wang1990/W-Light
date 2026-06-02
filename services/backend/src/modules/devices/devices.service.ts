@@ -20,23 +20,23 @@ export class DevicesService {
   }
 
   findAll(projectId: string, category?: string, status?: string, keyword?: string) {
-    const qb = this.repo.createQueryBuilder('d').where('d.projectId = :projectId', { projectId })
+    const qb = this.repo.createQueryBuilder('d').where('d."projectId" = :projectId', { projectId })
     if (category) qb.andWhere('d.category = :category', { category })
     if (status) qb.andWhere('d.status = :status', { status })
     if (keyword?.trim()) {
       qb.andWhere(
         `(
-          LOWER(d.deviceNo) LIKE :kw OR
+          LOWER(d."deviceNo") LIKE :kw OR
           LOWER(d.name) LIKE :kw OR
           LOWER(COALESCE(d.model, '')) LIKE :kw OR
           LOWER(COALESCE(d.manufacturer, '')) LIKE :kw OR
           LOWER(COALESCE(d.location, '')) LIKE :kw OR
-          LOWER(d.qrCode) LIKE :kw
+          LOWER(d."qrCode") LIKE :kw
         )`,
         { kw: `%${keyword.trim().toLowerCase()}%` },
       )
     }
-    return qb.orderBy('d.deviceNo').getMany()
+    return qb.orderBy('d."deviceNo"').getMany()
   }
 
   async findOne(id: string): Promise<Device> {

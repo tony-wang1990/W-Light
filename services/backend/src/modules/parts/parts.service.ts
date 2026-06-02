@@ -14,7 +14,7 @@ export class PartsService {
   create(dto: Partial<SparePart>) { return this.repo.save(this.repo.create(dto)) }
 
   findAll(projectId: string, lowStockOnly = false, keyword?: string) {
-    const qb = this.repo.createQueryBuilder('p').where('p.projectId = :projectId', { projectId })
+    const qb = this.repo.createQueryBuilder('p').where('p."projectId" = :projectId', { projectId })
     if (lowStockOnly) qb.andWhere('p.stock <= p."minStock"')
     if (keyword?.trim()) {
       qb.andWhere(
@@ -74,7 +74,7 @@ export class PartsService {
   getLowStockAlerts(projectId: string) {
     return this.repo
       .createQueryBuilder('p')
-      .where('p.projectId = :projectId', { projectId })
+      .where('p."projectId" = :projectId', { projectId })
       .andWhere('p.stock <= p."minStock"')
       .getMany()
   }

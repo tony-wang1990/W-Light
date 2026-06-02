@@ -108,10 +108,10 @@ class InspectionsService {
   async getRecords(projectId: string, planId?: string, page = 1, ps = 20) {
     const qb = this.recordRepo
       .createQueryBuilder('r')
-      .innerJoin(InspectionPlan, 'p', 'p.id = r.planId AND p.projectId = :projectId', { projectId })
-      .orderBy('r.inspectedAt', 'DESC')
+      .innerJoin(InspectionPlan, 'p', 'p.id = r."planId" AND p."projectId" = :projectId', { projectId })
+      .orderBy('r."inspectedAt"', 'DESC')
 
-    if (planId) qb.andWhere('r.planId = :planId', { planId })
+    if (planId) qb.andWhere('r."planId" = :planId', { planId })
 
     const [items, total] = await qb
       .skip((page - 1) * ps)
@@ -124,11 +124,11 @@ class InspectionsService {
   getTodayPlans(assigneeId: string, projectId: string) {
     return this.planRepo
       .createQueryBuilder('p')
-      .where('p.projectId = :projectId', { projectId })
-      .andWhere('p.isActive = :isActive', { isActive: 1 })
-      .andWhere('(p.assigneeId = :assigneeId OR p.assigneeId IS NULL)', { assigneeId })
-      .andWhere('(p.nextInspectionAt IS NULL OR p.nextInspectionAt <= :now)', { now: new Date() })
-      .orderBy('p.nextInspectionAt', 'ASC')
+      .where('p."projectId" = :projectId', { projectId })
+      .andWhere('p."isActive" = :isActive', { isActive: 1 })
+      .andWhere('(p."assigneeId" = :assigneeId OR p."assigneeId" IS NULL)', { assigneeId })
+      .andWhere('(p."nextInspectionAt" IS NULL OR p."nextInspectionAt" <= :now)', { now: new Date() })
+      .orderBy('p."nextInspectionAt"', 'ASC')
       .getMany()
   }
   
@@ -144,9 +144,9 @@ class InspectionsService {
       ? 0
       : await this.recordRepo
         .createQueryBuilder('r')
-        .where('r.planId IN (:...planIds)', { planIds })
-        .andWhere('r.inspectedAt >= :start', { start })
-        .andWhere('r.inspectedAt < :end', { end })
+        .where('r."planId" IN (:...planIds)', { planIds })
+        .andWhere('r."inspectedAt" >= :start', { start })
+        .andWhere('r."inspectedAt" < :end', { end })
         .getCount()
     return { totalPlans: total, todayRecords }
   }
