@@ -10,6 +10,7 @@
 - 正式 APK/AAB/IPA 仍需要在具备 Android SDK/Xcode/CocoaPods 的打包机上完成签名、依赖安装和真机验证。
 - 当前 Windows 工作机未配置 `JAVA_HOME`，因此 Android Gradle 尚未完成本机验证。
 - 本地敏感数据使用 MMKV 加密，MMKV 密钥通过 `react-native-keychain` 写入 iOS Keychain / Android Keystore，并保留旧 MVP 固定密钥迁移路径。
+- 扫码查验已接入 `react-native-camera-kit` 与 `react-native-permissions`，真机包需验证相机权限和二维码识别。
 
 ## 打包前置
 
@@ -24,7 +25,7 @@ corepack pnpm --filter LightOps run lint
 2. 确认原生依赖完成链接：
 
 - Android 使用 React Native autolinking。
-- iOS 打包前在 `apps/LightOps/ios` 执行 `pod install`，确保 `react-native-keychain`、`react-native-mmkv` 等原生依赖进入 Xcode workspace。
+- iOS 打包前在 `apps/LightOps/ios` 执行 `pod install`，确保 `react-native-keychain`、`react-native-mmkv`、`react-native-camera-kit`、`react-native-permissions` 等原生依赖进入 Xcode workspace。
 
 3. 检查原生工程信息：
 
@@ -132,6 +133,7 @@ open LightOps.xcworkspace
 ### 设备/巡检/备件
 
 - [ ] 设备台账可新增、编辑、搜索、扫码查询。
+- [ ] 手机端“扫码查验”可弹出相机权限、打开预览、识别设备二维码并自动查询设备。
 - [ ] 巡检计划可创建，异常巡检可生成工单。
 - [ ] 备件入库、出库、低库存提醒数据正确。
 - [ ] 设备详情可查看历史工单与健康状态。

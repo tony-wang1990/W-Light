@@ -176,7 +176,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [ ] Android `JAVA_HOME`/SDK/release 签名打包验证。
 - [ ] iOS Xcode 工程、签名和真机安装验证。
 - [x] 移动端 MMKV 密钥升级为 Keychain/Keystore 派生。
-- [ ] 真机摄像头扫码闭环接入。
+- [x] 真机摄像头扫码闭环接入。
 - [x] Web chunk 分包和动态/静态导入警告处理。
 - [ ] LTC 音频波形生成/导出专项补齐。
 
@@ -224,6 +224,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 完成后端查询方言二次审计：工单搜索去除 PostgreSQL 专属 `ILIKE`，用户项目过滤去除不适配 simple-json 的 `ANY(...)`，设备/备件/巡检/工单 QueryBuilder 条件统一补齐 camelCase 列名引用。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | Web 构建已去除 API client 混合动态/静态导入 warning，并通过函数式 manualChunks 拆分 React、图表、图标和应用工具依赖，最大 chunk 降至 500k 阈值以内。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 移动端加密 MMKV 已升级为启动前初始化 Keychain/Keystore 托管安装级密钥，保留旧默认 MMKV key 与旧固定密钥迁移路径；新增 `react-native-keychain` 原生依赖，移动端 TypeScript/lint 与整仓构建通过。 |
+| 2026-06-02 | 阶段 6 生产加固 | 进行中 | 移动端“扫码查验”已接入相机权限请求、二维码相机预览、扫码自动查询设备、成功后暂停识别和手动输入兜底；新增 `react-native-camera-kit`、`react-native-permissions` 依赖并配置 iOS Camera permission Pod；移动端 TypeScript/lint 与整仓构建通过。 |
 
 ## 当前验证命令
 
@@ -242,7 +243,7 @@ corepack pnpm run build
 - `packages/toolbox-core` 缺少 build/test 脚本。
 - 部分后端模块把实体、控制器、服务写在同一个文件内，后续需要拆分。
 - 移动端派单目前使用横向人员选择，后续需增加搜索、技能标签和忙闲状态。
-- 移动端扫码查验当前先支持二维码内容/设备编号输入查询，真机摄像头扫描后续接入。
+- 移动端扫码查验已接入相机扫码，仍需在 Android/iOS 真机包验证相机权限弹窗、二维码识别、弱光/反光现场识别率和 Camera Kit 原生链接。
 - 移动端 Keychain/Keystore 密钥升级已接入，仍需在 Android/iOS 真机包验证首次安装、升级迁移、重装和系统安全存储异常场景。
 - 离线同步 MVP 当前覆盖工单创建、维修记录写入、附件暂存恢复上传和工单/设备/备件列表缓存；缓存数据暂未在界面显式标注“离线缓存”。
 - 备份恢复当前采用合并/同 ID 覆盖策略，不会删除备份中不存在的线上记录；如设备编号、二维码或手机号与现有数据唯一约束冲突，需要管理员清理后重试。
