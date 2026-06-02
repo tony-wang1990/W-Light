@@ -88,6 +88,11 @@ export function getOfflineQueue() {
   return readQueue()
 }
 
+export function removeOfflineQueueItem(id: string) {
+  const queue = readQueue()
+  writeQueue(queue.filter(item => item.id !== id))
+}
+
 export function getOfflineQueueSummary(): OfflineQueueSummary {
   const queue = readQueue()
   return {

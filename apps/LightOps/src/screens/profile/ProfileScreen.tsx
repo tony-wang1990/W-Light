@@ -4,18 +4,23 @@ import { useFocusEffect } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import {
+  getOfflineQueue,
   getOfflineQueueSummary,
+  removeOfflineQueueItem,
   syncOfflineQueue,
+  type OfflineQueueItem,
   type OfflineQueueSummary,
 } from '../../offline/offlineQueue'
 
 export function ProfileScreen() {
   const { user, logout } = useAuthStore()
   const [queueSummary, setQueueSummary] = useState<OfflineQueueSummary>(() => getOfflineQueueSummary())
+  const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>(() => getOfflineQueue())
   const [syncing, setSyncing] = useState(false)
 
   const refreshQueueSummary = useCallback(() => {
     setQueueSummary(getOfflineQueueSummary())
+    setQueueItems(getOfflineQueue())
   }, [])
 
   useFocusEffect(
@@ -58,6 +63,20 @@ export function ProfileScreen() {
     } finally {
       setSyncing(false)
     }
+  }
+
+  const handleRemoveQueueItem = (item: OfflineQueueItem) => {
+    Alert.alert('移除离线记录', `确认从同步队列移除“${item.title}”？此操作不会提交到云端。`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '移除',
+        style: 'destructive',
+        onPress: () => {
+          removeOfflineQueueItem(item.id)
+          refreshQueueSummary()
+        },
+      },
+    ])
   }
 
   return (
@@ -111,6 +130,30 @@ export function ProfileScreen() {
             </View>
             {!!queueSummary.lastError && (
               <Text style={styles.syncError} numberOfLines={2}>{queueSummary.lastError}</Text>
+            )}
+            {queueItems.length > 0 && (
+              <View style={styles.queueList}>
+                {queueItems.slice(0, 5).map(item => (
+                  <View key={item.id} style={styles.queueItem}>
+                    <View style={styles.queueItemHeader}>
+                      <Text style={styles.queueItemTitle} numberOfLines={1}>{item.title}</Text>
+                      {item.hasConflict && <Text style={styles.conflictBadge}>冲突</Text>}
+                    </View>
+                    <Text style={styles.queueMeta} numberOfLines={1}>
+                      {item.type} · {item.attemptCount} 次尝试 · {new Date(item.createdAt).toLocaleString()}
+                    </Text>
+                    {!!item.lastError && (
+                      <Text style={styles.queueError} numberOfLines={2}>{item.lastError}</Text>
+                    )}
+                    <TouchableOpacity style={styles.queueRemoveBtn} onPress={() => handleRemoveQueueItem(item)}>
+                      <Text style={styles.queueRemoveText}>手动移除</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {queueItems.length > 5 && (
+                  <Text style={styles.queueMoreText}>还有 {queueItems.length - 5} 条待同步记录</Text>
+                )}
+              </View>
             )}
             <TouchableOpacity
               style={[styles.syncButton, (syncing || queueSummary.total === 0) && styles.syncButtonDisabled]}
@@ -233,6 +276,37 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: spacing.sm,
   },
+  queueList: { gap: spacing.sm, marginBottom: spacing.sm },
+  queueItem: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  queueItemHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  queueItemTitle: { flex: 1, fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '700' },
+  conflictBadge: {
+    fontSize: fontSize.xs,
+    color: colors.warning,
+    borderColor: colors.warning + '66',
+    borderWidth: 1,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  queueMeta: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
+  queueError: { fontSize: fontSize.xs, color: colors.danger, lineHeight: 18, marginTop: 4 },
+  queueRemoveBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    backgroundColor: colors.danger + '18',
+  },
+  queueRemoveText: { fontSize: fontSize.xs, color: colors.danger, fontWeight: '700' },
+  queueMoreText: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
   syncButton: {
     height: 42,
     borderRadius: radius.md,
