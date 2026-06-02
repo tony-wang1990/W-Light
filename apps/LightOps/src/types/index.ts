@@ -8,6 +8,8 @@ export interface User {
   projectIds: string[]
   skillTags: string[]
   avatarUrl?: string
+  activeOrderCount?: number
+  busyStatus?: 'idle' | 'busy' | 'overloaded'
 }
 
 export interface Project {

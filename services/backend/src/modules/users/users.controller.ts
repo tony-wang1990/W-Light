@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common'
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { UsersService } from './users.service'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
@@ -20,8 +20,15 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: '获取用户列表' })
-  findAll(@Query('projectId') projectId?: string) {
-    return this.usersService.findAll(projectId)
+  @ApiQuery({ name: 'projectId', required: false })
+  @ApiQuery({ name: 'includeWorkload', required: false, type: Boolean })
+  findAll(
+    @Request() req,
+    @Query('projectId') projectId?: string,
+    @Query('includeWorkload') includeWorkload?: string,
+  ) {
+    const scopedProjectId = projectId || (req.headers['x-project-id'] as string | undefined)
+    return this.usersService.findAll(scopedProjectId, includeWorkload === 'true' || includeWorkload === '1')
   }
 
   @Get(':id')

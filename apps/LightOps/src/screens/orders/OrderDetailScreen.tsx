@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native'
+import React, { useEffect, useMemo, useState } from 'react'
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, TextInput } from 'react-native'
 import {
   type NavigationProp,
   useNavigation,
@@ -18,6 +18,50 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { getErrorMessage } from '../../utils/error'
 
+const ASSIGNABLE_ROLES: User['role'][] = ['admin', 'engineer', 'inspector']
+
+const ROLE_LABELS: Record<User['role'], string> = {
+  admin: '管理员',
+  engineer: '维修工程师',
+  inspector: '巡检人员',
+  viewer: '只读账号',
+}
+
+function getWorkloadMeta(engineer: User) {
+  const count = engineer.activeOrderCount
+  if (count === undefined) {
+    return { label: '未同步', color: colors.textSecondary, bg: colors.borderLight }
+  }
+  if (engineer.busyStatus === 'overloaded' || count >= 3) {
+    return { label: `${count} 单`, color: colors.danger, bg: colors.danger + '22' }
+  }
+  if (engineer.busyStatus === 'busy' || count > 0) {
+    return { label: `${count} 单`, color: colors.warning, bg: colors.warning + '22' }
+  }
+  return { label: '空闲', color: colors.success, bg: colors.success + '22' }
+}
+
+function getSkillScore(engineer: User, order: WorkOrder | null) {
+  const tags = engineer.skillTags || []
+  if (!order || tags.length === 0) return 0
+
+  const terms = [
+    order.faultType,
+    order.category,
+    order.device?.category,
+    order.device?.name,
+  ]
+    .filter(Boolean)
+    .map(item => String(item).toLowerCase())
+
+  return tags.reduce((score, tag) => {
+    const normalizedTag = tag.toLowerCase()
+    return terms.some(term => term.includes(normalizedTag) || normalizedTag.includes(term))
+      ? score + 1
+      : score
+  }, 0)
+}
+
 export function OrderDetailScreen() {
   const navigation = useNavigation<NavigationProp<OrdersStackParamList>>()
   const route = useRoute<RouteProp<OrdersStackParamList, 'OrderDetail'>>()
@@ -27,6 +71,7 @@ export function OrderDetailScreen() {
   const [order, setOrder] = useState<WorkOrder | null>(null)
   const [logs, setLogs] = useState<RepairLog[]>([])
   const [engineers, setEngineers] = useState<User[]>([])
+  const [engineerSearch, setEngineerSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -46,12 +91,19 @@ export function OrderDetailScreen() {
     }
   }
 
+  const fetchEngineers = async () => {
+    try {
+      const users = await usersApi.list({ includeWorkload: true })
+      setEngineers(users.filter(item => ASSIGNABLE_ROLES.includes(item.role)))
+    } catch (error) {
+      console.warn('Failed to load engineers', error)
+    }
+  }
+
   useEffect(() => { fetchDetail() }, [orderId])
 
   useEffect(() => {
-    usersApi.list()
-      .then(users => setEngineers(users.filter(item => ['admin', 'engineer', 'inspector'].includes(item.role))))
-      .catch(error => console.warn('Failed to load engineers', error))
+    void fetchEngineers()
   }, [])
 
   const handleAction = async (action: string) => {
@@ -84,6 +136,7 @@ export function OrderDetailScreen() {
       const updated = await ordersApi.assign(order.id, assigneeId)
       setOrder(updated)
       await fetchDetail()
+      await fetchEngineers()
       Alert.alert('✅ 已派单', '工单已指派给维修人员')
     } catch (e: unknown) {
       Alert.alert('派单失败', getErrorMessage(e))
@@ -96,6 +149,35 @@ export function OrderDetailScreen() {
       { text: '确认', style: 'default', onPress: () => handleAction(action) },
     ])
   }
+
+  const filteredEngineers = useMemo(() => {
+    const keyword = engineerSearch.trim().toLowerCase()
+
+    return engineers
+      .filter(engineer => {
+        if (!keyword) return true
+        const searchText = [
+          engineer.name,
+          engineer.phone,
+          ROLE_LABELS[engineer.role],
+          ...(engineer.skillTags || []),
+        ].join(' ').toLowerCase()
+        return searchText.includes(keyword)
+      })
+      .sort((a, b) => {
+        const aSelected = order?.assigneeId === a.id
+        const bSelected = order?.assigneeId === b.id
+        if (aSelected !== bSelected) return aSelected ? -1 : 1
+
+        const skillDiff = getSkillScore(b, order) - getSkillScore(a, order)
+        if (skillDiff !== 0) return skillDiff
+
+        const loadDiff = (a.activeOrderCount || 0) - (b.activeOrderCount || 0)
+        if (loadDiff !== 0) return loadDiff
+
+        return a.name.localeCompare(b.name, 'zh-Hans-CN')
+      })
+  }, [engineerSearch, engineers, order])
 
   if (loading) {
     return (
@@ -185,31 +267,72 @@ export function OrderDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>派单</Text>
             {engineers.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {engineers.map(engineer => (
-                  <TouchableOpacity
-                    key={engineer.id}
-                    style={[
-                      styles.engineerChip,
-                      order.assigneeId === engineer.id && styles.engineerChipActive,
-                    ]}
-                    onPress={() => handleAssign(engineer.id)}
-                  >
-                    <Text style={[
-                      styles.engineerName,
-                      order.assigneeId === engineer.id && styles.engineerTextActive,
-                    ]}>
-                      {engineer.name}
-                    </Text>
-                    <Text style={[
-                      styles.engineerRole,
-                      order.assigneeId === engineer.id && styles.engineerTextActive,
-                    ]}>
-                      {engineer.role}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <>
+                <TextInput
+                  value={engineerSearch}
+                  onChangeText={setEngineerSearch}
+                  placeholder="搜索姓名、手机号、技能"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.engineerSearchInput}
+                />
+                {filteredEngineers.length > 0 ? (
+                  <View style={styles.engineerList}>
+                    {filteredEngineers.map(engineer => {
+                      const selected = order.assigneeId === engineer.id
+                      const workload = getWorkloadMeta(engineer)
+                      const skillTags = engineer.skillTags || []
+
+                      return (
+                        <TouchableOpacity
+                          key={engineer.id}
+                          style={[
+                            styles.engineerCard,
+                            selected && styles.engineerCardActive,
+                          ]}
+                          onPress={() => handleAssign(engineer.id)}
+                        >
+                          <View style={styles.engineerCardHeader}>
+                            <View style={styles.engineerIdentity}>
+                              <Text style={[styles.engineerName, selected && styles.engineerTextActive]}>
+                                {engineer.name}
+                              </Text>
+                              <Text style={[styles.engineerRole, selected && styles.engineerSubTextActive]}>
+                                {ROLE_LABELS[engineer.role]} · {engineer.phone || '无手机号'}
+                              </Text>
+                            </View>
+                            <View style={[styles.workloadBadge, { backgroundColor: workload.bg, borderColor: workload.color }]}>
+                              <Text style={[styles.workloadText, { color: workload.color }]}>{workload.label}</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.skillRow}>
+                            {skillTags.length > 0 ? (
+                              skillTags.slice(0, 4).map(tag => (
+                                <Text key={`${engineer.id}-${tag}`} style={[
+                                  styles.skillTag,
+                                  selected && styles.skillTagActive,
+                                ]}>
+                                  {tag}
+                                </Text>
+                              ))
+                            ) : (
+                              <Text style={[styles.noSkillText, selected && styles.engineerSubTextActive]}>
+                                未配置技能
+                              </Text>
+                            )}
+                          </View>
+
+                          <Text style={[styles.assignHint, selected && styles.engineerTextActive]}>
+                            {selected ? '当前负责人' : '指派'}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                ) : (
+                  <Text style={styles.emptyHint}>没有匹配的派单人员</Text>
+                )}
+              </>
             ) : (
               <Text style={styles.emptyHint}>暂无可派单人员</Text>
             )}
@@ -458,19 +581,61 @@ const styles = StyleSheet.create({
   partsUsedTitle: { fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: '700' },
   partsUsedText: { fontSize: fontSize.xs, color: colors.textSecondary, lineHeight: 18 },
   logEngineer: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
-  engineerChip: {
-    width: 112,
+  engineerSearchInput: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginRight: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.textPrimary,
+    fontSize: fontSize.sm,
+    paddingHorizontal: spacing.md,
+    height: 40,
+    marginBottom: spacing.sm,
+  },
+  engineerList: { gap: spacing.sm },
+  engineerCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.sm,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  engineerChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  engineerName: { fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '700' },
-  engineerRole: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  engineerCardActive: { backgroundColor: colors.primary, borderColor: colors.primaryLight },
+  engineerCardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, alignItems: 'flex-start' },
+  engineerIdentity: { flex: 1 },
+  engineerName: { fontSize: fontSize.md, color: colors.textPrimary, fontWeight: '700' },
+  engineerRole: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 3 },
   engineerTextActive: { color: colors.white },
+  engineerSubTextActive: { color: colors.white + 'CC' },
+  workloadBadge: {
+    minWidth: 56,
+    height: 24,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  workloadText: { fontSize: fontSize.xs, fontWeight: '700' },
+  skillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+  skillTag: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    overflow: 'hidden',
+  },
+  skillTagActive: { color: colors.white, backgroundColor: colors.primaryDark },
+  noSkillText: { fontSize: fontSize.xs, color: colors.textMuted },
+  assignHint: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.sm,
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    fontWeight: '700',
+  },
   emptyHint: { fontSize: fontSize.xs, color: colors.textMuted },
   // Action Bar
   actionBar: {

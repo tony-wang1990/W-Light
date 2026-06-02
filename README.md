@@ -179,6 +179,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 真机摄像头扫码闭环接入。
 - [x] Web chunk 分包和动态/静态导入警告处理。
 - [x] LTC 音频波形生成/导出专项补齐。
+- [x] 移动端派单人员搜索、技能标签和忙闲状态。
 
 ## 进度记录
 
@@ -229,6 +230,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 受限 | 已复查 Android release 验证环境：当前机器 `java` 不可用，`JAVA_HOME` 与 `ANDROID_HOME` 未配置；`apps/LightOps/android/gradlew.bat` 存在，待安装 JDK/Android SDK 后再执行 Gradle 打包验证。iOS 真机验证需 macOS/Xcode/CocoaPods 环境。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | `packages/toolbox-core` 已补齐 TypeScript build 和无额外依赖的 esbuild 测试 runner，覆盖 DMX 地址展开/冲突、功率电流、29.97 drop-frame、LTC frame bits 与 WAV Data URI；根 `build` 已接入工具核心构建，toolbox-core build/test 与整仓构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 已删除历史 `apps/mobile` 工作区并刷新 pnpm lockfile/install 状态；仓库移动端仅保留 `apps/LightOps`，workspace 项目数从 7 个降为 6 个，移除 44 个旧依赖包，工具核心测试与整仓构建通过。 |
+| 2026-06-02 | 阶段 6 体验加固 | 已完成 | 移动端工单详情派单面板已支持姓名/手机号/技能搜索、技能标签展示、当前负责人置顶、按技能匹配与负载排序；后端 `/users` 支持按项目返回人员未闭环工单数并屏蔽 `passwordHash`/`fcmToken` 敏感字段。 |
 
 ## 当前验证命令
 
@@ -246,7 +248,6 @@ corepack pnpm run build
 ## 当前已知问题
 
 - 部分后端模块把实体、控制器、服务写在同一个文件内，后续需要拆分。
-- 移动端派单目前使用横向人员选择，后续需增加搜索、技能标签和忙闲状态。
 - 移动端扫码查验已接入相机扫码，仍需在 Android/iOS 真机包验证相机权限弹窗、二维码识别、弱光/反光现场识别率和 Camera Kit 原生链接。
 - 移动端 Keychain/Keystore 密钥升级已接入，仍需在 Android/iOS 真机包验证首次安装、升级迁移、重装和系统安全存储异常场景。
 - LTC WAV 当前通过 Data URI 复制/系统分享导出，仍需在真机和目标控台/时码读取器上验证音量、相位、帧率识别和长时段稳定性。
