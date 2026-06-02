@@ -155,6 +155,14 @@ export default function Dashboard() {
 
   useEffect(() => { loadDashboard(); }, []);
 
+  const exportOrders = () => {
+    apiClient.download('/reports/export/orders.xlsx', `lightops-orders-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const downloadBackup = () => {
+    apiClient.download('/reports/backup.json', `lightops-backup-${new Date().toISOString().slice(0, 10)}.json`);
+  };
+
   const statCards = [
     { title: '运行设备总数', value: stats.totalDevices, icon: Lightbulb, color: '#10B981', bgColor: 'rgba(16,185,129,0.1)' },
     { title: '待处理工单', value: stats.pendingOrders, icon: AlertTriangle, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)' },
@@ -170,10 +178,18 @@ export default function Dashboard() {
     <div className={styles.container}>
       <div className={styles.titleRow}>
         <h1 className={styles.pageTitle}>系统概览</h1>
-        <button className={styles.refreshBtn} onClick={loadDashboard} disabled={loading}>
-          <RefreshCw size={14} className={loading ? styles.spin : ''} />
-          {lastUpdated ? `刷新 · 更新于 ${lastUpdated.toLocaleTimeString()}` : '加载中...'}
-        </button>
+        <div className={styles.titleActions}>
+          <button className={styles.refreshBtn} onClick={exportOrders}>
+            导出工单 Excel
+          </button>
+          <button className={styles.refreshBtn} onClick={downloadBackup}>
+            下载备份
+          </button>
+          <button className={styles.refreshBtn} onClick={loadDashboard} disabled={loading}>
+            <RefreshCw size={14} className={loading ? styles.spin : ''} />
+            {lastUpdated ? `刷新 · 更新于 ${lastUpdated.toLocaleTimeString()}` : '加载中...'}
+          </button>
+        </div>
       </div>
 
       <div className={styles.statsGrid}>

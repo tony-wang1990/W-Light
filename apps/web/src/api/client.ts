@@ -45,4 +45,16 @@ export const apiClient = {
 
   delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     axiosClient.delete(url, config),
+
+  download: async (url: string, filename: string) => {
+    const blob = await axiosClient.get(url, { responseType: 'blob' }) as unknown as Blob;
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
 };

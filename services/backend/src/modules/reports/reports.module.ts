@@ -1,9 +1,10 @@
-import { Module, Controller, Get, Query, UseGuards, Request } from '@nestjs/common'
+import { Module, Controller, Get, Query, UseGuards, Request, Res } from '@nestjs/common'
 import { Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import * as ExcelJS from 'exceljs'
 
 function normalizeDateRange(startDate?: string, endDate?: string) {
   const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -282,6 +283,121 @@ class ReportsService {
       partsConsumption,
     }
   }
+
+  async exportOrdersWorkbook(projectId: string, startDate: string, endDate: string) {
+    const rows = await this.ds.query(`
+      SELECT
+        o.orderNo,
+        o.category,
+        o.priority,
+        o.status,
+        COALESCE(o.faultType, '') as faultType,
+        o.faultDesc,
+        COALESCE(d.deviceNo, '') as deviceNo,
+        COALESCE(d.name, '') as deviceName,
+        COALESCE(d.location, o.locationDesc, '') as location,
+        COALESCE(reporter.name, '') as reporterName,
+        COALESCE(assignee.name, '') as assigneeName,
+        o.createdAt,
+        o.assignedAt,
+        o.startedAt,
+        o.submittedAt,
+        o.closedAt,
+        o.isOvertime,
+        o.repairCost
+      FROM work_orders o
+      LEFT JOIN devices d ON d.id = o.deviceId
+      LEFT JOIN users reporter ON reporter.id = o.reporterId
+      LEFT JOIN users assignee ON assignee.id = o.assigneeId
+      WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
+      ORDER BY o.createdAt DESC
+    `, [projectId, startDate, endDate])
+
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = 'LightOps'
+    workbook.created = new Date()
+    const sheet = workbook.addWorksheet('工单台账')
+    sheet.columns = [
+      { header: '工单编号', key: 'orderNo', width: 18 },
+      { header: '类别', key: 'category', width: 14 },
+      { header: '优先级', key: 'priority', width: 10 },
+      { header: '状态', key: 'status', width: 12 },
+      { header: '故障类型', key: 'faultType', width: 16 },
+      { header: '故障描述', key: 'faultDesc', width: 36 },
+      { header: '设备编号', key: 'deviceNo', width: 18 },
+      { header: '设备名称', key: 'deviceName', width: 22 },
+      { header: '位置', key: 'location', width: 24 },
+      { header: '报修人', key: 'reporterName', width: 14 },
+      { header: '维修人', key: 'assigneeName', width: 14 },
+      { header: '创建时间', key: 'createdAt', width: 20 },
+      { header: '派单时间', key: 'assignedAt', width: 20 },
+      { header: '开始维修', key: 'startedAt', width: 20 },
+      { header: '提交验收', key: 'submittedAt', width: 20 },
+      { header: '归档时间', key: 'closedAt', width: 20 },
+      { header: '是否超时', key: 'isOvertime', width: 10 },
+      { header: '维修费用', key: 'repairCost', width: 12 },
+    ]
+    rows.forEach(row => sheet.addRow({
+      ...row,
+      isOvertime: row.isOvertime ? '是' : '否',
+    }))
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFEFF6FF' },
+    }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+    return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
+  }
+
+  async backupProjectData(projectId: string) {
+    const [
+      devices,
+      orders,
+      repairLogs,
+      parts,
+      partLogs,
+      inspectionPlans,
+      inspectionRecords,
+    ] = await Promise.all([
+      this.ds.query('SELECT * FROM devices WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
+      this.ds.query('SELECT * FROM work_orders WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
+      this.ds.query(`
+        SELECT l.*
+        FROM repair_logs l
+        JOIN work_orders o ON o.id = l.orderId
+        WHERE o.projectId = ?
+        ORDER BY l.loggedAt DESC
+      `, [projectId]),
+      this.ds.query('SELECT * FROM spare_parts WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
+      this.ds.query(`
+        SELECT l.*
+        FROM spare_part_logs l
+        JOIN spare_parts p ON p.id = l.partId
+        WHERE p.projectId = ?
+        ORDER BY l.createdAt DESC
+      `, [projectId]),
+      this.ds.query('SELECT * FROM inspection_plans WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
+      this.ds.query('SELECT * FROM inspection_records WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
+    ])
+
+    return {
+      version: 1,
+      projectId,
+      exportedAt: new Date().toISOString(),
+      tables: {
+        devices,
+        workOrders: orders,
+        repairLogs,
+        spareParts: parts,
+        sparePartLogs: partLogs,
+        inspectionPlans,
+        inspectionRecords,
+      },
+    }
+  }
 }
 
 @ApiTags('报表统计')
@@ -341,6 +457,30 @@ class ReportsController {
   ) {
     const range = normalizeDateRange(startDate, endDate)
     return this.svc.operationsSummary(req.headers['x-project-id'], range.start, range.end)
+  }
+
+  @Get('export/orders.xlsx')
+  async exportOrders(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportOrdersWorkbook(req.headers['x-project-id'], range.start, range.end)
+    const filename = `lightops-orders-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('backup.json')
+  async backup(@Request() req, @Res() res) {
+    const data = await this.svc.backupProjectData(req.headers['x-project-id'])
+    const filename = `lightops-backup-${new Date().toISOString().slice(0, 10)}.json`
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(JSON.stringify(data, null, 2))
   }
 }
 
