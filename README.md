@@ -33,7 +33,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - 后端 `backend` 可以构建通过。
 - Web 管理端构建已恢复，API client 返回类型已与运行时行为对齐。
 - 移动端 `LightOps` lint 和 TypeScript 检查已通过。
-- 仓库同时存在 `apps/mobile` 和 `apps/LightOps` 两套移动端代码，后续统一以 `apps/LightOps` 为主，避免重复维护。
+- 移动端主应用已统一为 `apps/LightOps`；历史 `apps/mobile` 工作区已清理，避免重复维护和旧依赖干扰。
 - 工具箱已有部分页面，但 LTC、RGB/色温、灯库制作、灯位设计、理论工具等仍未完整实现。
 - 运维闭环已有工单状态流转雏形，但扫码报修、媒体上传、验收标准、配件消耗联动、巡检转工单、离线同步、导出备份等关键能力还缺失。
 
@@ -106,7 +106,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 更新 README 运行方式和阶段进度。
 - [x] 清理移动端 lint 警告和无用导入。
 - [x] 补齐移动端 TypeScript 检查并修复 API/导航类型问题。
-- [ ] 评估是否删除 `apps/mobile` 历史目录，删除前需确认不再依赖其中差异代码。
+- [x] 删除 `apps/mobile` 历史目录，确认根脚本和业务引用均已统一到 `apps/LightOps`。
 
 ### 阶段 2：运维 MVP
 
@@ -228,6 +228,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | LTC 共享核心已补齐 80-bit frame word、sync word、BMC 编码、29.97 drop-frame 换算和 48kHz/16-bit stereo WAV Data URI 生成；移动端 LTC 页面支持配置导出时长、生成 WAV、复制 Data URI 和系统分享，移动端 TypeScript/lint、整仓构建及 1s WAV 运行时小验证通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 受限 | 已复查 Android release 验证环境：当前机器 `java` 不可用，`JAVA_HOME` 与 `ANDROID_HOME` 未配置；`apps/LightOps/android/gradlew.bat` 存在，待安装 JDK/Android SDK 后再执行 Gradle 打包验证。iOS 真机验证需 macOS/Xcode/CocoaPods 环境。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | `packages/toolbox-core` 已补齐 TypeScript build 和无额外依赖的 esbuild 测试 runner，覆盖 DMX 地址展开/冲突、功率电流、29.97 drop-frame、LTC frame bits 与 WAV Data URI；根 `build` 已接入工具核心构建，toolbox-core build/test 与整仓构建通过。 |
+| 2026-06-02 | 阶段 6 生产加固 | 已完成 | 已删除历史 `apps/mobile` 工作区并刷新 pnpm lockfile/install 状态；仓库移动端仅保留 `apps/LightOps`，workspace 项目数从 7 个降为 6 个，移除 44 个旧依赖包，工具核心测试与整仓构建通过。 |
 
 ## 当前验证命令
 
@@ -244,7 +245,6 @@ corepack pnpm run build
 
 ## 当前已知问题
 
-- `apps/mobile` 已标记为历史目录，后续需决定保留对比还是删除。
 - 部分后端模块把实体、控制器、服务写在同一个文件内，后续需要拆分。
 - 移动端派单目前使用横向人员选择，后续需增加搜索、技能标签和忙闲状态。
 - 移动端扫码查验已接入相机扫码，仍需在 Android/iOS 真机包验证相机权限弹窗、二维码识别、弱光/反光现场识别率和 Camera Kit 原生链接。
