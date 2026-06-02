@@ -89,22 +89,22 @@ export class WorkOrder {
   @Column({ length: 200, nullable: true })
   locationDesc?: string
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   faultAt?: Date
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   assignedAt?: Date
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   startedAt?: Date
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   submittedAt?: Date
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   closedAt?: Date
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   slaDeadline?: Date
 
   @Column({ default: false })

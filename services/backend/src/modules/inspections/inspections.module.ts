@@ -27,8 +27,7 @@ export class InspectionPlan {
   // SQLite 兼容：使用 simple-json 替代 jsonb
   @Column({ type: 'simple-json', default: '[]' }) deviceIds: string[]
   @Column({ nullable: true }) assigneeId: string
-  // SQLite 兼容：使用 datetime 替代 timestamptz
-  @Column({ type: 'datetime', nullable: true }) nextInspectionAt: Date
+  @Column({ nullable: true }) nextInspectionAt: Date
   @Column({ default: 1 }) isActive: number  // SQLite 无布尔值，用 0/1
   @CreateDateColumn() createdAt: Date
   @UpdateDateColumn() updatedAt: Date

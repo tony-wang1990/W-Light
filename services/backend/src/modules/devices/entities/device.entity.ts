@@ -76,7 +76,7 @@ export class Device {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 100 })
   healthScore: number
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ nullable: true })
   lastMaintainAt?: Date
 
   @Column({ nullable: true })

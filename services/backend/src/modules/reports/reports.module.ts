@@ -1,12 +1,12 @@
 import { BadRequestException, Body, Module, Controller, Get, Post, Query, UseGuards, Request, Res } from '@nestjs/common'
 import { Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
-import { DataSource } from 'typeorm'
+import { DataSource, In } from 'typeorm'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import * as ExcelJS from 'exceljs'
 import { Device } from '../devices/entities/device.entity'
-import { WorkOrder } from '../orders/entities/order.entity'
+import { OrderCategory, WorkOrder } from '../orders/entities/order.entity'
 import { RepairLog } from '../orders/entities/repair-log.entity'
 import { SparePart } from '../parts/entities/spare-part.entity'
 import { SparePartLog } from '../parts/entities/spare-part-log.entity'
@@ -21,6 +21,10 @@ function normalizeDateRange(startDate?: string, endDate?: string) {
     start: start.length === 10 ? `${start} 00:00:00` : start,
     end: end.length === 10 ? `${end} 23:59:59` : end,
   }
+}
+
+function formatSqlDateTime(date: Date) {
+  return date.toISOString().replace('T', ' ').slice(0, 19)
 }
 
 type BackupRow = Record<string, any>
@@ -75,6 +79,30 @@ function rowsWithId(rows: BackupRow[]) {
 class ReportsService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
+  private get isPostgres() {
+    return this.ds.options.type === 'postgres'
+  }
+
+  private query<T = any>(
+    sqliteSql: string,
+    postgresSql: string,
+    sqliteParams: unknown[] = [],
+    postgresParams = sqliteParams,
+  ): Promise<T[]> {
+    return this.ds.query(this.isPostgres ? postgresSql : sqliteSql, this.isPostgres ? postgresParams : sqliteParams)
+  }
+
+  private dateMonthsAgo(months: number) {
+    const normalizedMonths = Number.isFinite(months) ? Math.max(1, Math.min(24, Math.floor(months))) : 6
+    const date = new Date()
+    date.setMonth(date.getMonth() - normalizedMonths)
+    return formatSqlDateTime(date)
+  }
+
+  private dateDaysAgo(days: number) {
+    return formatSqlDateTime(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
+  }
+
   private unwrapBackupPayload(payload: unknown): BackupPayload {
     const candidate = (payload as { backup?: unknown })?.backup || payload
     if (!candidate || typeof candidate !== 'object') {
@@ -123,61 +151,74 @@ class ReportsService {
     return { received, accepted, skipped: Math.max(0, received - accepted) }
   }
 
-  /**
-   * 工单状态统计 — SQLite 兼容版本
-   * SQLite 不支持 EXTRACT(EPOCH) 和 to_char，使用 strftime 和 julianday
-   */
   async orderStats(projectId: string, startDate: string, endDate: string) {
-    const rows = await this.ds.query(`
-      SELECT 
-        status, 
-        priority, 
+    return this.query(`
+      SELECT
+        status,
+        priority,
         COUNT(*) as count,
         AVG(
-          CASE 
-            WHEN startedAt IS NOT NULL THEN 
+          CASE
+            WHEN startedAt IS NOT NULL THEN
               (julianday(COALESCE(closedAt, updatedAt)) - julianday(startedAt)) * 24
-            ELSE NULL 
+            ELSE NULL
           END
         ) as avg_hours
       FROM work_orders
       WHERE projectId = ? AND createdAt BETWEEN ? AND ?
       GROUP BY status, priority
+    `, `
+      SELECT
+        status,
+        priority,
+        COUNT(*) as count,
+        AVG(
+          CASE
+            WHEN "startedAt" IS NOT NULL THEN
+              EXTRACT(EPOCH FROM (COALESCE("closedAt", "updatedAt") - "startedAt")) / 3600.0
+            ELSE NULL
+          END
+        ) as avg_hours
+      FROM work_orders
+      WHERE "projectId" = $1 AND "createdAt" BETWEEN $2 AND $3
+      GROUP BY status, priority
     `, [projectId, startDate, endDate])
-    return rows
   }
 
-  /**
-   * 故障类型趋势分析 — SQLite 兼容版本
-   * 使用 strftime 代替 to_char
-   */
   async faultAnalysis(projectId: string, months = 6) {
-    // SQLite: datetime('now', '-N months') 计算 N 个月前
-    return this.ds.query(`
-      SELECT 
+    const cutoff = this.dateMonthsAgo(months)
+    return this.query(`
+      SELECT
         strftime('%Y-%m', createdAt) as month,
-        faultType, 
+        faultType,
         COUNT(*) as count
       FROM work_orders
-      WHERE projectId = ? 
-        AND createdAt > datetime('now', '-${months} months')
+      WHERE projectId = ?
+        AND createdAt >= ?
       GROUP BY month, faultType
       ORDER BY month DESC
-    `, [projectId])
+    `, `
+      SELECT
+        to_char("createdAt", 'YYYY-MM') as month,
+        "faultType" as "faultType",
+        COUNT(*) as count
+      FROM work_orders
+      WHERE "projectId" = $1
+        AND "createdAt" >= $2
+      GROUP BY to_char("createdAt", 'YYYY-MM'), "faultType"
+      ORDER BY month DESC
+    `, [projectId, cutoff])
   }
 
-  /**
-   * 工程师绩效统计 — SQLite 兼容版本
-   */
   async engineerPerformance(projectId: string, startDate: string, endDate: string) {
-    return this.ds.query(`
-      SELECT 
-        u.name, 
+    return this.query(`
+      SELECT
+        u.name,
         u.id,
         COUNT(o.id) as total_orders,
         SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as completed,
         AVG(
-          CASE 
+          CASE
             WHEN o.assignedAt IS NOT NULL AND o.closedAt IS NOT NULL
             THEN (julianday(o.closedAt) - julianday(o.assignedAt)) * 24
             ELSE NULL
@@ -188,65 +229,99 @@ class ReportsService {
       WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
       GROUP BY u.id, u.name
       ORDER BY completed DESC
+    `, `
+      SELECT
+        u.name,
+        u.id,
+        COUNT(o.id) as total_orders,
+        SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as completed,
+        AVG(
+          CASE
+            WHEN o."assignedAt" IS NOT NULL AND o."closedAt" IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (o."closedAt" - o."assignedAt")) / 3600.0
+            ELSE NULL
+          END
+        ) as avg_response_hours
+      FROM work_orders o
+      JOIN users u ON u.id = o."assigneeId"
+      WHERE o."projectId" = $1 AND o."createdAt" BETWEEN $2 AND $3
+      GROUP BY u.id, u.name
+      ORDER BY completed DESC
     `, [projectId, startDate, endDate])
   }
 
-  /**
-   * 维修费用分析 — SQLite 兼容版本
-   */
   async repairCostAnalysis(projectId: string, startDate: string, endDate: string) {
-    return this.ds.query(`
+    return this.query(`
       SELECT
         strftime('%Y-%m', createdAt) as month,
         SUM(repairCost) as total_cost,
         COUNT(*) as order_count,
         AVG(repairCost) as avg_cost
       FROM work_orders
-      WHERE projectId = ? 
-        AND createdAt BETWEEN ? AND ? 
+      WHERE projectId = ?
+        AND createdAt BETWEEN ? AND ?
         AND repairCost IS NOT NULL
-      GROUP BY month 
+      GROUP BY month
+      ORDER BY month
+    `, `
+      SELECT
+        to_char("createdAt", 'YYYY-MM') as month,
+        SUM("repairCost") as total_cost,
+        COUNT(*) as order_count,
+        AVG("repairCost") as avg_cost
+      FROM work_orders
+      WHERE "projectId" = $1
+        AND "createdAt" BETWEEN $2 AND $3
+        AND "repairCost" IS NOT NULL
+      GROUP BY to_char("createdAt", 'YYYY-MM')
       ORDER BY month
     `, [projectId, startDate, endDate])
   }
 
-  /**
-   * 最近7天工单趋势（Dashboard 图表用）
-   */
   async weeklyTrend(projectId: string) {
-    const rows = await this.ds.query(`
-      SELECT 
+    const cutoff = this.dateDaysAgo(7)
+    return this.query(`
+      SELECT
         strftime('%w', createdAt) as day_of_week,
         strftime('%Y-%m-%d', createdAt) as date_str,
         COUNT(*) as new_orders,
         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as solved
       FROM work_orders
-      WHERE projectId = ? 
-        AND createdAt >= datetime('now', '-7 days')
+      WHERE projectId = ?
+        AND createdAt >= ?
       GROUP BY date_str
       ORDER BY date_str ASC
-    `, [projectId])
-    return rows
+    `, `
+      SELECT
+        EXTRACT(DOW FROM "createdAt")::int as day_of_week,
+        to_char("createdAt", 'YYYY-MM-DD') as date_str,
+        COUNT(*) as new_orders,
+        SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as solved
+      FROM work_orders
+      WHERE "projectId" = $1
+        AND "createdAt" >= $2
+      GROUP BY to_char("createdAt", 'YYYY-MM-DD'), EXTRACT(DOW FROM "createdAt")
+      ORDER BY date_str ASC
+    `, [projectId, cutoff])
   }
 
-  /**
-   * 设备状态分布（Dashboard 饼图用）
-   */
   async deviceStatusDistribution(projectId: string) {
-    return this.ds.query(`
+    return this.query(`
       SELECT status, COUNT(*) as count
       FROM devices
       WHERE projectId = ?
       GROUP BY status
+    `, `
+      SELECT status, COUNT(*) as count
+      FROM devices
+      WHERE "projectId" = $1
+      GROUP BY status
     `, [projectId])
   }
 
-  /**
-   * 备件消耗排行（Dashboard 柱状图用）
-   */
   async partsConsumptionRank(projectId: string) {
-    return this.ds.query(`
-      SELECT 
+    return this.query(`
+      SELECT
         p.name,
         SUM(CASE WHEN l.opType = 'outbound' THEN l.quantity ELSE 0 END) as total_consumed
       FROM spare_parts p
@@ -255,17 +330,27 @@ class ReportsService {
       GROUP BY p.id, p.name
       ORDER BY total_consumed DESC
       LIMIT 5
+    `, `
+      SELECT
+        p.name,
+        SUM(CASE WHEN l."opType" = 'outbound' THEN l.quantity ELSE 0 END) as total_consumed
+      FROM spare_parts p
+      LEFT JOIN spare_part_logs l ON l."partId" = p.id
+      WHERE p."projectId" = $1
+      GROUP BY p.id, p.name
+      ORDER BY total_consumed DESC
+      LIMIT 5
     `, [projectId])
   }
 
-  /**
-   * 运维综合报表：故障率、维修时长、重复故障、人员绩效、备件消耗
-   */
   async operationsSummary(projectId: string, startDate: string, endDate: string) {
-    const [summary] = await this.ds.query(`
+    const faultCategory = OrderCategory.FAULT
+    const unclassified = '未分类'
+
+    const [summary] = await this.query(`
       SELECT
         COUNT(*) as total_orders,
-        SUM(CASE WHEN faultType IS NOT NULL OR category = '故障维修' THEN 1 ELSE 0 END) as fault_orders,
+        SUM(CASE WHEN faultType IS NOT NULL OR category = ? THEN 1 ELSE 0 END) as fault_orders,
         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_orders,
         SUM(CASE WHEN isOvertime = 1 THEN 1 ELSE 0 END) as overtime_orders,
         AVG(
@@ -284,32 +369,75 @@ class ReportsService {
         ) as avg_response_hours
       FROM work_orders
       WHERE projectId = ? AND createdAt BETWEEN ? AND ?
-    `, [projectId, startDate, endDate])
+    `, `
+      SELECT
+        COUNT(*) as total_orders,
+        SUM(CASE WHEN "faultType" IS NOT NULL OR category = $1 THEN 1 ELSE 0 END) as fault_orders,
+        SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_orders,
+        SUM(CASE WHEN "isOvertime" = true THEN 1 ELSE 0 END) as overtime_orders,
+        AVG(
+          CASE
+            WHEN "startedAt" IS NOT NULL AND "closedAt" IS NOT NULL
+            THEN EXTRACT(EPOCH FROM ("closedAt" - "startedAt")) / 3600.0
+            ELSE NULL
+          END
+        ) as avg_repair_hours,
+        AVG(
+          CASE
+            WHEN "assignedAt" IS NOT NULL AND "startedAt" IS NOT NULL
+            THEN EXTRACT(EPOCH FROM ("startedAt" - "assignedAt")) / 3600.0
+            ELSE NULL
+          END
+        ) as avg_response_hours
+      FROM work_orders
+      WHERE "projectId" = $2 AND "createdAt" BETWEEN $3 AND $4
+    `, [faultCategory, projectId, startDate, endDate])
 
-    const [deviceRow] = await this.ds.query(`
+    const [deviceRow] = await this.query(`
       SELECT COUNT(*) as device_count
       FROM devices
       WHERE projectId = ?
+    `, `
+      SELECT COUNT(*) as device_count
+      FROM devices
+      WHERE "projectId" = $1
     `, [projectId])
 
-    const faultTypes = await this.ds.query(`
+    const faultTypes = await this.query(`
       SELECT
-        COALESCE(faultType, '未分类') as fault_type,
+        COALESCE(faultType, ?) as fault_type,
         COUNT(*) as count
       FROM work_orders
       WHERE projectId = ?
         AND createdAt BETWEEN ? AND ?
-        AND (faultType IS NOT NULL OR category = '故障维修')
-      GROUP BY COALESCE(faultType, '未分类')
+        AND (faultType IS NOT NULL OR category = ?)
+      GROUP BY COALESCE(faultType, ?)
       ORDER BY count DESC
       LIMIT 8
-    `, [projectId, startDate, endDate])
+    `, `
+      SELECT
+        COALESCE("faultType", $1) as fault_type,
+        COUNT(*) as count
+      FROM work_orders
+      WHERE "projectId" = $2
+        AND "createdAt" BETWEEN $3 AND $4
+        AND ("faultType" IS NOT NULL OR category = $5)
+      GROUP BY COALESCE("faultType", $1)
+      ORDER BY count DESC
+      LIMIT 8
+    `, [unclassified, projectId, startDate, endDate, faultCategory, unclassified], [
+      unclassified,
+      projectId,
+      startDate,
+      endDate,
+      faultCategory,
+    ])
 
-    const repeatFaultDevices = await this.ds.query(`
+    const repeatFaultDevices = await this.query(`
       SELECT
         o.deviceId as device_id,
         COALESCE(d.deviceNo, '') as device_no,
-        COALESCE(d.name, '未知设备') as device_name,
+        COALESCE(d.name, '') as device_name,
         COUNT(o.id) as fault_count,
         MAX(o.createdAt) as last_fault_at
       FROM work_orders o
@@ -317,14 +445,31 @@ class ReportsService {
       WHERE o.projectId = ?
         AND o.createdAt BETWEEN ? AND ?
         AND o.deviceId IS NOT NULL
-        AND (o.faultType IS NOT NULL OR o.category = '故障维修')
+        AND (o.faultType IS NOT NULL OR o.category = ?)
       GROUP BY o.deviceId, d.deviceNo, d.name
       HAVING COUNT(o.id) > 1
       ORDER BY fault_count DESC, last_fault_at DESC
       LIMIT 8
-    `, [projectId, startDate, endDate])
+    `, `
+      SELECT
+        o."deviceId" as device_id,
+        COALESCE(d."deviceNo", '') as device_no,
+        COALESCE(d.name, '') as device_name,
+        COUNT(o.id) as fault_count,
+        MAX(o."createdAt") as last_fault_at
+      FROM work_orders o
+      LEFT JOIN devices d ON d.id = o."deviceId"
+      WHERE o."projectId" = $1
+        AND o."createdAt" BETWEEN $2 AND $3
+        AND o."deviceId" IS NOT NULL
+        AND (o."faultType" IS NOT NULL OR o.category = $4)
+      GROUP BY o."deviceId", d."deviceNo", d.name
+      HAVING COUNT(o.id) > 1
+      ORDER BY fault_count DESC, last_fault_at DESC
+      LIMIT 8
+    `, [projectId, startDate, endDate, faultCategory])
 
-    const engineerPerformance = await this.ds.query(`
+    const engineerPerformance = await this.query(`
       SELECT
         u.id as engineer_id,
         u.name as engineer_name,
@@ -345,9 +490,30 @@ class ReportsService {
       GROUP BY u.id, u.name
       ORDER BY closed_orders DESC, total_orders DESC
       LIMIT 8
+    `, `
+      SELECT
+        u.id as engineer_id,
+        u.name as engineer_name,
+        COUNT(o.id) as total_orders,
+        SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as closed_orders,
+        AVG(
+          CASE
+            WHEN o."startedAt" IS NOT NULL AND o."closedAt" IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (o."closedAt" - o."startedAt")) / 3600.0
+            ELSE NULL
+          END
+        ) as avg_repair_hours
+      FROM work_orders o
+      LEFT JOIN users u ON u.id = o."assigneeId"
+      WHERE o."projectId" = $1
+        AND o."createdAt" BETWEEN $2 AND $3
+        AND o."assigneeId" IS NOT NULL
+      GROUP BY u.id, u.name
+      ORDER BY closed_orders DESC, total_orders DESC
+      LIMIT 8
     `, [projectId, startDate, endDate])
 
-    const partsConsumption = await this.ds.query(`
+    const partsConsumption = await this.query(`
       SELECT
         p.id as part_id,
         p.name as part_name,
@@ -359,6 +525,21 @@ class ReportsService {
       WHERE p.projectId = ?
         AND l.createdAt BETWEEN ? AND ?
         AND l.opType = 'outbound'
+      GROUP BY p.id, p.name, p.unit
+      ORDER BY consumed_quantity DESC
+      LIMIT 8
+    `, `
+      SELECT
+        p.id as part_id,
+        p.name as part_name,
+        p.unit as unit,
+        SUM(CASE WHEN l."opType" = 'outbound' THEN l.quantity ELSE 0 END) as consumed_quantity,
+        COUNT(DISTINCT l."orderId") as order_count
+      FROM spare_parts p
+      JOIN spare_part_logs l ON l."partId" = p.id
+      WHERE p."projectId" = $1
+        AND l."createdAt" BETWEEN $2 AND $3
+        AND l."opType" = 'outbound'
       GROUP BY p.id, p.name, p.unit
       ORDER BY consumed_quantity DESC
       LIMIT 8
@@ -389,7 +570,7 @@ class ReportsService {
   }
 
   async exportOrdersWorkbook(projectId: string, startDate: string, endDate: string) {
-    const rows = await this.ds.query(`
+    const rows = await this.query(`
       SELECT
         o.orderNo,
         o.category,
@@ -415,6 +596,32 @@ class ReportsService {
       LEFT JOIN users assignee ON assignee.id = o.assigneeId
       WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
       ORDER BY o.createdAt DESC
+    `, `
+      SELECT
+        o."orderNo" as "orderNo",
+        o.category,
+        o.priority,
+        o.status,
+        COALESCE(o."faultType", '') as "faultType",
+        o."faultDesc" as "faultDesc",
+        COALESCE(d."deviceNo", '') as "deviceNo",
+        COALESCE(d.name, '') as "deviceName",
+        COALESCE(d.location, o."locationDesc", '') as location,
+        COALESCE(reporter.name, '') as "reporterName",
+        COALESCE(assignee.name, '') as "assigneeName",
+        o."createdAt" as "createdAt",
+        o."assignedAt" as "assignedAt",
+        o."startedAt" as "startedAt",
+        o."submittedAt" as "submittedAt",
+        o."closedAt" as "closedAt",
+        o."isOvertime" as "isOvertime",
+        o."repairCost" as "repairCost"
+      FROM work_orders o
+      LEFT JOIN devices d ON d.id = o."deviceId"
+      LEFT JOIN users reporter ON reporter.id = o."reporterId"
+      LEFT JOIN users assignee ON assignee.id = o."assigneeId"
+      WHERE o."projectId" = $1 AND o."createdAt" BETWEEN $2 AND $3
+      ORDER BY o."createdAt" DESC
     `, [projectId, startDate, endDate])
 
     const workbook = new ExcelJS.Workbook()
@@ -458,38 +665,48 @@ class ReportsService {
 
   async backupProjectData(projectId: string) {
     const userRepo = this.ds.getRepository(User)
+    const deviceRepo = this.ds.getRepository(Device)
+    const orderRepo = this.ds.getRepository(WorkOrder)
+    const repairLogRepo = this.ds.getRepository(RepairLog)
+    const partRepo = this.ds.getRepository(SparePart)
+    const partLogRepo = this.ds.getRepository(SparePartLog)
+    const inspectionPlanRepo = this.ds.getRepository(InspectionPlan)
+    const inspectionRecordRepo = this.ds.getRepository(InspectionRecord)
+
     const [
       project,
       users,
       devices,
       orders,
-      repairLogs,
       parts,
-      partLogs,
       inspectionPlans,
-      inspectionRecords,
     ] = await Promise.all([
       this.ds.getRepository(Project).findOne({ where: { id: projectId } }),
       userRepo.find().then(items => items.filter(user => parseJsonArray(user.projectIds).includes(projectId))),
-      this.ds.query('SELECT * FROM devices WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
-      this.ds.query('SELECT * FROM work_orders WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
-      this.ds.query(`
-        SELECT l.*
-        FROM repair_logs l
-        JOIN work_orders o ON o.id = l.orderId
-        WHERE o.projectId = ?
-        ORDER BY l.loggedAt DESC
-      `, [projectId]),
-      this.ds.query('SELECT * FROM spare_parts WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
-      this.ds.query(`
-        SELECT l.*
-        FROM spare_part_logs l
-        JOIN spare_parts p ON p.id = l.partId
-        WHERE p.projectId = ?
-        ORDER BY l.createdAt DESC
-      `, [projectId]),
-      this.ds.query('SELECT * FROM inspection_plans WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
-      this.ds.query('SELECT * FROM inspection_records WHERE projectId = ? ORDER BY createdAt DESC', [projectId]),
+      deviceRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
+      orderRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
+      partRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
+      inspectionPlanRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
+    ])
+
+    const orderIds = orders.map(order => order.id).filter(Boolean)
+    const partIds = parts.map(part => part.id).filter(Boolean)
+    const planIds = inspectionPlans.map(plan => plan.id).filter(Boolean)
+
+    const [
+      repairLogs,
+      partLogs,
+      inspectionRecords,
+    ] = await Promise.all([
+      orderIds.length
+        ? repairLogRepo.find({ where: { orderId: In(orderIds) }, order: { loggedAt: 'DESC' } as any })
+        : Promise.resolve([]),
+      partIds.length
+        ? partLogRepo.find({ where: { partId: In(partIds) }, order: { createdAt: 'DESC' } as any })
+        : Promise.resolve([]),
+      planIds.length
+        ? inspectionRecordRepo.find({ where: { planId: In(planIds) }, order: { inspectedAt: 'DESC' } as any })
+        : Promise.resolve([]),
     ])
 
     return {
@@ -603,28 +820,28 @@ class ReportsController {
   @Get('order-stats')
   orderStats(
     @Request() req,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    const projectId = req.headers['x-project-id']
-    const start = startDate || new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10)
-    const end = endDate || new Date().toISOString().slice(0,10)
-    return this.svc.orderStats(projectId, start, end)
+    const range = normalizeDateRange(startDate, endDate)
+    return this.svc.orderStats(req.headers['x-project-id'], range.start, range.end)
   }
 
   @Get('fault-analysis')
-  faultAnalysis(@Request() req, @Query('months') months = 6) {
-    return this.svc.faultAnalysis(req.headers['x-project-id'], +months)
+  faultAnalysis(@Request() req, @Query('months') months?: string) {
+    return this.svc.faultAnalysis(req.headers['x-project-id'], Number(months || 6))
   }
 
   @Get('engineer-performance')
-  engineerPerformance(@Request() req, @Query('startDate') s: string, @Query('endDate') e: string) {
-    return this.svc.engineerPerformance(req.headers['x-project-id'], s, e)
+  engineerPerformance(@Request() req, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    const range = normalizeDateRange(startDate, endDate)
+    return this.svc.engineerPerformance(req.headers['x-project-id'], range.start, range.end)
   }
 
   @Get('repair-cost')
-  repairCost(@Request() req, @Query('startDate') s: string, @Query('endDate') e: string) {
-    return this.svc.repairCostAnalysis(req.headers['x-project-id'], s, e)
+  repairCost(@Request() req, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    const range = normalizeDateRange(startDate, endDate)
+    return this.svc.repairCostAnalysis(req.headers['x-project-id'], range.start, range.end)
   }
 
   @Get('weekly-trend')
