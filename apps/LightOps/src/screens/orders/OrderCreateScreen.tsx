@@ -8,6 +8,7 @@ import { ordersApi } from '../../api/orders.api'
 import { uploadApi, type UploadedMedia } from '../../api/upload.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import { getErrorMessage } from '../../utils/error'
+import { enqueueOfflineRequest, isLikelyOfflineError } from '../../offline/offlineQueue'
 import type { OrdersStackParamList } from '../../navigation/types'
 
 const CATEGORIES = ['故障维修', '定期保养', '设备安装', '紧急抢修']
@@ -61,22 +62,38 @@ export function OrderCreateScreen() {
     }
 
     setSubmitting(true)
+    const payload = {
+      category,
+      deviceId,
+      priority,
+      faultType: faultType || undefined,
+      faultDesc: faultDesc.trim(),
+      mediaUrls: media.map(item => item.url),
+      locationDesc: locationDesc.trim() || undefined,
+      faultAt: new Date().toISOString(),
+    }
+
     try {
-      const order = await ordersApi.create({
-        category,
-        deviceId,
-        priority,
-        faultType: faultType || undefined,
-        faultDesc: faultDesc.trim(),
-        mediaUrls: media.map(item => item.url),
-        locationDesc: locationDesc.trim() || undefined,
-        faultAt: new Date().toISOString(),
-      })
+      const order = await ordersApi.create(payload)
       Alert.alert('✅ 工单已创建', `工单号：${order.orderNo}\n已提交，等待管理员派单`, [
         { text: '查看工单', onPress: () => navigation.navigate('OrderDetail', { orderId: order.id }) },
         { text: '返回列表', onPress: () => navigation.goBack() },
       ])
     } catch (e: unknown) {
+      if (isLikelyOfflineError(e)) {
+        enqueueOfflineRequest({
+          type: 'create-order',
+          title: `新建工单：${faultType || category}`,
+          endpoint: '/orders',
+          method: 'post',
+          body: payload,
+        })
+        Alert.alert('已离线保存', '当前网络不可用，工单已进入加密同步队列；恢复网络后可在“我的”页面手动同步。', [
+          { text: '返回列表', onPress: () => navigation.goBack() },
+        ])
+        return
+      }
+
       Alert.alert('创建失败', getErrorMessage(e))
     } finally {
       setSubmitting(false)

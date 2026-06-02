@@ -1,10 +1,28 @@
-import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
+import React, { useCallback, useState } from 'react'
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
+import {
+  getOfflineQueueSummary,
+  syncOfflineQueue,
+  type OfflineQueueSummary,
+} from '../../offline/offlineQueue'
 
 export function ProfileScreen() {
   const { user, logout } = useAuthStore()
+  const [queueSummary, setQueueSummary] = useState<OfflineQueueSummary>(() => getOfflineQueueSummary())
+  const [syncing, setSyncing] = useState(false)
+
+  const refreshQueueSummary = useCallback(() => {
+    setQueueSummary(getOfflineQueueSummary())
+  }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshQueueSummary()
+    }, [refreshQueueSummary]),
+  )
 
   const ROLE_LABELS: Record<string, string> = {
     admin: '🔑 系统管理员',
@@ -18,6 +36,28 @@ export function ProfileScreen() {
       { text: '取消', style: 'cancel' },
       { text: '退出', style: 'destructive', onPress: logout },
     ])
+  }
+
+  const handleSyncQueue = async () => {
+    if (queueSummary.total === 0) {
+      Alert.alert('离线同步', '当前没有待同步数据。')
+      return
+    }
+
+    setSyncing(true)
+    try {
+      const result = await syncOfflineQueue()
+      refreshQueueSummary()
+      Alert.alert(
+        '离线同步完成',
+        `成功 ${result.synced} 条，待处理 ${result.pending} 条${result.conflicts ? `，冲突 ${result.conflicts} 条` : ''}。`,
+      )
+    } catch (error: unknown) {
+      refreshQueueSummary()
+      Alert.alert('离线同步失败', error instanceof Error ? error.message : '请检查网络后重试。')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   return (
@@ -52,6 +92,39 @@ export function ProfileScreen() {
             </View>
           </View>
         )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>离线同步</Text>
+          <View style={styles.syncCard}>
+            <View style={styles.syncStats}>
+              <Text style={styles.syncNumber}>{queueSummary.total}</Text>
+              <View style={styles.syncTextBlock}>
+                <Text style={styles.syncTitle}>待同步记录</Text>
+                <Text style={styles.syncHint}>
+                  {queueSummary.conflicts > 0
+                    ? `有 ${queueSummary.conflicts} 条需要人工确认`
+                    : queueSummary.total > 0
+                      ? '网络恢复后可手动上传到云端'
+                      : '本机离线队列为空'}
+                </Text>
+              </View>
+            </View>
+            {!!queueSummary.lastError && (
+              <Text style={styles.syncError} numberOfLines={2}>{queueSummary.lastError}</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.syncButton, (syncing || queueSummary.total === 0) && styles.syncButtonDisabled]}
+              onPress={handleSyncQueue}
+              disabled={syncing || queueSummary.total === 0}
+            >
+              {syncing ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.syncButtonText}>立即同步</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Menu */}
         <View style={styles.section}>
@@ -130,6 +203,45 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   tagText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
+  // Offline sync
+  syncCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  syncStats: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  syncNumber: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '22',
+    color: colors.primary,
+    fontSize: fontSize.xl,
+    fontWeight: '800',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    marginRight: spacing.md,
+  },
+  syncTextBlock: { flex: 1 },
+  syncTitle: { fontSize: fontSize.md, color: colors.textPrimary, fontWeight: '700' },
+  syncHint: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  syncError: {
+    fontSize: fontSize.xs,
+    color: colors.warning,
+    lineHeight: 18,
+    marginBottom: spacing.sm,
+  },
+  syncButton: {
+    height: 42,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  syncButtonDisabled: { opacity: 0.6 },
+  syncButtonText: { fontSize: fontSize.sm, color: colors.white, fontWeight: '800' },
   // Menu
   menuItem: {
     flexDirection: 'row',

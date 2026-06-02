@@ -11,6 +11,7 @@ import { colors, spacing, fontSize, radius } from '../../theme'
 import type { SparePart } from '../../types'
 import type { OrdersStackParamList } from '../../navigation/types'
 import { getErrorMessage } from '../../utils/error'
+import { enqueueOfflineRequest, isLikelyOfflineError } from '../../offline/offlineQueue'
 
 const STEP_TYPES = ['故障确认', '拆机检查', '更换配件', '参数调试', '功能测试', '恢复安装', '外委处理', '其他']
 
@@ -111,19 +112,21 @@ export function OrderRepairScreen() {
     }
 
     setSubmitting(true)
+    const payload = {
+      stepType,
+      stepDesc: stepDesc.trim(),
+      photoUrls: media.map(item => item.url),
+      outsourceVendor: outsourceVendor.trim() || undefined,
+      outsourceCost: outsourceCost ? Number(outsourceCost) : undefined,
+      partUsages: partUsages.map(item => ({
+        partId: item.partId,
+        quantity: item.quantity,
+        note: `${stepType}消耗`,
+      })),
+    }
+
     try {
-      await ordersApi.addRepairLog(orderId, {
-        stepType,
-        stepDesc: stepDesc.trim(),
-        photoUrls: media.map(item => item.url),
-        outsourceVendor: outsourceVendor.trim() || undefined,
-        outsourceCost: outsourceCost ? Number(outsourceCost) : undefined,
-        partUsages: partUsages.map(item => ({
-          partId: item.partId,
-          quantity: item.quantity,
-          note: `${stepType}消耗`,
-        })),
-      })
+      await ordersApi.addRepairLog(orderId, payload)
       Alert.alert('✅ 记录已保存', '维修步骤已添加', [
         { text: '继续添加', onPress: () => {
           setStepDesc('')
@@ -135,6 +138,20 @@ export function OrderRepairScreen() {
         { text: '返回工单', onPress: () => navigation.goBack() },
       ])
     } catch (e: unknown) {
+      if (isLikelyOfflineError(e)) {
+        enqueueOfflineRequest({
+          type: 'add-repair-log',
+          title: `维修记录：${stepType}`,
+          endpoint: `/orders/${orderId}/repair-logs`,
+          method: 'post',
+          body: payload,
+        })
+        Alert.alert('已离线保存', '当前网络不可用，维修记录已进入加密同步队列；恢复网络后可在“我的”页面手动同步。', [
+          { text: '返回工单', onPress: () => navigation.goBack() },
+        ])
+        return
+      }
+
       Alert.alert('保存失败', getErrorMessage(e))
     } finally {
       setSubmitting(false)
