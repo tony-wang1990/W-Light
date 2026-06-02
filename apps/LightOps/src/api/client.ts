@@ -4,6 +4,12 @@ import {
   DEFAULT_API_BASE_URL,
   normalizeApiBaseUrl,
 } from '../config/api'
+import {
+  getApiCacheKey,
+  getCachedApiResponse,
+  isCacheableApiGet,
+  setCachedApiResponse,
+} from '../offline/offlineCache'
 import { secureStorage } from '../storage/secureStorage'
 
 const storage = secureStorage
@@ -111,8 +117,21 @@ axiosClient.interceptors.response.use(
 )
 
 const client = {
-  get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
-    axiosClient.get(url, config),
+  get: async <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const cacheable = isCacheableApiGet(url)
+    const projectId = storage.getString('current_project_id') || 'default'
+    const cacheKey = getApiCacheKey(projectId, url, config?.params)
+
+    try {
+      const data = await axiosClient.get<T, T>(url, config)
+      if (cacheable) setCachedApiResponse(cacheKey, data)
+      return data
+    } catch (error) {
+      const cached = cacheable ? getCachedApiResponse<T>(cacheKey) : null
+      if (cached) return cached.data
+      throw error
+    }
+  },
 
   post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
     axiosClient.post(url, data, config),
