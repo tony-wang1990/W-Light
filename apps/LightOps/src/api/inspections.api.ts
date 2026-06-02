@@ -13,7 +13,12 @@ export interface InspectionRecord {
   planId: string
   status: string
   resultDesc?: string
+  orderId?: string
   inspectedAt: string
+}
+
+export interface CreateInspectionRecordOptions {
+  createOrder?: boolean
 }
 
 export const inspectionsApi = {
@@ -25,6 +30,11 @@ export const inspectionsApi = {
     apiClient.get<InspectionPlan[] | { items: InspectionPlan[] }>('/inspections/today')
       .then(r => (Array.isArray(r) ? r : r.items || [])),
 
-  createRecord: (planId: string, status: string, resultDesc?: string): Promise<InspectionRecord> =>
-    apiClient.post('/inspections/records', { planId, status, resultDesc }),
+  createRecord: (
+    planId: string,
+    status: string,
+    resultDesc?: string,
+    options?: CreateInspectionRecordOptions,
+  ): Promise<InspectionRecord> =>
+    apiClient.post('/inspections/records', { planId, status, resultDesc, ...options }),
 }

@@ -326,6 +326,7 @@ function InspectionsTab() {
         onPress: async () => {
           try {
             await inspectionsApi.createRecord(planId, 'normal', '巡检正常，无异常')
+            await load(true)
             Alert.alert('✅ 记录成功', '巡检记录已提交')
           } catch (e: unknown) { Alert.alert('错误', getErrorMessage(e)) }
         },
@@ -335,22 +336,29 @@ function InspectionsTab() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await inspectionsApi.createRecord(planId, 'abnormal', '巡检发现异常，需处理')
+            const record = await inspectionsApi.createRecord(
+              planId,
+              'abnormal',
+              '巡检发现异常，需处理',
+              { createOrder: true },
+            )
             const plan = plans.find(item => item.id === planId)
-            Alert.alert('⚠️ 记录成功', '异常巡检记录已提交，是否立即创建维修工单？', [
-              { text: '稍后处理', style: 'cancel' },
-              {
-                text: '创建工单',
-                onPress: () => navigation.getParent()?.navigate('Orders', {
-                  screen: 'OrderCreate',
-                  params: {
-                    category: '故障维修',
-                    faultType: '巡检异常',
-                    initialFaultDesc: `巡检计划「${plan?.name || '未命名巡检'}」发现异常，请填写具体故障现象、位置和现场情况。`,
-                  },
-                }),
-              },
-            ])
+            await load(true)
+
+            if (record.orderId) {
+              Alert.alert('⚠️ 已生成工单', `巡检计划「${plan?.name || '未命名巡检'}」已生成维修工单。`, [
+                { text: '稍后处理', style: 'cancel' },
+                {
+                  text: '查看工单',
+                  onPress: () => navigation.getParent()?.navigate('Orders', {
+                    screen: 'OrderDetail',
+                    params: { orderId: record.orderId },
+                  }),
+                },
+              ])
+            } else {
+              Alert.alert('⚠️ 记录成功', '异常巡检记录已提交')
+            }
           } catch (e: unknown) { Alert.alert('错误', getErrorMessage(e)) }
         },
       },

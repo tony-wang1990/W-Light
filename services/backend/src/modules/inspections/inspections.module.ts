@@ -6,9 +6,16 @@ import { Repository } from 'typeorm'
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { OrdersModule } from '../orders/orders.module'
+import { OrdersService } from '../orders/orders.service'
+import { OrderCategory, OrderPriority } from '../orders/entities/order.entity'
 
 export enum InspectionFrequency { DAILY = 'daily', WEEKLY = 'weekly', MONTHLY = 'monthly' }
 export enum InspectionStatus { NORMAL = 'normal', ABNORMAL = 'abnormal', SKIPPED = 'skipped' }
+
+interface CreateInspectionRecordPayload extends Partial<InspectionRecord> {
+  createOrder?: boolean
+}
 
 @Entity('inspection_plans')
 export class InspectionPlan {
@@ -46,6 +53,7 @@ class InspectionsService {
   constructor(
     @InjectRepository(InspectionPlan) private planRepo: Repository<InspectionPlan>,
     @InjectRepository(InspectionRecord) private recordRepo: Repository<InspectionRecord>,
+    private readonly ordersService: OrdersService,
   ) {}
 
   createPlan(dto: Partial<InspectionPlan>) { return this.planRepo.save(this.planRepo.create(dto)) }
@@ -64,15 +72,37 @@ class InspectionsService {
     return next
   }
 
-  async createRecord(dto: Partial<InspectionRecord>) {
-    const record = await this.recordRepo.save(this.recordRepo.create(dto))
-    if (dto.planId) {
-      const plan = await this.planRepo.findOne({ where: { id: dto.planId } })
-      if (plan) {
-        plan.nextInspectionAt = this.getNextInspectionAt(new Date(), plan.frequency)
-        await this.planRepo.save(plan)
-      }
+  async createRecord(dto: CreateInspectionRecordPayload, inspectorId: string, projectId: string) {
+    const { createOrder, ...recordDto } = dto
+    const plan = dto.planId ? await this.planRepo.findOne({ where: { id: dto.planId } }) : null
+    const shouldCreateOrder = createOrder && dto.status === InspectionStatus.ABNORMAL
+    let orderId = dto.orderId
+
+    if (shouldCreateOrder) {
+      const linkedDeviceId = plan?.deviceIds?.length === 1 ? plan.deviceIds[0] : undefined
+      const order = await this.ordersService.create({
+        deviceId: linkedDeviceId,
+        category: OrderCategory.FAULT,
+        priority: OrderPriority.P2,
+        faultType: '巡检异常',
+        faultDesc: `${plan?.name ? `巡检计划「${plan.name}」` : '巡检'}发现异常：${dto.resultDesc || '需现场处理'}`,
+        locationDesc: plan?.name,
+        faultAt: new Date().toISOString(),
+      }, inspectorId, projectId)
+      orderId = order.id
     }
+
+    const record = await this.recordRepo.save(this.recordRepo.create({
+      ...recordDto,
+      inspectorId,
+      orderId,
+    }))
+
+    if (plan) {
+      plan.nextInspectionAt = this.getNextInspectionAt(new Date(), plan.frequency)
+      await this.planRepo.save(plan)
+    }
+
     return record
   }
   
@@ -132,8 +162,8 @@ class InspectionsController {
     return this.svc.getTodayPlans(req.user.id, req.headers['x-project-id'])
   }
   
-  @Post('records') createRecord(@Body() dto: Partial<InspectionRecord>, @Request() req) {
-    return this.svc.createRecord({ ...dto, inspectorId: req.user.id })
+  @Post('records') createRecord(@Body() dto: CreateInspectionRecordPayload, @Request() req) {
+    return this.svc.createRecord(dto, req.user.id, req.headers['x-project-id'])
   }
   
   @Get('records') getRecords(@Query('planId') planId: string, @Query('page') p = 1, @Query('pageSize') ps = 20) {
@@ -144,7 +174,7 @@ class InspectionsController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([InspectionPlan, InspectionRecord])],
+  imports: [TypeOrmModule.forFeature([InspectionPlan, InspectionRecord]), OrdersModule],
   controllers: [InspectionsController],
   providers: [InspectionsService],
   exports: [InspectionsService],
