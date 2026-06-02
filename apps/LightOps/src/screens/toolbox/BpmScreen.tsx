@@ -80,7 +80,7 @@ export function BpmScreen() {
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: stable ? colors.success : colors.warning }]}>
-              {stable ? '🟢 稳定' : '🟡 波动'}
+              {stable ? '稳定' : '波动'}
             </Text>
             <Text style={styles.statLabel}>节奏</Text>
           </View>
@@ -88,6 +88,25 @@ export function BpmScreen() {
             <Text style={styles.statValue}>{bpmResult.maxBpm}</Text>
             <Text style={styles.statLabel}>最快</Text>
           </View>
+        </View>
+      )}
+
+      {bpmResult && (
+        <View style={styles.syncCard}>
+          <Text style={styles.syncTitle}>灯光同步参考</Text>
+          <View style={styles.syncGrid}>
+            <SyncItem label="半速" value={`${bpmResult.halfBpm} BPM`} />
+            <SyncItem label="双速" value={`${bpmResult.doubleBpm} BPM`} />
+            <SyncItem label="1 拍" value={`${bpmResult.subdivisions.beatMs} ms`} />
+            <SyncItem label="1/2 拍" value={`${bpmResult.subdivisions.halfBeatMs} ms`} />
+            <SyncItem label="1/4 拍" value={`${bpmResult.subdivisions.quarterBeatMs} ms`} />
+            <SyncItem label="4 拍小节" value={`${bpmResult.subdivisions.bar4Ms} ms`} />
+          </View>
+          {bpmResult.tapCount >= 4 && (
+            <Text style={styles.stabilityHint}>
+              稳定度 {bpmResult.stabilityPercent}% · 抖动约 {bpmResult.stdDevMs} ms
+            </Text>
+          )}
         </View>
       )}
 
@@ -113,7 +132,7 @@ export function BpmScreen() {
 
       {/* Reset */}
       <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-        <Text style={styles.resetText}>🔄 重置</Text>
+        <Text style={styles.resetText}>重置</Text>
       </TouchableOpacity>
 
       {/* BPM Reference */}
@@ -127,6 +146,15 @@ export function BpmScreen() {
         ))}
         <View style={{ height: 40 }} />
       </ScrollView>
+    </View>
+  )
+}
+
+function SyncItem({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.syncItem}>
+      <Text style={styles.syncValue}>{value}</Text>
+      <Text style={styles.syncLabel}>{label}</Text>
     </View>
   )
 }
@@ -191,6 +219,27 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   statLabel: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  syncCard: {
+    width: '92%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+    marginBottom: spacing.base,
+  },
+  syncTitle: { fontSize: fontSize.sm, color: colors.textPrimary, fontWeight: '700', marginBottom: spacing.xs },
+  syncGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  syncItem: {
+    width: '31%',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+  },
+  syncValue: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '800' },
+  syncLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  stabilityHint: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: spacing.xs, textAlign: 'center' },
   // Tap count
   tapCount: {
     fontSize: fontSize.sm,

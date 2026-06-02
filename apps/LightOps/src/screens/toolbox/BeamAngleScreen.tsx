@@ -4,10 +4,16 @@ import {
   ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { calcBeamAngle, calcSpotSize, BEAM_ANGLE_REFERENCES } from '@lightops/toolbox-core'
+import {
+  calcBeamAngle,
+  calcSpotSize,
+  calcBeamProjectionTable,
+  BEAM_ANGLE_REFERENCES,
+} from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 type Mode = 'toAngle' | 'toSpot'
+const DISTANCE_PRESETS = [5, 10, 15, 20, 30]
 
 export function BeamAngleScreen() {
   const navigation = useNavigation()
@@ -37,6 +43,14 @@ export function BeamAngleScreen() {
 
   const spotResult = mode === 'toSpot' ? calcToSpot() : null
   const angleResult = mode === 'toAngle' ? calcToAngle() : null
+  const projectionTable = mode === 'toSpot' && parseFloat(angle1) > 0
+    ? calcBeamProjectionTable(parseFloat(angle1), DISTANCE_PRESETS)
+    : []
+
+  const setDistancePreset = (value: number) => {
+    if (mode === 'toSpot') setDistance1(String(value))
+    else setDistance2(String(value))
+  }
 
   return (
     <View style={styles.container}>
@@ -70,6 +84,19 @@ export function BeamAngleScreen() {
 
         {/* Input Form */}
         <View style={styles.card}>
+          <Text style={styles.quickTitle}>常用投射距离</Text>
+          <View style={styles.quickRow}>
+            {DISTANCE_PRESETS.map(value => (
+              <TouchableOpacity
+                key={value}
+                style={styles.quickChip}
+                onPress={() => setDistancePreset(value)}
+              >
+                <Text style={styles.quickChipText}>{value}m</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {mode === 'toSpot' ? (
             <>
               <View style={styles.inputRow}>
@@ -111,6 +138,19 @@ export function BeamAngleScreen() {
                     <ResultItem label="光斑半径" value={`${spotResult.radius} m`} />
                     <ResultItem label="光斑面积" value={`${spotResult.area} m²`} />
                   </View>
+                </View>
+              )}
+
+              {projectionTable.length > 0 && (
+                <View style={styles.tableBox}>
+                  <Text style={styles.tableTitle}>多距离光斑对照</Text>
+                  {projectionTable.map(row => (
+                    <View key={row.distance} style={styles.tableRow}>
+                      <Text style={styles.tableCell}>{row.distance}m</Text>
+                      <Text style={styles.tableCellStrong}>直径 {row.diameter}m</Text>
+                      <Text style={styles.tableCell}>面积 {row.area}m²</Text>
+                    </View>
+                  ))}
                 </View>
               )}
             </>
@@ -233,6 +273,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: spacing.base,
   },
+  quickTitle: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.xs },
+  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.base },
+  quickChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickChipText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '700' },
   inputRow: { flexDirection: 'row', gap: spacing.md },
   inputItem: { flex: 1 },
   inputLabel: { fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs, fontWeight: '500' },
@@ -256,6 +307,23 @@ const styles = StyleSheet.create({
   },
   resultTitle: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.sm },
   resultGrid: { flexDirection: 'row' },
+  tableBox: {
+    marginTop: spacing.base,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  tableTitle: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.xs },
+  tableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: 5,
+    gap: spacing.sm,
+  },
+  tableCell: { flex: 1, fontSize: fontSize.xs, color: colors.textSecondary },
+  tableCellStrong: { flex: 1, fontSize: fontSize.xs, color: colors.primary, fontWeight: '700' },
   refSection: { paddingHorizontal: spacing.base },
   refTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.sm },
   refRow: {

@@ -11,6 +11,16 @@ export interface BpmResult {
   tapCount: number
   minBpm: number
   maxBpm: number
+  halfBpm: number
+  doubleBpm: number
+  stdDevMs: number
+  stabilityPercent: number
+  subdivisions: {
+    beatMs: number
+    halfBeatMs: number
+    quarterBeatMs: number
+    bar4Ms: number
+  }
 }
 
 /** 最多保留的打拍记录数 */
@@ -41,13 +51,28 @@ export function calculateBpm(timestamps: number[]): BpmResult | null {
   const bpmValues = intervals.map(interval => 60000 / interval)
   const minBpm = Math.min(...bpmValues)
   const maxBpm = Math.max(...bpmValues)
+  const variance = intervals.reduce((sum, interval) => sum + Math.pow(interval - avgIntervalMs, 2), 0) / intervals.length
+  const stdDevMs = Math.sqrt(variance)
+  const stabilityPercent = Math.max(0, 100 - (stdDevMs / avgIntervalMs) * 100)
+  const roundedBpm = Math.round(bpm * 10) / 10
+  const beatMs = Math.round(avgIntervalMs)
 
   return {
-    bpm: Math.round(bpm * 10) / 10,
-    avgIntervalMs: Math.round(avgIntervalMs),
+    bpm: roundedBpm,
+    avgIntervalMs: beatMs,
     tapCount: timestamps.length,
     minBpm: Math.round(minBpm * 10) / 10,
     maxBpm: Math.round(maxBpm * 10) / 10,
+    halfBpm: Math.round((roundedBpm / 2) * 10) / 10,
+    doubleBpm: Math.round((roundedBpm * 2) * 10) / 10,
+    stdDevMs: Math.round(stdDevMs),
+    stabilityPercent: Math.round(stabilityPercent),
+    subdivisions: {
+      beatMs,
+      halfBeatMs: Math.round(beatMs / 2),
+      quarterBeatMs: Math.round(beatMs / 4),
+      bar4Ms: beatMs * 4,
+    },
   }
 }
 

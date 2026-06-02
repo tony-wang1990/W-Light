@@ -3,10 +3,12 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { LUX_REFERENCES } from '@lightops/toolbox-core'
+import { calculateLux, LUX_REFERENCES } from '@lightops/toolbox-core'
 import { colors, spacing, fontSize, radius } from '../../theme'
 
 type CalcMode = 'toLux' | 'toDistance'
+const LUMEN_PRESETS = [3000, 8000, 12000, 20000, 50000]
+const BEAM_PRESETS = [8, 15, 25, 36, 50]
 
 export function LuxScreen() {
   const navigation = useNavigation()
@@ -20,20 +22,21 @@ export function LuxScreen() {
   // Mode 2: target lux + lumens → required distance
   const [targetLux, setTargetLux] = useState('')
   const [lumens2, setLumens2] = useState('')
+  const [beamAngle2, setBeamAngle2] = useState('30')
 
   const calcLux = () => {
     const l = parseFloat(lumens)
     const d = parseFloat(distance)
     if (isNaN(l) || isNaN(d) || d === 0) return null
-    const lux = l / (Math.PI * Math.pow(d * Math.tan((parseFloat(beamAngle) || 30) / 2 * Math.PI / 180), 2))
-    return Math.round(lux)
+    return calculateLux(l, d, parseFloat(beamAngle) || 30)
   }
 
   const calcDistance = () => {
     const l = parseFloat(lumens2)
     const lux = parseFloat(targetLux)
     if (isNaN(l) || isNaN(lux) || lux === 0) return null
-    const dist = Math.sqrt(l / (Math.PI * lux)) / Math.tan((30 / 2) * Math.PI / 180)
+    const angle = parseFloat(beamAngle2) || 30
+    const dist = Math.sqrt(l / (Math.PI * lux)) / Math.tan((angle / 2) * Math.PI / 180)
     return dist.toFixed(2)
   }
 
@@ -82,6 +85,8 @@ export function LuxScreen() {
         <View style={styles.card}>
           {mode === 'toLux' ? (
             <>
+              <QuickChipRow title="常用光通量" values={LUMEN_PRESETS} unit="lm" onPress={value => setLumens(String(value))} />
+              <QuickChipRow title="常用光束角" values={BEAM_PRESETS} unit="°" onPress={value => setBeamAngle(String(value))} />
               <InputField label="光通量" value={lumens} onChange={setLumens} unit="lm" placeholder="灯具流明数" />
               <InputField label="投射距离" value={distance} onChange={setDistance} unit="m" placeholder="米" />
               <InputField label="光束角度" value={beamAngle} onChange={setBeamAngle} unit="°" placeholder="30（默认）" />
@@ -89,6 +94,7 @@ export function LuxScreen() {
                 <View style={styles.resultBox}>
                   <Text style={styles.resultValue}>{luxResult.toLocaleString()}</Text>
                   <Text style={styles.resultUnit}>Lux</Text>
+                  <Text style={styles.maintainedLux}>维护照度约 {Math.round(luxResult * 0.8).toLocaleString()} lx</Text>
                   {(() => {
                     const q = getLuxQuality(luxResult)
                     return <Text style={[styles.resultQuality, { color: q.color }]}>{q.label}</Text>
@@ -98,8 +104,11 @@ export function LuxScreen() {
             </>
           ) : (
             <>
+              <QuickChipRow title="常用光通量" values={LUMEN_PRESETS} unit="lm" onPress={value => setLumens2(String(value))} />
+              <QuickChipRow title="光束角" values={BEAM_PRESETS} unit="°" onPress={value => setBeamAngle2(String(value))} />
               <InputField label="目标照度" value={targetLux} onChange={setTargetLux} unit="lx" placeholder="如 500" />
               <InputField label="灯具光通量" value={lumens2} onChange={setLumens2} unit="lm" placeholder="灯具流明数" />
+              <InputField label="光束角度" value={beamAngle2} onChange={setBeamAngle2} unit="°" placeholder="30（默认）" />
               {distResult !== null && (
                 <View style={styles.resultBox}>
                   <Text style={styles.resultValue}>{distResult}</Text>
@@ -115,15 +124,42 @@ export function LuxScreen() {
         <View style={styles.refSection}>
           <Text style={styles.refTitle}>照度参考标准</Text>
           {LUX_REFERENCES.map((ref, i) => (
-            <View key={i} style={styles.refRow}>
+            <TouchableOpacity
+              key={i}
+              style={styles.refRow}
+              onPress={() => {
+                setMode('toDistance')
+                setTargetLux(String(ref.max))
+              }}
+            >
               <Text style={styles.refScene}>{ref.scene}</Text>
               <Text style={styles.refRange}>{ref.min} – {ref.max} lx</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
         <View style={{ height: 60 }} />
       </ScrollView>
+    </View>
+  )
+}
+
+function QuickChipRow({ title, values, unit, onPress }: {
+  title: string
+  values: number[]
+  unit: string
+  onPress: (value: number) => void
+}) {
+  return (
+    <View style={quickStyles.group}>
+      <Text style={quickStyles.title}>{title}</Text>
+      <View style={quickStyles.row}>
+        {values.map(value => (
+          <TouchableOpacity key={value} style={quickStyles.chip} onPress={() => onPress(value)}>
+            <Text style={quickStyles.chipText}>{value}{unit}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   )
 }
@@ -167,6 +203,21 @@ const inputStyles = StyleSheet.create({
   unit: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '500' },
 })
 
+const quickStyles = StyleSheet.create({
+  group: { marginBottom: spacing.sm },
+  title: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.xs },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  chip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '700' },
+})
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   backBtn: { paddingHorizontal: spacing.base, paddingTop: 56, paddingBottom: spacing.sm },
@@ -205,6 +256,7 @@ const styles = StyleSheet.create({
   },
   resultValue: { fontSize: 52, fontWeight: '800', color: colors.primary, fontVariant: ['tabular-nums'] },
   resultUnit: { fontSize: fontSize.md, color: colors.textSecondary, fontWeight: '500' },
+  maintainedLux: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   resultQuality: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xs },
   refSection: { paddingHorizontal: spacing.base },
   refTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.sm },
