@@ -16,6 +16,7 @@ const TOOLS: ToolCard[] = [
   { icon: '⏱️', name: 'LTC 时码', desc: '立体声生成', route: 'Ltc', color: '#4ECDC4' },
   { icon: '💡', name: '光束角度', desc: '投射距离·光斑', route: 'BeamAngle', color: '#FFD93D' },
   { icon: '🎮', name: 'DMX 地址码', desc: '灯具链计算', route: 'Dmx', color: '#6BCB77' },
+  { icon: '📚', name: '灯库制作', desc: '通道表·导出', route: 'FixtureLibrary', color: '#2DD4BF' },
   { icon: '⚡', name: '功率计算', desc: '负荷统计·电流', route: 'PowerCalc', color: '#4D96FF' },
   { icon: '🔍', name: '故障分析', desc: '灯具诊断·常见', route: 'Diagnosis', color: '#C77DFF' },
   { icon: '📖', name: 'MA 宏命令', desc: 'MA2/MA3 语法', route: 'MaMacros', color: '#FF9F45' },
@@ -36,7 +37,7 @@ export function ToolboxScreen() {
       onPress={() => {
         // 只跳转已实现的路由
         const implemented = [
-          'Bpm', 'Ltc', 'Dmx', 'BeamAngle', 'PowerCalc', 'Diagnosis',
+          'Bpm', 'Ltc', 'Dmx', 'FixtureLibrary', 'BeamAngle', 'PowerCalc', 'Diagnosis',
           'MaMacros', 'Terms', 'Lux', 'RgbColor', 'LightLayout', 'Theory',
         ]
         if (implemented.includes(tool.route)) {

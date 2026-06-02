@@ -4,6 +4,7 @@ import { colors } from '../theme';
 import { ToolboxStackParamList } from './types';
 import { ToolboxScreen } from '../screens/toolbox/ToolboxScreen';
 import { DmxScreen } from '../screens/toolbox/DmxScreen';
+import { FixtureLibraryScreen } from '../screens/toolbox/FixtureLibraryScreen';
 import { PowerCalcScreen } from '../screens/toolbox/PowerCalcScreen';
 import { BeamAngleScreen } from '../screens/toolbox/BeamAngleScreen';
 import { BpmScreen } from '../screens/toolbox/BpmScreen';
@@ -27,6 +28,7 @@ export function ToolboxStack() {
       }}>
       <Stack.Screen name="ToolboxMain" component={ToolboxScreen} />
       <Stack.Screen name="Dmx" component={DmxScreen} />
+      <Stack.Screen name="FixtureLibrary" component={FixtureLibraryScreen} />
       <Stack.Screen name="PowerCalc" component={PowerCalcScreen} />
       <Stack.Screen name="BeamAngle" component={BeamAngleScreen} />
       <Stack.Screen name="Bpm" component={BpmScreen} />

@@ -31,6 +31,7 @@ export type OrdersStackParamList = {
 export type ToolboxStackParamList = {
   ToolboxMain: undefined;
   Dmx: undefined;
+  FixtureLibrary: undefined;
   PowerCalc: undefined;
   BeamAngle: undefined;
   Bpm: undefined;
