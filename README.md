@@ -226,6 +226,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 移动端加密 MMKV 已升级为启动前初始化 Keychain/Keystore 托管安装级密钥，保留旧默认 MMKV key 与旧固定密钥迁移路径；新增 `react-native-keychain` 原生依赖，移动端 TypeScript/lint 与整仓构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | 移动端“扫码查验”已接入相机权限请求、二维码相机预览、扫码自动查询设备、成功后暂停识别和手动输入兜底；新增 `react-native-camera-kit`、`react-native-permissions` 依赖并配置 iOS Camera permission Pod；移动端 TypeScript/lint 与整仓构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 进行中 | LTC 共享核心已补齐 80-bit frame word、sync word、BMC 编码、29.97 drop-frame 换算和 48kHz/16-bit stereo WAV Data URI 生成；移动端 LTC 页面支持配置导出时长、生成 WAV、复制 Data URI 和系统分享，移动端 TypeScript/lint、整仓构建及 1s WAV 运行时小验证通过。 |
+| 2026-06-02 | 阶段 6 生产加固 | 受限 | 已复查 Android release 验证环境：当前机器 `java` 不可用，`JAVA_HOME` 与 `ANDROID_HOME` 未配置；`apps/LightOps/android/gradlew.bat` 存在，待安装 JDK/Android SDK 后再执行 Gradle 打包验证。iOS 真机验证需 macOS/Xcode/CocoaPods 环境。 |
 
 ## 当前验证命令
 
