@@ -129,6 +129,10 @@
 .refreshBtn:hover { background: #F9FAFB; }
 .refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.hiddenFileInput {
+  display: none;
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }

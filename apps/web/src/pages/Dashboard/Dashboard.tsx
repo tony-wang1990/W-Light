@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Activity, Users, Lightbulb, AlertTriangle, TrendingUp, RefreshCw } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Activity, Users, Lightbulb, AlertTriangle, TrendingUp, RefreshCw, Upload } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend
@@ -43,6 +43,11 @@ type OperationsSummary = {
   partsConsumption: Array<{ part_name: string; consumed_quantity: number; unit?: string; order_count: number }>;
 };
 
+type RestoreResult = {
+  warnings: string[];
+  tables: Record<string, { received: number; accepted: number; skipped: number }>;
+};
+
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalDevices: '-',
@@ -56,6 +61,8 @@ export default function Dashboard() {
   const [operations, setOperations] = useState<OperationsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const restoreInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -163,6 +170,44 @@ export default function Dashboard() {
     apiClient.download('/reports/backup.json', `lightops-backup-${new Date().toISOString().slice(0, 10)}.json`);
   };
 
+  const openRestorePicker = () => {
+    if (restoringBackup) return;
+    if (restoreInputRef.current) restoreInputRef.current.value = '';
+    restoreInputRef.current?.click();
+  };
+
+  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setRestoringBackup(true);
+    try {
+      const backup = JSON.parse(await file.text());
+      const preflight = await apiClient.post<RestoreResult>('/reports/backup/restore?dryRun=true', backup);
+      const acceptedTotal = Object.values(preflight.tables)
+        .reduce((sum, table) => sum + table.accepted, 0);
+      const skippedTotal = Object.values(preflight.tables)
+        .reduce((sum, table) => sum + table.skipped, 0);
+      const warnings = preflight.warnings.length ? `\n\n提示：${preflight.warnings.join('；')}` : '';
+      const confirmed = window.confirm(
+        `将恢复 ${acceptedTotal} 条数据到当前项目${skippedTotal ? `，跳过 ${skippedTotal} 条` : ''}。该操作会按相同 ID 覆盖现有记录，但不会删除备份中不存在的数据。${warnings}\n\n确认继续？`,
+      );
+      if (!confirmed) return;
+
+      const result = await apiClient.post<RestoreResult>('/reports/backup/restore', backup);
+      const restoredTotal = Object.values(result.tables)
+        .reduce((sum, table) => sum + table.accepted, 0);
+      window.alert(`备份恢复完成，共处理 ${restoredTotal} 条数据。`);
+      loadDashboard();
+    } catch (error) {
+      console.error('Restore backup failed:', error);
+      window.alert('备份恢复失败，请确认 JSON 文件格式正确并检查后端日志。');
+    } finally {
+      setRestoringBackup(false);
+      event.target.value = '';
+    }
+  };
+
   const statCards = [
     { title: '运行设备总数', value: stats.totalDevices, icon: Lightbulb, color: '#10B981', bgColor: 'rgba(16,185,129,0.1)' },
     { title: '待处理工单', value: stats.pendingOrders, icon: AlertTriangle, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)' },
@@ -179,11 +224,22 @@ export default function Dashboard() {
       <div className={styles.titleRow}>
         <h1 className={styles.pageTitle}>系统概览</h1>
         <div className={styles.titleActions}>
+          <input
+            ref={restoreInputRef}
+            className={styles.hiddenFileInput}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleRestoreBackup}
+          />
           <button className={styles.refreshBtn} onClick={exportOrders}>
             导出工单 Excel
           </button>
           <button className={styles.refreshBtn} onClick={downloadBackup}>
             下载备份
+          </button>
+          <button className={styles.refreshBtn} onClick={openRestorePicker} disabled={restoringBackup}>
+            <Upload size={14} />
+            {restoringBackup ? '恢复中...' : '恢复备份'}
           </button>
           <button className={styles.refreshBtn} onClick={loadDashboard} disabled={loading}>
             <RefreshCw size={14} className={loading ? styles.spin : ''} />
