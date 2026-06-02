@@ -75,6 +75,26 @@ function rowsWithId(rows: BackupRow[]) {
   return rows.filter(row => typeof row.id === 'string' && row.id.trim().length > 0)
 }
 
+function uniqueStrings(values: unknown[]) {
+  return Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean)))
+}
+
+function makeUniqueValue(base: string, usedValues: Set<string>, maxLength: number) {
+  const fallback = `RESTORE-${Date.now()}`
+  const normalizedBase = String(base || fallback).trim() || fallback
+  const clippedBase = normalizedBase.slice(0, maxLength)
+  if (!usedValues.has(clippedBase)) return clippedBase
+
+  for (let i = 1; i <= 999; i += 1) {
+    const suffix = `-R${i}`
+    const candidate = `${clippedBase.slice(0, Math.max(1, maxLength - suffix.length))}${suffix}`
+    if (!usedValues.has(candidate)) return candidate
+  }
+
+  const randomSuffix = `-${Math.random().toString(36).slice(2, 8)}`
+  return `${clippedBase.slice(0, Math.max(1, maxLength - randomSuffix.length))}${randomSuffix}`
+}
+
 @Injectable()
 class ReportsService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
@@ -137,6 +157,89 @@ class ReportsService {
         projectIds,
       }
     })
+  }
+
+  private async resolveUserConflicts(
+    rows: BackupRow[],
+    targetProjectId: string,
+    warnings: string[],
+  ): Promise<{ users: BackupRow[]; userIdMap: Map<string, string> }> {
+    const phones = uniqueStrings(rows.map(row => row.phone))
+    const existingUsers = phones.length
+      ? await this.ds.getRepository(User).find({ where: { phone: In(phones) } })
+      : []
+    const existingByPhone = new Map(existingUsers.map(user => [user.phone, user]))
+    const users: BackupRow[] = []
+    const userIdMap = new Map<string, string>()
+    const addedUserIds = new Set<string>()
+
+    for (const row of rows) {
+      const phone = String(row.phone || '').trim()
+      const existing = phone ? existingByPhone.get(phone) : null
+
+      if (existing && existing.id !== row.id) {
+        userIdMap.set(row.id, existing.id)
+        const projectIds = parseJsonArray(existing.projectIds)
+          .map(item => String(item))
+          .filter(Boolean)
+        if (!projectIds.includes(targetProjectId)) projectIds.push(targetProjectId)
+        if (!addedUserIds.has(existing.id)) {
+          users.push({ ...existing, projectIds })
+          addedUserIds.add(existing.id)
+        }
+        warnings.push(`手机号 ${phone} 已存在，备份用户 ${row.name || row.id} 已映射到现有账号 ${existing.name || existing.id}`)
+        continue
+      }
+
+      if (!addedUserIds.has(row.id)) {
+        users.push(row)
+        addedUserIds.add(row.id)
+      }
+    }
+
+    return { users, userIdMap }
+  }
+
+  private async resolveDeviceConflicts(rows: BackupRow[], warnings: string[]): Promise<BackupRow[]> {
+    const deviceRepo = this.ds.getRepository(Device)
+    const existingDevices = await deviceRepo.find({ select: ['id', 'deviceNo', 'qrCode'] as any })
+    const existingByNo = new Map(existingDevices.map(device => [device.deviceNo, device]))
+    const existingByQr = new Map(existingDevices.map(device => [device.qrCode, device]))
+    const usedDeviceNos = new Set(existingDevices.map(device => device.deviceNo))
+    const usedQrCodes = new Set(existingDevices.map(device => device.qrCode))
+    const seenDeviceNos = new Set<string>()
+    const seenQrCodes = new Set<string>()
+
+    return rows.map(row => {
+      const originalDeviceNo = String(row.deviceNo || row.id).trim()
+      const originalQrCode = String(row.qrCode || originalDeviceNo).trim()
+      const deviceNoOwner = existingByNo.get(originalDeviceNo)
+      const qrCodeOwner = existingByQr.get(originalQrCode)
+      const hasDeviceNoConflict = seenDeviceNos.has(originalDeviceNo) || (!!deviceNoOwner && deviceNoOwner.id !== row.id)
+      const hasQrCodeConflict = seenQrCodes.has(originalQrCode) || (!!qrCodeOwner && qrCodeOwner.id !== row.id)
+
+      if (!hasDeviceNoConflict && !hasQrCodeConflict) {
+        usedDeviceNos.add(originalDeviceNo)
+        usedQrCodes.add(originalQrCode)
+        seenDeviceNos.add(originalDeviceNo)
+        seenQrCodes.add(originalQrCode)
+        return { ...row, deviceNo: originalDeviceNo, qrCode: originalQrCode }
+      }
+
+      const deviceNo = makeUniqueValue(originalDeviceNo, usedDeviceNos, 50)
+      usedDeviceNos.add(deviceNo)
+      seenDeviceNos.add(deviceNo)
+      const qrCode = makeUniqueValue(originalQrCode || deviceNo, usedQrCodes, 100)
+      usedQrCodes.add(qrCode)
+      seenQrCodes.add(qrCode)
+      warnings.push(`设备 ${originalDeviceNo || row.id} 的编号或二维码冲突，已导入为 ${deviceNo} / ${qrCode}`)
+      return { ...row, deviceNo, qrCode }
+    })
+  }
+
+  private mapUserId(value: unknown, userIdMap: Map<string, string>): any {
+    if (typeof value !== 'string') return value
+    return userIdMap.get(value) || value
   }
 
   private async idsForProject(entity: any, projectId: string): Promise<string[]> {
@@ -732,15 +835,25 @@ class ReportsService {
     const tables = backup.tables || {}
     const warnings: string[] = []
 
-    const users = this.normalizeUsers(ensureArray(tables.users), backup.projectId, projectId)
+    const normalizedUsers = this.normalizeUsers(ensureArray(tables.users), backup.projectId, projectId)
+    const { users, userIdMap } = await this.resolveUserConflicts(normalizedUsers, projectId, warnings)
     const project = ensureArray(tables.project)
       .slice(0, 1)
       .map(row => ({ ...row, id: projectId }))
 
-    const devices = this.projectRows(ensureArray(tables.devices), projectId)
-    const workOrders = this.projectRows(ensureArray(tables.workOrders), projectId, ['mediaUrls'])
+    const devices = await this.resolveDeviceConflicts(this.projectRows(ensureArray(tables.devices), projectId), warnings)
+    const workOrders: BackupRow[] = this.projectRows(ensureArray(tables.workOrders), projectId, ['mediaUrls'])
+      .map(row => ({
+        ...row,
+        reporterId: this.mapUserId(row.reporterId, userIdMap),
+        assigneeId: this.mapUserId(row.assigneeId, userIdMap),
+      }))
     const spareParts = this.projectRows(ensureArray(tables.spareParts), projectId)
-    const inspectionPlans = this.projectRows(ensureArray(tables.inspectionPlans), projectId, ['deviceIds'])
+    const inspectionPlans: BackupRow[] = this.projectRows(ensureArray(tables.inspectionPlans), projectId, ['deviceIds'])
+      .map(row => ({
+        ...row,
+        assigneeId: this.mapUserId(row.assigneeId, userIdMap),
+      }))
 
     const currentOrderIds = await this.idsForProject(WorkOrder, projectId)
     const currentPartIds = await this.idsForProject(SparePart, projectId)
@@ -752,15 +865,26 @@ class ReportsService {
     const rawRepairLogs = rowsWithId(ensureArray(tables.repairLogs))
     const repairLogs = rawRepairLogs
       .filter(row => orderIds.has(row.orderId))
-      .map(row => normalizeJsonFields(row, ['photoUrls', 'partUsages']))
+      .map(row => normalizeJsonFields({
+        ...row,
+        engineerId: this.mapUserId(row.engineerId, userIdMap),
+      }, ['photoUrls', 'partUsages']))
 
     const rawPartLogs = rowsWithId(ensureArray(tables.sparePartLogs))
-    const sparePartLogs = rawPartLogs.filter(row => partIds.has(row.partId))
+    const sparePartLogs: BackupRow[] = rawPartLogs
+      .filter(row => partIds.has(row.partId))
+      .map(row => ({
+        ...row,
+        operatorId: this.mapUserId(row.operatorId, userIdMap),
+      }))
 
     const rawInspectionRecords = rowsWithId(ensureArray(tables.inspectionRecords))
     const inspectionRecords = rawInspectionRecords
       .filter(row => planIds.has(row.planId))
-      .map(row => normalizeJsonFields(row, ['photoUrls']))
+      .map(row => normalizeJsonFields({
+        ...row,
+        inspectorId: this.mapUserId(row.inspectorId, userIdMap),
+      }, ['photoUrls']))
 
     if (rawRepairLogs.length !== repairLogs.length) {
       warnings.push(`跳过 ${rawRepairLogs.length - repairLogs.length} 条未匹配当前项目工单的维修记录`)
