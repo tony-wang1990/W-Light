@@ -46,6 +46,7 @@ export type ToolboxStackParamList = {
 export type RecordsStackParamList = {
   RecordsList: { initialTab?: 'devices' | 'parts' | 'inspections' } | undefined;
   DeviceDetail: { deviceId: string };
+  DeviceCreate: undefined;
   RecordDetail: { orderId: string };
 };
 

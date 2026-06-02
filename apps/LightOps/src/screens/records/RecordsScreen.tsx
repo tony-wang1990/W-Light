@@ -97,8 +97,17 @@ export function RecordsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>设备台账</Text>
-        <Text style={styles.subtitle}>设备档案 · 备件库存 · 巡检计划</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>设备台账</Text>
+            <Text style={styles.subtitle}>设备档案 · 备件库存 · 巡检计划</Text>
+          </View>
+          {tab === 'devices' && (
+            <TouchableOpacity style={styles.headerAction} onPress={() => navigation.navigate('DeviceCreate')}>
+              <Text style={styles.headerActionText}>＋</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Tab Switch */}
@@ -516,8 +525,18 @@ function EmptyState({ icon, text, sub }: { icon: string; text: string; sub: stri
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: spacing.base, paddingTop: 56, paddingBottom: spacing.sm },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   title: { fontSize: fontSize.xl, fontWeight: '700', color: colors.textPrimary },
   subtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+  headerAction: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActionText: { fontSize: 24, lineHeight: 26, color: colors.white, fontWeight: '700' },
 
   // Tabs
   tabs: {
