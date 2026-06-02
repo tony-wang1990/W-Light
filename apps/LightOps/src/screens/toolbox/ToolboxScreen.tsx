@@ -36,7 +36,7 @@ export function ToolboxScreen() {
       onPress={() => {
         // 只跳转已实现的路由
         const implemented = [
-          'Bpm', 'Dmx', 'BeamAngle', 'PowerCalc', 'Diagnosis',
+          'Bpm', 'Ltc', 'Dmx', 'BeamAngle', 'PowerCalc', 'Diagnosis',
           'MaMacros', 'Terms', 'Lux', 'RgbColor', 'LightLayout', 'Theory',
         ]
         if (implemented.includes(tool.route)) {

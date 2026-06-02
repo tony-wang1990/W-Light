@@ -11,6 +11,7 @@ import { DiagnosisScreen } from '../screens/toolbox/DiagnosisScreen';
 import { MaMacrosScreen } from '../screens/toolbox/MaMacrosScreen';
 import { TermsScreen } from '../screens/toolbox/TermsScreen';
 import { LuxScreen } from '../screens/toolbox/LuxScreen';
+import { LtcScreen } from '../screens/toolbox/LtcScreen';
 import { RgbColorScreen } from '../screens/toolbox/RgbColorScreen';
 import { LightLayoutScreen } from '../screens/toolbox/LightLayoutScreen';
 import { TheoryScreen } from '../screens/toolbox/TheoryScreen';
@@ -29,6 +30,7 @@ export function ToolboxStack() {
       <Stack.Screen name="PowerCalc" component={PowerCalcScreen} />
       <Stack.Screen name="BeamAngle" component={BeamAngleScreen} />
       <Stack.Screen name="Bpm" component={BpmScreen} />
+      <Stack.Screen name="Ltc" component={LtcScreen} />
       <Stack.Screen name="Diagnosis" component={DiagnosisScreen} />
       <Stack.Screen name="MaMacros" component={MaMacrosScreen} />
       <Stack.Screen name="Terms" component={TermsScreen} />
