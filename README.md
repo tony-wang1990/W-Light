@@ -197,7 +197,8 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 移动端 token、用户信息、当前项目和服务器地址已统一改用加密 MMKV 存储，并内置旧默认 MMKV key 一次性迁移；离线业务数据缓存后续接同步队列时继续加密。 |
 | 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 移动端新增加密离线同步队列；新建工单和维修记录在网络失败/超时时可本地入队，个人中心可查看待同步数量、手动同步并标记库存/冲突类失败。 |
 | 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 后端新增 `POST /reports/backup/restore` 备份恢复接口，支持 dry-run 预检、同 ID 合并覆盖和项目内依赖过滤；Web Dashboard 已接入 JSON 备份恢复入口。 |
-| 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 新增 [MOBILE_RELEASE_CHECKLIST.md](MOBILE_RELEASE_CHECKLIST.md)，记录移动端原生工程生成、Android/iOS 打包、云端联调和交付验收清单；当前仓库尚缺 Android/iOS 原生目录，已在文档中标明。 |
+| 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 新增 [MOBILE_RELEASE_CHECKLIST.md](MOBILE_RELEASE_CHECKLIST.md)，记录移动端原生工程、Android/iOS 打包、云端联调和交付验收清单。 |
+| 2026-06-02 | 阶段 5 报表/离线/交付 | 进行中 | 已基于 React Native 0.74.5 模板补入 `apps/LightOps/android` 与 `apps/LightOps/ios` 原生工程，统一 module name、应用显示名、Android applicationId、iOS Bundle Identifier 和相册/相机权限说明；移动端 TypeScript/lint 通过，Android Gradle 因本机未配置 `JAVA_HOME` 暂未验证。 |
 
 ## 当前验证命令
 
@@ -221,7 +222,7 @@ corepack pnpm run build
 - 移动端加密 MMKV 目前使用固定应用内密钥，适合作为 MVP 本地加密基线；正式交付前建议接入系统 Keychain/Keystore 派生密钥。
 - 离线同步 MVP 当前覆盖工单创建和维修记录写入；附件离线暂存、列表缓存、冲突详情页尚未完成。
 - 备份恢复当前采用合并/同 ID 覆盖策略，不会删除备份中不存在的线上记录；如设备编号、二维码或手机号与现有数据唯一约束冲突，需要管理员清理后重试。
-- `apps/LightOps` 当前尚未包含 Android/iOS 原生工程目录，正式打包前需按 `MOBILE_RELEASE_CHECKLIST.md` 生成并提交原生工程。
+- `apps/LightOps` 已补入 Android/iOS 原生工程目录，但当前机器未配置 `JAVA_HOME`，尚未在 Android SDK/Xcode 环境完成 Gradle、release 签名打包和真机安装验证。
 
 ## 本地运行
 

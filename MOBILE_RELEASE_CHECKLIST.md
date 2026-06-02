@@ -5,8 +5,10 @@
 ## 当前状态
 
 - 当前主移动端目录是 `apps/LightOps`。
-- 该目录目前只有 React Native JS/TS、Metro 和业务源码，尚未提交 `android/`、`ios/` 原生工程目录。
-- 因此当前可验证项是 TypeScript、lint、Metro 启动和业务代码联调；正式 APK/AAB/IPA 需要先生成原生工程。
+- 该目录已包含基于 React Native 0.74.5 模板生成的 `android/`、`ios/` 原生工程目录。
+- 当前已同步原生 module name `WLight`、显示名 `W-Light`、Android applicationId `com.wlight.lightops` 和 iOS Bundle Identifier `com.wlight.lightops`。
+- 正式 APK/AAB/IPA 仍需要在具备 Android SDK/Xcode/CocoaPods 的打包机上完成签名、依赖安装和真机验证。
+- 当前 Windows 工作机未配置 `JAVA_HOME`，因此 Android Gradle 尚未完成本机验证。
 
 ## 打包前置
 
@@ -18,21 +20,21 @@ corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm --filter LightOps run lint
 ```
 
-2. 生成 React Native 0.74.5 原生工程壳：
-
-```bash
-cd apps
-npx @react-native-community/cli init LightOpsNative --version 0.74.5
-```
-
-3. 将 `LightOpsNative/android` 和 `LightOpsNative/ios` 复制到 `apps/LightOps/`，再删除临时 `LightOpsNative`。
-
-4. 检查并统一应用信息：
+2. 检查原生工程信息：
 
 - Android `applicationId` 建议：`com.wlight.lightops`
 - iOS Bundle Identifier 建议：`com.wlight.lightops`
 - App 名称：`W-Light`
 - 深色模式、相册/相机、网络访问权限按上传、扫码和现场拍照能力配置。
+
+如后续需要重新生成原生壳，可使用同版本模板：
+
+```bash
+cd apps
+npx @react-native-community/cli init LightOpsNative --version 0.74.5 --skip-install
+```
+
+然后只迁移 `android/`、`ios/` 和必要的原生配置，不覆盖业务源码。
 
 ## Android Release
 
