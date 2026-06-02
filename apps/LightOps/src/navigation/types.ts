@@ -34,7 +34,10 @@ export type ToolboxStackParamList = {
   PowerCalc: undefined;
   BeamAngle: undefined;
   Bpm: undefined;
+  Ltc: undefined;
   RgbColor: undefined;
+  LightLayout: undefined;
+  Theory: undefined;
   Illuminance: undefined;
   Diagnosis: undefined;
   MaMacros: undefined;

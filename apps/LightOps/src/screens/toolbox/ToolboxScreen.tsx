@@ -35,7 +35,10 @@ export function ToolboxScreen() {
       style={styles.card}
       onPress={() => {
         // 只跳转已实现的路由
-        const implemented = ['Bpm', 'Dmx', 'BeamAngle', 'PowerCalc', 'Diagnosis', 'MaMacros', 'Terms', 'Lux']
+        const implemented = [
+          'Bpm', 'Dmx', 'BeamAngle', 'PowerCalc', 'Diagnosis',
+          'MaMacros', 'Terms', 'Lux', 'RgbColor', 'LightLayout', 'Theory',
+        ]
         if (implemented.includes(tool.route)) {
           navigation.navigate(tool.route)
         }
