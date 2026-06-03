@@ -28,8 +28,8 @@ services:
       target: production
     image: lightops-api:latest
     container_name: lightops-api
-    ports:
-      - '${API_BIND:-127.0.0.1}:${API_PORT:-3000}:3000'
+    expose:
+      - '3000'
     environment:
       NODE_ENV: production
       NODE_OPTIONS: ${NODE_OPTIONS:-}
@@ -84,8 +84,8 @@ services:
       - shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}
       - -c
       - work_mem=4MB
-    ports:
-      - '${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
+    expose:
+      - '5432'
     environment:
       POSTGRES_DB: ${DB_NAME:-lightops}
       POSTGRES_USER: ${DB_USER:-lightops}
@@ -105,8 +105,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: lightops-redis
-    ports:
-      - '${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379'
+    expose:
+      - '6379'
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_pwd}
       TZ: ${TZ:-Asia/Shanghai}
@@ -125,9 +125,9 @@ services:
   minio:
     image: minio/minio:latest
     container_name: lightops-minio
-    ports:
-      - '${MINIO_BIND:-127.0.0.1}:${MINIO_PORT:-9000}:9000'
-      - '${MINIO_CONSOLE_BIND:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001'
+    expose:
+      - '9000'
+      - '9001'
     command: server /data --console-address ':9001'
     environment:
       MINIO_ROOT_USER: ${MINIO_USER:-minioadmin}
