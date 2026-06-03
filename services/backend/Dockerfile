@@ -1,29 +1,33 @@
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
-RUN npm install -g pnpm
+ENV PNPM_HOME=/root/.local/share/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
 
-# 开发镜像
-FROM base AS development
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install
-COPY . .
-EXPOSE 3000
-CMD ["pnpm", "run", "start:dev"]
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/backend/package.json services/backend/package.json
+COPY apps/LightOps/package.json apps/LightOps/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/toolbox-core/package.json packages/toolbox-core/package.json
+RUN pnpm install --filter backend... --frozen-lockfile
 
-# 生产构建
-FROM base AS builder
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
-COPY . .
+FROM deps AS build
+COPY services/backend services/backend
+WORKDIR /app/services/backend
 RUN pnpm run build
 
-# 生产镜像（精简）
-FROM node:20-alpine AS production
-WORKDIR /app
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --prod --frozen-lockfile
-COPY --from=builder /app/dist ./dist
-EXPOSE 3000
+FROM base AS production
 ENV NODE_ENV=production
-CMD ["node", "dist/main"]
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/backend/package.json services/backend/package.json
+COPY apps/LightOps/package.json apps/LightOps/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/toolbox-core/package.json packages/toolbox-core/package.json
+RUN pnpm install --filter backend... --prod --frozen-lockfile
+COPY --from=build /app/services/backend/dist services/backend/dist
+WORKDIR /app/services/backend
+EXPOSE 3000
+CMD ["pnpm", "run", "start"]

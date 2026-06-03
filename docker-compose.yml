@@ -1,61 +1,87 @@
-version: '3.9'
-
 services:
-  # ── API 服务 ──────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: lightops-web:latest
+    container_name: lightops-web
+    ports:
+      - '${WEB_PORT:-3005}:80'
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - lightops-net
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ >/dev/null || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
-      context: ./services/backend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: services/backend/Dockerfile
+      target: production
+    image: lightops-api:latest
     container_name: lightops-api
     ports:
-      - '3000:3000'
+      - '${API_BIND:-127.0.0.1}:${API_PORT:-3000}:3000'
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
+      TZ: ${TZ:-Asia/Shanghai}
+      API_PORT: 3000
+      ORDER_NO_TIME_ZONE: ${ORDER_NO_TIME_ZONE:-Asia/Shanghai}
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: lightops
-      DB_USER: lightops
-      DB_PASSWORD: lightops_dev_pwd
-      DB_SYNCHRONIZE: 'true'
-      DB_MIGRATIONS_RUN: 'false'
-      DB_SSL: 'false'
+      DB_NAME: ${DB_NAME:-lightops}
+      DB_USER: ${DB_USER:-lightops}
+      DB_PASSWORD: ${DB_PASSWORD:-lightops_dev_pwd}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
+      DB_SSL: ${DB_SSL:-false}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: redis_dev_pwd
-      JWT_SECRET: dev_jwt_secret_change_in_production_min_64_chars
-      JWT_EXPIRES_IN: 7d
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_pwd}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production_min_64_chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: 'false'
-      MINIO_USER: minioadmin
-      MINIO_PASSWORD: minioadmin
-      MINIO_BUCKET: lightops-files
-    volumes:
-      - ./services/backend/src:/app/src
-      - ./services/backend/.env.development:/app/.env
+      MINIO_USER: ${MINIO_USER:-minioadmin}
+      MINIO_PASSWORD: ${MINIO_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-lightops-files}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - lightops-net
+    healthcheck:
+      test: ['CMD-SHELL', 'node -e "fetch(''http://127.0.0.1:3000/v1/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
-  # ── PostgreSQL ────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: lightops-postgres
     ports:
-      - '5432:5432'
+      - '${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
     environment:
-      POSTGRES_DB: lightops
-      POSTGRES_USER: lightops
-      POSTGRES_PASSWORD: lightops_dev_pwd
+      POSTGRES_DB: ${DB_NAME:-lightops}
+      POSTGRES_USER: ${DB_USER:-lightops}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-lightops_dev_pwd}
+      TZ: ${TZ:-Asia/Shanghai}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U lightops -d lightops']
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -63,17 +89,19 @@ services:
     networks:
       - lightops-net
 
-  # ── Redis ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: lightops-redis
     ports:
-      - '6379:6379'
-    command: redis-server --requirepass redis_dev_pwd --maxmemory 256mb --maxmemory-policy allkeys-lru
+      - '${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_pwd}
+      TZ: ${TZ:-Asia/Shanghai}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_dev_pwd} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', 'redis_dev_pwd', 'ping']
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep PONG']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -81,41 +109,40 @@ services:
     networks:
       - lightops-net
 
-  # ── MinIO (对象存储) ──────────────────────────────────────
   minio:
     image: minio/minio:latest
     container_name: lightops-minio
     ports:
-      - '9000:9000'  # API
-      - '9001:9001'  # Console (浏览器访问)
+      - '${MINIO_BIND:-127.0.0.1}:${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_BIND:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001'
     command: server /data --console-address ':9001'
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-minioadmin}
+      TZ: ${TZ:-Asia/Shanghai}
     volumes:
       - minio_data:/data
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     restart: unless-stopped
     networks:
       - lightops-net
 
-  # ── Redis Insight (可选：Redis 可视化管理) ─────────────────
   redis-insight:
     image: redis/redisinsight:latest
     container_name: lightops-redis-insight
     ports:
-      - '5540:5540'
+      - '${REDIS_INSIGHT_BIND:-127.0.0.1}:${REDIS_INSIGHT_PORT:-5540}:5540'
     depends_on:
       - redis
     restart: unless-stopped
     networks:
       - lightops-net
     profiles:
-      - tools  # 仅 docker compose --profile tools up 时启动
+      - tools
 
 volumes:
   postgres_data:

@@ -245,6 +245,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 报表备份下载、备份恢复、项目内依赖过滤和唯一约束冲突处理已从 `ReportsService` 拆入 `ReportsBackupService`；`ReportsService` 保留统计/Excel 导出门面委托，后端构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 工单 Excel 导出查询和 workbook 生成已从 `ReportsService` 拆入 `ReportsExportService`；报表模块 provider 装配完成，后端构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 报表统计查询已拆入 `ReportsStatsService`，`ReportsService` 现在只保留对统计、导出、备份恢复的门面委托；后端构建通过。 |
+| 2026-06-03 | 阶段 6 生产加固/部署止血 | 已完成 | 修复 Oracle ARM 上 `bcrypt` 原生 binding 缺失导致 API 崩溃的问题，改用 `bcryptjs`；`docker-compose.yml` 改为生产构建并新增 Web/Nginx 容器，默认通过宿主机 `3005` 访问 Web 和 `/v1` API；新增 `scripts/oracle-arm-deploy.sh` 一键部署脚本；同时修复备件库存原子扣减、维修记录事务、工单号并发序列和月末统计日期溢出问题；`corepack pnpm run build` 已通过，本机无 Docker/bash，compose 与脚本需在 Oracle 服务器做最终验证。 |
 
 ## 当前验证命令
 
@@ -257,6 +258,8 @@ corepack pnpm --filter web run build
 corepack pnpm --filter LightOps run lint
 corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm run build
+docker compose config
+bash -n scripts/oracle-arm-deploy.sh
 ```
 
 ## 当前已知问题
@@ -266,6 +269,7 @@ corepack pnpm run build
 - LTC WAV 当前通过 Data URI 复制/系统分享导出，仍需在真机和目标控台/时码读取器上验证音量、相位、帧率识别和长时段稳定性。
 - `apps/LightOps` 已补入 Android/iOS 原生工程目录，但当前机器未配置 `JAVA_HOME`，尚未在 Android SDK/Xcode 环境完成 Gradle、release 签名打包和真机安装验证。
 - 后续每次新增/调整数据库结构，都需要继续生成新的 TypeORM migration，并在服务器更新代码后执行迁移。
+- 当前本机环境没有 Docker CLI 和 bash，`docker compose config` 与 `scripts/oracle-arm-deploy.sh` 语法检查需在 Oracle/Ubuntu 服务器上执行；服务器侧重点验证 `http://服务器IP:3005`、`http://服务器IP:3005/v1/health`、`docker compose ps` 和 `docker compose logs -f api web`。
 
 ## 本地运行
 

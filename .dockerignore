@@ -1,0 +1,13 @@
+.git
+.github
+**/node_modules
+**/dist
+**/.turbo
+**/.expo
+**/android/.gradle
+**/android/app/build
+**/ios/Pods
+**/coverage
+*.log
+.env
+.env.*

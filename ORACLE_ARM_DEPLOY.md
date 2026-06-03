@@ -13,8 +13,9 @@ flowchart LR
   Api --> Redis["Redis\n缓存/后续队列"]
 ```
 
-- 手机端登录页的“服务器地址”填写 `https://your-domain.com/v1`。
-- Web 管理端生产部署时建议与 API 使用同一个域名，浏览器访问 `/v1` 会被反向代理到后端。
+- 临时无域名时，手机端登录页的“服务器地址”填写 `http://服务器IP:3005/v1`。
+- 有域名和 HTTPS 后，手机端登录页的“服务器地址”填写 `https://your-domain.com/v1`。
+- Web 管理端生产部署时与 API 使用同一个入口，浏览器访问 `/v1` 会被 Web 容器内的 Nginx 反向代理到后端。
 - 只要两端连接的是同一个 API，工单、设备、巡检、备件、上传附件都会写入同一套 PostgreSQL/MinIO，自然保持同步。
 - 离线模式后续会增加本地队列；当前阶段以在线实时同步为主。
 
@@ -24,8 +25,9 @@ flowchart LR
 
 - `80`：HTTP，用于申请证书或临时访问。
 - `443`：HTTPS，正式给 Web 和手机端使用。
-- `3000`：仅测试阶段临时开放，正式环境建议只让反向代理访问。
-- `9001`：MinIO 管理后台，仅内网或临时开放。
+- `3005`：当前 Docker 一键部署默认 Web 入口；无域名内测时访问 `http://服务器IP:3005`。
+- `3000`：API 容器默认只绑定服务器本机 `127.0.0.1`，不建议在公网开放。
+- `9001`：MinIO 管理后台默认只绑定服务器本机，仅内网或临时开放。
 
 服务器初始化：
 
@@ -38,18 +40,38 @@ sudo usermod -aG docker $USER
 
 执行 `sudo usermod` 后重新登录 SSH，让当前用户获得 Docker 权限。
 
-## 拉取与启动
+## 一键部署（推荐）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/oracle-arm-deploy.sh | bash -s -- --port 3005
+```
+
+脚本会自动安装 Docker、拉取/更新仓库、生成 `.env` 强随机密钥、构建镜像并启动服务。部署完成后访问：
+
+- Web 管理端：`http://服务器IP:3005`
+- API 健康检查：`http://服务器IP:3005/v1/health`
+- 手机 APP 服务器地址：`http://服务器IP:3005/v1`
+
+如果浏览器仍然连接失败，先确认 Oracle Cloud 安全列表/NSG 已放行 TCP `3005`，再执行：
+
+```bash
+cd /root/W-Light
+docker compose ps
+docker compose logs -f --tail=100 api web
+```
+
+## 手动拉取与启动
 
 ```bash
 git clone https://github.com/tony-wang1990/W-Light.git
 cd W-Light
-docker compose up -d --build
-docker compose ps
+bash scripts/oracle-arm-deploy.sh --port 3005
 ```
 
 当前 `docker-compose.yml` 会启动：
 
-- `lightops-api`：后端 API，宿主机 `3000` 端口。
+- `lightops-web`：Web/Nginx 入口，宿主机 `3005` 端口，负责静态页面和 `/v1` 反向代理。
+- `lightops-api`：后端 API，容器内 `3000` 端口，宿主机默认只绑定 `127.0.0.1:3000`。
 - `lightops-postgres`：业务数据库。
 - `lightops-redis`：缓存与后续同步队列基础。
 - `lightops-minio`：照片、视频、附件对象存储。
@@ -57,27 +79,19 @@ docker compose ps
 内测阶段可先访问：
 
 ```bash
-curl http://127.0.0.1:3000/v1/health
+curl http://127.0.0.1:3005/v1/health
 ```
 
 如果健康检查路由后续调整，以后端实际路由为准。
 
 ## 数据库迁移
 
-生产环境不要依赖 `synchronize` 自动改表，建议使用迁移脚本管理 PostgreSQL 结构。
-
-首次部署或每次拉取包含数据库结构变更的新代码后，先构建后端，再运行迁移：
-
-```bash
-corepack pnpm install
-corepack pnpm --filter backend run build
-corepack pnpm --filter backend run migration:run
-```
+生产环境不要依赖 `synchronize` 自动改表，建议使用迁移脚本管理 PostgreSQL 结构。当前 Docker 部署默认设置 `DB_MIGRATIONS_RUN=true`，API 启动时会自动执行已提交的 TypeORM migration。
 
 常用环境变量：
 
 - `DB_SYNCHRONIZE=false`：生产环境保持关闭。
-- `DB_MIGRATIONS_RUN=false`：默认手动执行迁移；如确认要随 API 启动自动执行，可改为 `true`。
+- `DB_MIGRATIONS_RUN=true`：Docker 部署默认随 API 启动自动执行迁移。
 - `DB_SSL=false`：本机 Docker PostgreSQL 通常关闭；连接外部托管数据库且要求 SSL 时再改为 `true`。
 
 ## 反向代理
@@ -111,14 +125,13 @@ server {
 
 ## Web 管理端
 
-Web 端 API 基础路径当前是 `/v1`，所以推荐部署在同一个域名下：
+Web 端 API 基础路径当前是 `/v1`。Docker 部署时 `lightops-web` 已内置 Nginx 配置，会把 `/v1` 转发到 `lightops-api`，无需单独手写 Nginx。
 
 ```bash
-corepack pnpm install
-corepack pnpm --filter web run build
+docker compose up -d --build
 ```
 
-把 `apps/web/dist` 交给 Nginx/Caddy 托管即可。这样浏览器访问 `https://your-domain.com`，接口请求会走 `https://your-domain.com/v1`。
+如果以后改为宿主机 Nginx/Caddy 托管，也可以把 `apps/web/dist` 交给 Nginx/Caddy，并将 `/v1` 代理到 `127.0.0.1:3000/v1`。
 
 ## 手机 APP
 
@@ -135,12 +148,9 @@ corepack pnpm --filter web run build
 服务器后续同步 GitHub 最新代码：
 
 ```bash
-cd W-Light
+cd /root/W-Light
 git pull
-corepack pnpm install
-corepack pnpm --filter backend run build
-corepack pnpm --filter backend run migration:run
-docker compose up -d --build
+bash scripts/oracle-arm-deploy.sh --port 3005
 docker compose ps
 ```
 

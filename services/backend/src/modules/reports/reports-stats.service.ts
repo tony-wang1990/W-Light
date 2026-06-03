@@ -27,7 +27,11 @@ export class ReportsStatsService {
   private dateMonthsAgo(months: number) {
     const normalizedMonths = Number.isFinite(months) ? Math.max(1, Math.min(24, Math.floor(months))) : 6
     const date = new Date()
+    const originalDay = date.getDate()
+    date.setDate(1)
     date.setMonth(date.getMonth() - normalizedMonths)
+    const lastDayOfTargetMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+    date.setDate(Math.min(originalDay, lastDayOfTargetMonth))
     return formatSqlDateTime(date)
   }
 

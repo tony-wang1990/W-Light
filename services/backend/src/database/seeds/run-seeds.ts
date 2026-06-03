@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm'
-import * as bcrypt from 'bcrypt'
+import * as bcrypt from 'bcryptjs'
 import * as path from 'path'
 
 // Load .env manually without dotenv dependency
