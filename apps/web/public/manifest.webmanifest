@@ -1,0 +1,21 @@
+{
+  "name": "W-Light 文旅灯光运维",
+  "short_name": "W-Light",
+  "description": "文旅灯光工单运维、设备巡检、备件管理和灯光师工具箱。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"]
+}

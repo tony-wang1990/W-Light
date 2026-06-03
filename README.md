@@ -27,6 +27,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - 移动端登录页支持填写并保存服务器地址，例如 `https://your-domain.com/v1`。
 - 只要两端连接同一个 API，工单、设备、巡检、备件和附件数据就会写入同一套数据库和对象存储，实现多端同步。
 - 甲骨文云 ARM 部署步骤记录在 [ORACLE_ARM_DEPLOY.md](ORACLE_ARM_DEPLOY.md)。
+- 全端客户端发布矩阵见 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md)。
 
 ## 当前代码体检
 
@@ -199,6 +200,8 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 后端查询方言二次审计，覆盖搜索、分页、统计、导出接口。
 - [x] 通用服务器部署脚本支持 ARM64/AMD64 与 1C1G 低内存部署。
 - [x] Android release 签名配置、打包脚本和 APK Web 下载目录。
+- [x] Web/PWA 可安装桌面客户端基础，支持 Windows/Mac 以桌面应用方式使用。
+- [x] 全端客户端发布矩阵与下载中心页面。
 - [ ] Android `JAVA_HOME`/SDK/release 签名打包实机验证。
 - [ ] iOS Xcode 工程、签名和真机安装验证。
 - [x] 移动端 MMKV 密钥升级为 Keychain/Keystore 派生。
@@ -274,6 +277,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | 阶段 6 生产加固/部署止血 | 已完成 | 修复 Oracle ARM 上 `bcrypt` 原生 binding 缺失导致 API 崩溃的问题，改用 `bcryptjs`；`docker-compose.yml` 改为生产构建并新增 Web/Nginx 容器，默认通过宿主机 `3005` 访问 Web 和 `/v1` API；新增 `scripts/oracle-arm-deploy.sh` 一键部署脚本；同时修复备件库存原子扣减、维修记录事务、工单号并发序列和月末统计日期溢出问题；`corepack pnpm run build` 已通过，本机无 Docker/bash，compose 与脚本需在 Oracle 服务器做最终验证。 |
 | 2026-06-03 | 生产版进度/部署文档 | 已完成 | README 已补充生产版进度评估、已完成范围、剩余上线工序和服务器部署操作说明，包含 Oracle 端口放行、一键部署、已有服务器更新、部署后验证、常见故障排查、手机端 API 地址和升级前备份建议。 |
 | 2026-06-03 | 通用部署/移动端发布 | 已完成 | 新增 `scripts/server-deploy.sh`，支持 ARM64/AMD64 Ubuntu 与 1C1G 低内存机器自动 swap、串行 Docker 构建和低内存运行参数；Web 容器挂载 `deploy/downloads` 提供 APK 下载；Android release 已支持正式签名变量并新增 bash/PowerShell 打包脚本；新增 [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md) 记录 APP 运行、打包、上传下载和手机端使用流程。 |
+| 2026-06-03 | 全端客户端矩阵 | 已完成 | Web 端已补 PWA manifest、service worker 和图标，Windows/Mac 可通过 Edge/Chrome/Safari 安装为桌面客户端；新增 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md) 和 `/downloads/` 下载中心页面，明确 Android、iOS、Windows、Mac、Web 全端连接同一 API 并同步同一套云端数据。 |
 
 ## 当前验证命令
 
@@ -412,6 +416,7 @@ docker volume ls | grep postgres
 ## 手机端 APP 打包与下载
 
 完整说明见 [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)，验收清单见 [MOBILE_RELEASE_CHECKLIST.md](MOBILE_RELEASE_CHECKLIST.md)。
+Windows/Mac/iOS/Android 的客户端形态和同步方式见 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md)。
 
 ### Android 打包
 
@@ -462,6 +467,12 @@ ssh root@服务器IP "cd /root/W-Light && docker compose restart web"
 
 ```text
 http://服务器IP:3005/downloads/w-light-latest.apk
+```
+
+客户端下载中心：
+
+```text
+http://服务器IP:3005/downloads/
 ```
 
 ### 手机端使用
