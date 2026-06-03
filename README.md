@@ -284,6 +284,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | 全量生产加固补齐 | 已完成 | 附件访问改为后端 `/v1/files/...` 鉴权代理，上传 URL 不再直接暴露 MinIO bucket；设备/项目/备件/巡检 DTO 已补校验；生产环境会拒绝默认/弱 JWT、数据库、Redis、MinIO 密钥，Swagger 默认关闭并通过 `ENABLE_SWAGGER=true` 显式开启；设备编号/二维码改为项目内组合唯一并新增迁移；工单状态流转改为条件更新避免并发覆盖；项目备份会记录附件对象清单，服务器新增 `scripts/server-backup.sh` 一键备份/恢复 PostgreSQL + MinIO；根 `build`、根 `test`、根 `lint` 已通过，其中 lint 仍有类型/console warning 待后续整理。 |
 | 2026-06-03 | Docker pnpm 版本固定 | 已完成 | 修复服务器 Docker 构建时 Corepack 自动拉取 `pnpm@11` 导致 Node 20 镜像报 `node:sqlite`/`requires Node.js v22` 的问题；根 `package.json` 固定 `packageManager: pnpm@9.15.9`，后端和 Web Dockerfile 显式 `corepack prepare pnpm@9.15.9 --activate`。 |
 | 2026-06-03 | Docker 端口收敛 | 已完成 | Docker Compose 默认只对外暴露 Web 统一入口 `3005`；API `3000`、PostgreSQL `5432`、Redis `6379`、MinIO `9000/9001` 均改为 Docker 内部网络端口，避免服务器已有本机服务占用端口导致部署失败。 |
+| 2026-06-03 | Web 白屏修复 | 已完成 | 修复线上首页只显示空白的问题：Vite 手动 `manualChunks` 将 React/Zustand 等依赖拆出循环依赖，导致浏览器报 `Cannot read properties of undefined (reading 'useState')`；已移除手动分包，改回 Rollup 默认分包策略。 |
 
 ## 当前验证命令
 
@@ -406,6 +407,7 @@ http://服务器IP:3005/v1
 - 构建时卡死或 OOM：确认脚本已创建 swap，执行 `free -h` 查看；1C1G 机器首次构建会比较慢，属于正常情况。
 - 构建时报 `pnpm requires at least Node.js v22.13` 或 `No such built-in module: node:sqlite`：说明旧代码/旧镜像层仍在拉 `pnpm@11`。拉取最新代码后执行 `docker builder prune -f`，再重新运行 `bash scripts/server-deploy.sh --port 3005`。
 - 启动时报 `failed to bind host port 127.0.0.1:3000`：这是旧 compose 还在把 API 额外映射到宿主机 `3000`。拉取最新代码后重新执行部署脚本；新版只占用宿主机 `3005`。
+- 页面标题出现但内容空白：打开浏览器开发者工具，如果看到 `Cannot read properties of undefined (reading 'useState')`，说明仍在使用旧 Web 镜像。拉取最新代码后重新执行部署脚本，并在浏览器里强制刷新。
 - 修改端口：推荐仍使用 `3005`；如必须改端口，执行 `bash scripts/server-deploy.sh --port 3006`，同时放行新的云服务器安全组端口。
 
 ### 6. 生产前备份建议
