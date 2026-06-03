@@ -34,8 +34,31 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - Web 管理端构建已恢复，API client 返回类型已与运行时行为对齐。
 - 移动端 `LightOps` lint 和 TypeScript 检查已通过。
 - 移动端主应用已统一为 `apps/LightOps`；历史 `apps/mobile` 工作区已清理，避免重复维护和旧依赖干扰。
-- 工具箱已有部分页面，但 LTC、RGB/色温、灯库制作、灯位设计、理论工具等仍未完整实现。
-- 运维闭环已有工单状态流转雏形，但扫码报修、媒体上传、验收标准、配件消耗联动、巡检转工单、离线同步、导出备份等关键能力还缺失。
+- 工具箱主体功能已经补齐到 MVP 水平，LTC、RGB/色温、灯库制作、灯位设计、理论工具等均已接入；仍需做真机/现场设备长时间验证。
+- 运维闭环已覆盖扫码报修、媒体上传、验收流转、配件消耗联动、巡检转工单、离线队列、导出备份等核心能力；仍需用真实项目数据做服务器实机验收和生产安全加固。
+
+## 生产版进度评估
+
+当前项目已经从“半成品 demo”推进到“可部署联调的 MVP+生产加固初版”。按真实交付口径估算，整体完成度约 `80% - 85%`：核心业务闭环、工具箱主体、Web 管理端、后端 API、离线缓存/队列、备份导出恢复、Docker 部署骨架都已经具备；距离正式生产版主要还差服务器实机验证、移动端正式包验证、HTTPS/备份/监控/权限安全这些上线工序。
+
+### 已完成到什么程度
+
+- 运维闭环：建单、扫码关联设备、派单、接单/拒单、维修记录、备件消耗、提交验收、验收退回/通过、维修历史、基础统计已完成 MVP。
+- 设备/巡检/备件：设备台账、二维码、扫码查询、巡检计划、异常巡检转工单、备件入库/出库、低库存和工单消耗联动已完成 MVP。
+- 工具箱：DMX、功率、BPM、光束角、照度、故障诊断、MA 宏、术语、RGB/色温、灯位、理论、LTC、灯库制作等主要功能已接入。
+- 报表/数据：综合报表、Excel 导出、项目 JSON 备份、备份恢复、唯一约束冲突预处理已完成。
+- 离线/移动端：工单创建、维修记录离线队列，工单/设备/备件列表缓存，加密存储和离线状态提示已完成。
+- 部署：后端已支持 PostgreSQL migration；Docker Compose 已包含 Web/Nginx、API、PostgreSQL、Redis、MinIO；默认 Web 入口为宿主机 `3005`。
+
+### 距离正式生产版还缺的工序
+
+- 服务器实机验收：在 Oracle Cloud ARM 上跑通 `docker compose config`、一键脚本、镜像构建、数据库迁移、Web 登录、API 健康检查、文件上传、备份恢复。
+- HTTPS 与域名：临时可用 `http://服务器IP:3005`，正式交付建议接入域名、HTTPS、反向代理和证书自动续期。
+- 移动端正式包：Android release 签名、APK/AAB 打包、真机安装；iOS 需要 macOS/Xcode、签名、TestFlight 或真机验证。
+- 现场业务验收：用真实项目数据验证工单流转、备件扣减、巡检转工单、离线队列冲突、附件上传、报表导出。
+- 安全与权限加固：继续细化管理员/工程师/灯光师权限边界、默认账号策略、强密码、敏感信息脱敏、接口访问审计。
+- 运维保障：数据库/MinIO 定时备份、日志留存、异常告警、磁盘空间监控、升级回滚方案。
+- 测试补齐：当前后端还没有 `*.spec.ts` 测试文件，后续要补库存并发、工单号生成、备份恢复、报表统计等关键单元/集成测试。
 
 ## 产品功能架构
 
@@ -246,6 +269,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 工单 Excel 导出查询和 workbook 生成已从 `ReportsService` 拆入 `ReportsExportService`；报表模块 provider 装配完成，后端构建通过。 |
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 报表统计查询已拆入 `ReportsStatsService`，`ReportsService` 现在只保留对统计、导出、备份恢复的门面委托；后端构建通过。 |
 | 2026-06-03 | 阶段 6 生产加固/部署止血 | 已完成 | 修复 Oracle ARM 上 `bcrypt` 原生 binding 缺失导致 API 崩溃的问题，改用 `bcryptjs`；`docker-compose.yml` 改为生产构建并新增 Web/Nginx 容器，默认通过宿主机 `3005` 访问 Web 和 `/v1` API；新增 `scripts/oracle-arm-deploy.sh` 一键部署脚本；同时修复备件库存原子扣减、维修记录事务、工单号并发序列和月末统计日期溢出问题；`corepack pnpm run build` 已通过，本机无 Docker/bash，compose 与脚本需在 Oracle 服务器做最终验证。 |
+| 2026-06-03 | 生产版进度/部署文档 | 已完成 | README 已补充生产版进度评估、已完成范围、剩余上线工序和服务器部署操作说明，包含 Oracle 端口放行、一键部署、已有服务器更新、部署后验证、常见故障排查、手机端 API 地址和升级前备份建议。 |
 
 ## 当前验证命令
 
@@ -270,6 +294,99 @@ bash -n scripts/oracle-arm-deploy.sh
 - `apps/LightOps` 已补入 Android/iOS 原生工程目录，但当前机器未配置 `JAVA_HOME`，尚未在 Android SDK/Xcode 环境完成 Gradle、release 签名打包和真机安装验证。
 - 后续每次新增/调整数据库结构，都需要继续生成新的 TypeORM migration，并在服务器更新代码后执行迁移。
 - 当前本机环境没有 Docker CLI 和 bash，`docker compose config` 与 `scripts/oracle-arm-deploy.sh` 语法检查需在 Oracle/Ubuntu 服务器上执行；服务器侧重点验证 `http://服务器IP:3005`、`http://服务器IP:3005/v1/health`、`docker compose ps` 和 `docker compose logs -f api web`。
+
+## 服务器部署操作说明
+
+当前推荐部署目标是 Oracle Cloud ARM Ubuntu 服务器。默认对外端口使用 `3005`：浏览器访问 `http://服务器IP:3005`，手机 APP 服务器地址填写 `http://服务器IP:3005/v1`。
+
+### 1. Oracle Cloud 放行端口
+
+在 Oracle Cloud 控制台的安全列表或 NSG 中放行：
+
+- TCP `3005`：当前 Web/API 统一入口。
+- TCP `80`、`443`：后续绑定域名和 HTTPS 时使用。
+
+服务器系统内如果启用了 `ufw`，也执行：
+
+```bash
+sudo ufw allow 3005/tcp
+```
+
+### 2. 新服务器一键部署
+
+用 root 或具备 sudo 的用户登录服务器后执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/oracle-arm-deploy.sh | bash -s -- --port 3005
+```
+
+脚本会自动完成：
+
+- 安装 Docker 和 Docker Compose 插件。
+- 克隆或更新 `https://github.com/tony-wang1990/W-Light.git`。
+- 在 `/root/W-Light` 生成 `.env`，包含数据库密码、Redis 密码、JWT 密钥、MinIO 密钥。
+- 构建并启动 `lightops-web`、`lightops-api`、`lightops-postgres`、`lightops-redis`、`lightops-minio`。
+- 默认执行已提交的数据库 migration。
+
+### 3. 已有服务器更新
+
+如果服务器上已经有 `/root/W-Light`：
+
+```bash
+cd /root/W-Light
+git pull
+bash scripts/oracle-arm-deploy.sh --port 3005
+docker compose ps
+```
+
+### 4. 部署后验证
+
+```bash
+cd /root/W-Light
+docker compose ps
+curl http://127.0.0.1:3005/v1/health
+docker compose logs -f --tail=100 api web
+```
+
+浏览器验证：
+
+- Web 管理端：`http://服务器IP:3005`
+- API 健康检查：`http://服务器IP:3005/v1/health`
+- Swagger 文档：`http://服务器IP:3005/api-docs`
+
+手机 APP 登录页填写：
+
+```text
+http://服务器IP:3005/v1
+```
+
+### 5. 常见故障排查
+
+- 浏览器显示 `ERR_CONNECTION_REFUSED`：先看 `docker compose ps`，确认 `lightops-web` 是否启动；再确认 Oracle 安全列表/NSG 已放行 TCP `3005`。
+- API 日志报数据库连接失败：执行 `docker compose logs -f --tail=100 api postgres`，重点检查 `.env` 中 `DB_PASSWORD` 与 PostgreSQL 容器是否一致。
+- API 日志报 migration 失败：保留日志，不要删除数据卷；先执行 `docker compose logs --tail=200 api` 定位是哪条 migration。
+- 上传文件失败：检查 `docker compose logs -f --tail=100 api minio`，确认 MinIO 容器健康。
+- 修改端口：推荐仍使用 `3005`；如必须改端口，执行 `bash scripts/oracle-arm-deploy.sh --port 3006`，同时放行新的 Oracle 安全列表端口。
+
+### 6. 生产前备份建议
+
+进入真实项目试运行后，升级前先备份数据库和 MinIO 数据卷。示例：
+
+```bash
+cd /root/W-Light
+mkdir -p backups
+docker compose exec -T postgres pg_dump -U lightops lightops > backups/lightops-$(date +%F).sql
+tar -czf backups/minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/w-light_minio_data/_data .
+```
+
+如果 Docker volume 名称和服务器实际不一致，先用下面命令确认：
+
+```bash
+docker volume ls | grep minio
+docker volume ls | grep postgres
+```
+
+更完整的 Oracle ARM 说明见 [ORACLE_ARM_DEPLOY.md](ORACLE_ARM_DEPLOY.md)。
 
 ## 本地运行
 
