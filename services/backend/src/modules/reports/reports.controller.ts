@@ -1,12 +1,16 @@
 import { Body, Controller, Get, Post, Query, Request, Res, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { Roles } from '../../common/decorators/roles.decorator'
+import { ProjectAccessGuard } from '../../common/guards/project-access.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { UserRole } from '../users/entities/user.entity'
 import { ReportsService } from './reports.service'
 import { normalizeDateRange } from './reports.utils'
 
 @ApiTags('报表统计')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ProjectAccessGuard, RolesGuard)
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly svc: ReportsService) {}
@@ -18,39 +22,39 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     const range = normalizeDateRange(startDate, endDate)
-    return this.svc.orderStats(req.headers['x-project-id'], range.start, range.end)
+    return this.svc.orderStats(req.projectId, range.start, range.end)
   }
 
   @Get('fault-analysis')
   faultAnalysis(@Request() req, @Query('months') months?: string) {
-    return this.svc.faultAnalysis(req.headers['x-project-id'], Number(months || 6))
+    return this.svc.faultAnalysis(req.projectId, Number(months || 6))
   }
 
   @Get('engineer-performance')
   engineerPerformance(@Request() req, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
     const range = normalizeDateRange(startDate, endDate)
-    return this.svc.engineerPerformance(req.headers['x-project-id'], range.start, range.end)
+    return this.svc.engineerPerformance(req.projectId, range.start, range.end)
   }
 
   @Get('repair-cost')
   repairCost(@Request() req, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
     const range = normalizeDateRange(startDate, endDate)
-    return this.svc.repairCostAnalysis(req.headers['x-project-id'], range.start, range.end)
+    return this.svc.repairCostAnalysis(req.projectId, range.start, range.end)
   }
 
   @Get('weekly-trend')
   weeklyTrend(@Request() req) {
-    return this.svc.weeklyTrend(req.headers['x-project-id'])
+    return this.svc.weeklyTrend(req.projectId)
   }
 
   @Get('device-status')
   deviceStatus(@Request() req) {
-    return this.svc.deviceStatusDistribution(req.headers['x-project-id'])
+    return this.svc.deviceStatusDistribution(req.projectId)
   }
 
   @Get('parts-rank')
   partsRank(@Request() req) {
-    return this.svc.partsConsumptionRank(req.headers['x-project-id'])
+    return this.svc.partsConsumptionRank(req.projectId)
   }
 
   @Get('operations-summary')
@@ -60,7 +64,7 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     const range = normalizeDateRange(startDate, endDate)
-    return this.svc.operationsSummary(req.headers['x-project-id'], range.start, range.end)
+    return this.svc.operationsSummary(req.projectId, range.start, range.end)
   }
 
   @Get('export/orders.xlsx')
@@ -71,7 +75,7 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
   ) {
     const range = normalizeDateRange(startDate, endDate)
-    const buffer = await this.svc.exportOrdersWorkbook(req.headers['x-project-id'], range.start, range.end)
+    const buffer = await this.svc.exportOrdersWorkbook(req.projectId, range.start, range.end)
     const filename = `lightops-orders-${new Date().toISOString().slice(0, 10)}.xlsx`
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
@@ -79,8 +83,9 @@ export class ReportsController {
   }
 
   @Get('backup.json')
+  @Roles(UserRole.ADMIN)
   async backup(@Request() req, @Res() res) {
-    const data = await this.svc.backupProjectData(req.headers['x-project-id'])
+    const data = await this.svc.backupProjectData(req.projectId)
     const filename = `lightops-backup-${new Date().toISOString().slice(0, 10)}.json`
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
@@ -88,13 +93,14 @@ export class ReportsController {
   }
 
   @Post('backup/restore')
+  @Roles(UserRole.ADMIN)
   restoreBackup(
     @Request() req,
     @Body() body: unknown,
     @Query('dryRun') dryRun?: string,
   ) {
     return this.svc.restoreProjectData(
-      req.headers['x-project-id'],
+      req.projectId,
       body,
       dryRun === 'true' || dryRun === '1',
     )

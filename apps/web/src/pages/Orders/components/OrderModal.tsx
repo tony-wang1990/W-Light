@@ -56,12 +56,9 @@ export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalPro
     setLoading(true);
     setErrorMsg('');
     try {
-      // Mock projectId for now, backend will use it
-      const me = await apiClient.get('/auth/me');
       await apiClient.post('/orders', {
         ...formData,
         deviceId: formData.deviceId || undefined,
-        projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6', // dummy
       });
       onSuccess();
       onClose();

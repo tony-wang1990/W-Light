@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { OrdersService } from '../orders/orders.service'
@@ -20,7 +20,9 @@ export class InspectionsService {
 
   createPlan(dto: Partial<InspectionPlan>) { return this.planRepo.save(this.planRepo.create(dto)) }
 
-  updatePlan(id: string, dto: Partial<InspectionPlan>) { return this.planRepo.update(id, dto) }
+  updatePlan(id: string, dto: Partial<InspectionPlan>, projectId: string) {
+    return this.planRepo.update({ id, projectId }, { ...dto, projectId })
+  }
 
   deletePlan(id: string) { return this.planRepo.delete(id) }
 
@@ -36,7 +38,8 @@ export class InspectionsService {
 
   async createRecord(dto: CreateInspectionRecordPayload, inspectorId: string, projectId: string) {
     const { createOrder, ...recordDto } = dto
-    const plan = dto.planId ? await this.planRepo.findOne({ where: { id: dto.planId } }) : null
+    const plan = dto.planId ? await this.planRepo.findOne({ where: { id: dto.planId, projectId } }) : null
+    if (dto.planId && !plan) throw new NotFoundException('巡检计划不存在')
     const shouldCreateOrder = createOrder && dto.status === InspectionStatus.ABNORMAL
     let orderId = dto.orderId
 

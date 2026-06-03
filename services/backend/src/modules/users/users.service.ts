@@ -40,6 +40,11 @@ export class UpdateUserDto {
   isActive?: boolean
 }
 
+interface RequestUserScope {
+  role: UserRole
+  projectIds?: string[]
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -92,19 +97,25 @@ export class UsersService {
     return this.toPublicUser(await this.repo.save(user))
   }
 
-  async findAll(projectId?: string, includeWorkload = false): Promise<PublicUser[]> {
+  async findAll(projectId?: string, includeWorkload = false, requester?: RequestUserScope): Promise<PublicUser[]> {
     const users = await this.repo.find({
       where: { isActive: true },
       order: { name: 'ASC' },
     })
+    const allowedProjectIds = requester?.role === UserRole.ADMIN
+      ? null
+      : new Set(requester?.projectIds || [])
     const scopedUsers = projectId
       ? users.filter(user => Array.isArray(user.projectIds) && user.projectIds.includes(projectId))
       : users
+    const visibleUsers = allowedProjectIds
+      ? scopedUsers.filter(user => user.projectIds?.some(project => allowedProjectIds.has(project)))
+      : scopedUsers
 
-    if (!includeWorkload || !projectId) return scopedUsers.map(user => this.toPublicUser(user))
+    if (!includeWorkload || !projectId) return visibleUsers.map(user => this.toPublicUser(user))
 
-    const workloadByUser = await this.getWorkloadByUser(projectId, scopedUsers.map(user => user.id))
-    return scopedUsers.map(user => this.toPublicUser(user, workloadByUser.get(user.id) || 0))
+    const workloadByUser = await this.getWorkloadByUser(projectId, visibleUsers.map(user => user.id))
+    return visibleUsers.map(user => this.toPublicUser(user, workloadByUser.get(user.id) || 0))
   }
 
   async findOne(id: string): Promise<PublicUser> {

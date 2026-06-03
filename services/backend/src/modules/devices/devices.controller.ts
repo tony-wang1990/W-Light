@@ -1,26 +1,32 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
-import { DevicesService } from './devices.service'
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { ProjectAccessGuard } from '../../common/guards/project-access.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { Roles } from '../../common/decorators/roles.decorator'
+import { UserRole } from '../users/entities/user.entity'
 import { Device } from './entities/device.entity'
+import { DevicesService } from './devices.service'
 
 @ApiTags('设备台账')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ProjectAccessGuard, RolesGuard)
 @Controller('devices')
 export class DevicesController {
   constructor(private readonly svc: DevicesService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '新增设备' })
-  create(@Body() dto: Partial<Device>, @Request() req) { 
-    return this.svc.create({ ...dto, projectId: req.headers['x-project-id'] }) 
+  create(@Body() dto: Partial<Device>, @Request() req) {
+    return this.svc.create({ ...dto, projectId: req.projectId })
   }
 
   @Post('batch-import')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '批量导入设备' })
   batchImport(@Body() body: { devices: Partial<Device>[] }, @Request() req) {
-    return this.svc.batchImport(body.devices, req.headers['x-project-id'])
+    return this.svc.batchImport(body.devices, req.projectId)
   }
 
   @Get()
@@ -31,22 +37,32 @@ export class DevicesController {
     @Query('status') status?: string,
     @Query('keyword') keyword?: string,
   ) {
-    return this.svc.findAll(req.headers['x-project-id'], category, status, keyword)
+    return this.svc.findAll(req.projectId, category, status, keyword)
   }
 
   @Get('scan/:qrCode')
   @ApiOperation({ summary: '扫码识别设备' })
-  scan(@Param('qrCode') qrCode: string) { return this.svc.getDeviceForOrder(qrCode) }
+  scan(@Param('qrCode') qrCode: string, @Request() req) {
+    return this.svc.getDeviceForOrder(qrCode, req.projectId)
+  }
 
   @Get(':id')
   @ApiOperation({ summary: '设备详情' })
-  findOne(@Param('id') id: string) { return this.svc.findOne(id) }
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.svc.findOne(id, req.projectId)
+  }
 
   @Put(':id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '更新设备信息' })
-  update(@Param('id') id: string, @Body() dto: Partial<Device>) { return this.svc.update(id, dto) }
+  update(@Param('id') id: string, @Body() dto: Partial<Device>, @Request() req) {
+    return this.svc.update(id, dto, req.projectId)
+  }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '删除设备' })
-  remove(@Param('id') id: string) { return this.svc.remove(id) }
+  remove(@Param('id') id: string, @Request() req) {
+    return this.svc.remove(id, req.projectId)
+  }
 }

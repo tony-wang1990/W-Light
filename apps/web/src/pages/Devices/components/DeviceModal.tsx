@@ -63,11 +63,7 @@ export default function DeviceModal({ isOpen, onClose, onSuccess, device }: Devi
       if (device?.id) {
         await apiClient.put(`/devices/${device.id}`, formData);
       } else {
-        const me = await apiClient.get('/auth/me');
-        await apiClient.post('/devices', {
-          ...formData,
-          projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6',
-        });
+        await apiClient.post('/devices', formData);
       }
       onSuccess();
       onClose();

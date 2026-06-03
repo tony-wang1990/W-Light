@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { In, Repository } from 'typeorm'
 import { Project, ProjectStatus } from './entities/project.entity'
 
 @Injectable()
@@ -9,7 +9,13 @@ export class ProjectsService {
 
   create(dto: Partial<Project>) { return this.repo.save(this.repo.create(dto)) }
 
-  findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }) }
+  findAll(projectIds?: string[]) {
+    if (projectIds && projectIds.length === 0) return []
+    return this.repo.find({
+      where: projectIds ? { id: In(projectIds) } : undefined,
+      order: { createdAt: 'DESC' },
+    })
+  }
 
   async findOne(id: string): Promise<Project> {
     const p = await this.repo.findOne({ where: { id } })

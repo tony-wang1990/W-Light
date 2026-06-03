@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import { useAuthStore } from '../store/authStore';
+import { getCurrentProjectId, useAuthStore } from '../store/authStore';
 
 export const WEB_API_BASE_URL_STORAGE_KEY = 'wlight-web-api-base-url';
 const DEFAULT_DESKTOP_API_URL = 'http://127.0.0.1:3005/v1';
@@ -39,14 +39,17 @@ const axiosClient = axios.create({
 
 axiosClient.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
+  config.headers = config.headers || {};
   const state = useAuthStore.getState();
   const token = state.token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  const projectId = state.user?.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6';
-  config.headers['X-Project-Id'] = projectId;
+  const projectId = getCurrentProjectId(state.user, state.currentProjectId);
+  if (projectId) {
+    config.headers['X-Project-Id'] = projectId;
+  }
   
   return config;
 });

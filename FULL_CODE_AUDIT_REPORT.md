@@ -4,6 +4,13 @@
 审计基线：`50536f4 feat: add downloadable desktop client packaging`  
 审计范围：后端 API、Web 管理端、Electron 桌面端、React Native 手机端、Docker 部署、下载中心、发布脚本和文档。
 
+## 修复状态更新
+
+- 2026-06-03：P0「角色权限」和「项目隔离」已完成第一轮修复。后端已接入 `ProjectAccessGuard`，主要业务接口按 `X-Project-Id` 校验用户项目权限；高风险管理动作已接入 `RolesGuard`；服务层详情、更新、删除和工单动作已按项目作用域查询。
+- 2026-06-03：Web/桌面端已去除硬编码项目 ID，登录后保存当前项目，顶部支持项目切换，请求头统一使用当前项目。
+- 2026-06-03：上传接口已接入项目守卫，文件对象按 `projects/<projectId>/...` 分目录，并新增图片/视频 MIME 白名单。P1「附件公网访问/鉴权下载」仍需继续补 MinIO 代理或后端文件下载接口。
+- 2026-06-03：新增 `ProjectAccessGuard` 单元测试，`corepack pnpm --filter backend exec jest --runInBand` 与 `corepack pnpm run build` 已通过。根 `corepack pnpm -r run test` 仍因移动端测试脚本未配置完整而不是全仓可用状态。
+
 ## 总体结论
 
 项目已经具备“可部署 MVP + 多端客户端雏形”：整仓构建通过，工具箱核心测试通过，移动端 lint/TypeScript 通过，Windows Electron 安装包已经真实打出。

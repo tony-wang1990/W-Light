@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { apiClient } from '../api/client';
 import { 
   LayoutDashboard, 
   Settings2, 
@@ -25,10 +26,48 @@ const MENU_ITEMS = [
   { path: '/toolbox', label: '专业工具箱', icon: Wrench },
 ];
 
+interface ProjectOption {
+  id: string;
+  name?: string;
+  projectName?: string;
+}
+
+type ProjectListResponse = ProjectOption[] | { items?: ProjectOption[] };
+
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, logout } = useAuthStore();
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const { user, currentProjectId, setCurrentProject, logout } = useAuthStore();
   const navigate = useNavigate();
+  const fallbackProjects: ProjectOption[] = (user?.projectIds || []).map(id => ({ id, name: id.slice(0, 8) }));
+  const projectOptions: ProjectOption[] = projects.length > 0 ? projects : fallbackProjects;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setProjects([]);
+      return;
+    }
+
+    apiClient.get<ProjectListResponse>('/projects')
+      .then((res) => {
+        if (cancelled) return;
+        setProjects(Array.isArray(res) ? res : res.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (currentProjectId) return;
+    const firstProjectId = projectOptions[0]?.id;
+    if (firstProjectId) setCurrentProject(firstProjectId);
+  }, [currentProjectId, projectOptions, setCurrentProject]);
 
   const handleLogout = () => {
     logout();
@@ -80,6 +119,22 @@ export default function AdminLayout() {
             <span className={styles.pageTitle}>控制中心</span>
           </div>
           <div className={styles.headerRight}>
+            {projectOptions.length > 0 && (
+              <select
+                className={styles.projectSelect}
+                value={currentProjectId || ''}
+                onChange={(event) => setCurrentProject(event.target.value)}
+                aria-label="Current project"
+                title="Current project"
+              >
+                <option value="" disabled>Project</option>
+                {projectOptions.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name || project.projectName || project.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className={styles.userInfo}>
               <UserIcon size={18} />
               <span>{user?.name || '管理员'}</span>
@@ -88,7 +143,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className={styles.mainContent}>
+        <main key={currentProjectId || 'no-project'} className={styles.mainContent}>
           <Outlet />
         </main>
       </div>

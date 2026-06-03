@@ -1,16 +1,15 @@
-import {
-  Injectable, NotFoundException, ForbiddenException,
-} from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, DataSource, EntityManager } from 'typeorm'
+import { DataSource, EntityManager, Repository } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
-import { WorkOrder, OrderStatus, OrderPriority } from './entities/order.entity'
+import { AddRepairLogDto } from './dto/add-repair-log.dto'
+import { AssignOrderDto } from './dto/assign-order.dto'
+import { CreateOrderDto } from './dto/create-order.dto'
+import { WorkOrder, OrderPriority, OrderStatus } from './entities/order.entity'
 import { RepairLog } from './entities/repair-log.entity'
 import { OrderStateMachine } from './order-state.machine'
-import { CreateOrderDto } from './dto/create-order.dto'
-import { AssignOrderDto } from './dto/assign-order.dto'
-import { AddRepairLogDto } from './dto/add-repair-log.dto'
 import { PartsService } from '../parts/parts.service'
+import { UserRole } from '../users/entities/user.entity'
 
 @Injectable()
 export class OrdersService {
@@ -29,11 +28,11 @@ export class OrdersService {
       const orderNo = await this.generateOrderNo(manager)
       const repo = manager.getRepository(WorkOrder)
       const order = repo.create({
+        ...dto,
         id: uuidv4(),
         orderNo,
         projectId,
         reporterId,
-        ...dto,
         status: OrderStatus.PENDING,
         isOvertime: false,
       })
@@ -83,48 +82,54 @@ export class OrdersService {
     return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) }
   }
 
-  async findOne(id: string): Promise<WorkOrder> {
+  async findOne(id: string, projectId?: string): Promise<WorkOrder> {
     const order = await this.orderRepo.findOne({
-      where: { id },
+      where: projectId ? { id, projectId } : { id },
       relations: ['device', 'reporter', 'assignee', 'project'],
     })
     if (!order) throw new NotFoundException(`工单 ${id} 不存在`)
     return order
   }
 
-  async assign(id: string, dto: AssignOrderDto): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async assign(id: string, dto: AssignOrderDto, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     return this.stateMachine.assign(order, dto.assigneeId)
   }
 
-  async accept(id: string, userId: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async accept(id: string, userId: string, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     if (order.assigneeId !== userId) {
       throw new ForbiddenException('只有被派单的工程师才能接单')
     }
     return this.stateMachine.accept(order)
   }
 
-  async reject(id: string, userId: string, reason: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async reject(id: string, userId: string, reason: string, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     if (order.assigneeId !== userId) {
       throw new ForbiddenException('只有被派单的工程师才能拒单')
     }
     return this.stateMachine.reject(order, reason)
   }
 
-  async suspend(id: string, reason: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async suspend(id: string, reason: string, userId: string, projectId: string, role: UserRole): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
+    if (role !== UserRole.ADMIN && order.assigneeId !== userId) {
+      throw new ForbiddenException('只有负责人或管理员才能挂起工单')
+    }
     return this.stateMachine.suspend(order, reason)
   }
 
-  async resume(id: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async resume(id: string, userId: string, projectId: string, role: UserRole): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
+    if (role !== UserRole.ADMIN && order.assigneeId !== userId) {
+      throw new ForbiddenException('只有负责人或管理员才能恢复工单')
+    }
     return this.stateMachine.resume(order)
   }
 
-  async submit(id: string, userId: string, repairCost?: number): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async submit(id: string, userId: string, repairCost: number | undefined, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     if (order.assigneeId !== userId) {
       throw new ForbiddenException('只有负责该工单的工程师才能提交验收')
     }
@@ -132,25 +137,34 @@ export class OrdersService {
     return this.stateMachine.submit(order)
   }
 
-  async acceptCheck(id: string, note?: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async acceptCheck(id: string, note: string | undefined, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     return this.stateMachine.acceptCheck(order, note)
   }
 
-  async rejectCheck(id: string, reason: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async rejectCheck(id: string, reason: string, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     return this.stateMachine.rejectCheck(order, reason)
   }
 
-  async cancel(id: string, reason: string): Promise<WorkOrder> {
-    const order = await this.findOne(id)
+  async cancel(id: string, reason: string, projectId: string): Promise<WorkOrder> {
+    const order = await this.findOne(id, projectId)
     return this.stateMachine.cancel(order, reason)
   }
 
-  async addRepairLog(orderId: string, engineerId: string, dto: AddRepairLogDto): Promise<RepairLog> {
+  async addRepairLog(
+    orderId: string,
+    engineerId: string,
+    dto: AddRepairLogDto,
+    projectId: string,
+    role: UserRole,
+  ): Promise<RepairLog> {
     return this.dataSource.transaction(async manager => {
-      const order = await manager.getRepository(WorkOrder).findOne({ where: { id: orderId } })
+      const order = await manager.getRepository(WorkOrder).findOne({ where: { id: orderId, projectId } })
       if (!order) throw new NotFoundException(`工单 ${orderId} 不存在`)
+      if (role !== UserRole.ADMIN && order.assigneeId !== engineerId) {
+        throw new ForbiddenException('只有负责人或管理员才能添加维修记录')
+      }
       if (![OrderStatus.PROCESSING, OrderStatus.REVIEWING].includes(order.status)) {
         throw new ForbiddenException('工单不在处理中或待验收状态，无法添加维修记录')
       }
@@ -166,6 +180,7 @@ export class OrdersService {
           orderId,
           usage.note || `工单 ${order.orderNo} 维修消耗`,
           manager,
+          projectId,
         )
 
         partUsages.push({
@@ -188,7 +203,8 @@ export class OrdersService {
     })
   }
 
-  async getRepairLogs(orderId: string): Promise<RepairLog[]> {
+  async getRepairLogs(orderId: string, projectId: string): Promise<RepairLog[]> {
+    await this.findOne(orderId, projectId)
     return this.repairLogRepo.find({
       where: { orderId },
       relations: ['engineer'],

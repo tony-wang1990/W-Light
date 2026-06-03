@@ -55,11 +55,7 @@ export default function Inspections() {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const me = await apiClient.get('/auth/me');
-      await apiClient.post('/inspections/plans', {
-        ...form,
-        projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6',
-      });
+      await apiClient.post('/inspections/plans', form);
       setShowModal(false);
       setForm({ name: '', frequency: 'weekly' });
       fetchPlans();

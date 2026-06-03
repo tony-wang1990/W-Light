@@ -1,12 +1,26 @@
-import { BadRequestException, Module, Controller, Post, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common'
+import { BadRequestException, Module, Controller, Post, Request, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger'
 import * as Minio from 'minio'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { ProjectAccessGuard } from '../../common/guards/project-access.guard'
 import { v4 as uuid } from 'uuid'
 import * as path from 'path'
+
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
+const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm'])
+
+function fileTypeFilter(allowedTypes: Set<string>, label: string) {
+  return (_req: unknown, file: Express.Multer.File, callback: (error: Error | null, acceptFile: boolean) => void) => {
+    if (!allowedTypes.has(file.mimetype)) {
+      callback(new BadRequestException(`Unsupported ${label} file type`), false)
+      return
+    }
+    callback(null, true)
+  }
+}
 
 @Injectable()
 class MinioService {
@@ -24,12 +38,12 @@ class MinioService {
     this.bucket = config.get('MINIO_BUCKET', 'lightops-files')
   }
 
-  async upload(buffer: Buffer, originalName: string, mimetype: string): Promise<string> {
+  async upload(buffer: Buffer, originalName: string, mimetype: string, projectId: string): Promise<string> {
     const exists = await this.client.bucketExists(this.bucket)
     if (!exists) await this.client.makeBucket(this.bucket)
 
-    const ext = path.extname(originalName)
-    const objectName = `uploads/${new Date().getFullYear()}/${uuid()}${ext}`
+    const ext = path.extname(originalName).toLowerCase()
+    const objectName = `projects/${projectId}/uploads/${new Date().getFullYear()}/${uuid()}${ext}`
     await this.client.putObject(this.bucket, objectName, buffer, buffer.length, { 'Content-Type': mimetype })
     return `/${this.bucket}/${objectName}`
   }
@@ -37,26 +51,32 @@ class MinioService {
 
 @ApiTags('文件上传')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ProjectAccessGuard)
 @Controller('upload')
 class UploadController {
   constructor(private readonly minioService: MinioService) {}
 
   @Post('image')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: fileTypeFilter(IMAGE_MIME_TYPES, 'image'),
+  }))
+  async uploadImage(@UploadedFile() file: Express.Multer.File, @Request() req) {
     if (!file?.buffer) throw new BadRequestException('请选择要上传的图片')
-    const url = await this.minioService.upload(file.buffer, file.originalname, file.mimetype)
+    const url = await this.minioService.upload(file.buffer, file.originalname, file.mimetype, req.projectId)
     return { url }
   }
 
   @Post('video')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
-  async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 100 * 1024 * 1024 },
+    fileFilter: fileTypeFilter(VIDEO_MIME_TYPES, 'video'),
+  }))
+  async uploadVideo(@UploadedFile() file: Express.Multer.File, @Request() req) {
     if (!file?.buffer) throw new BadRequestException('请选择要上传的视频')
-    const url = await this.minioService.upload(file.buffer, file.originalname, file.mimetype)
+    const url = await this.minioService.upload(file.buffer, file.originalname, file.mimetype, req.projectId)
     return { url }
   }
 }

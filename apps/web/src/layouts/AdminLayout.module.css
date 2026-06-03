@@ -165,6 +165,20 @@
 .headerRight {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.projectSelect {
+  min-width: 180px;
+  max-width: 260px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-white);
+  color: var(--color-text-dark);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 10px;
 }
 
 .userInfo {

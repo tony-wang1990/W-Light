@@ -66,11 +66,7 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
       if (part?.id) {
         await apiClient.put(`/parts/${part.id}`, formData);
       } else {
-        const me = await apiClient.get('/auth/me');
-        await apiClient.post('/parts', {
-          ...formData,
-          projectId: me.projectIds?.[0] || '37bccf72-9b9b-4863-882a-da95a42f20d6',
-        });
+        await apiClient.post('/parts', formData);
       }
       onSuccess();
       onClose();

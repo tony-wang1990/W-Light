@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { Device, DeviceStatus } from './entities/device.entity'
+import { Device } from './entities/device.entity'
 
 @Injectable()
 export class DevicesService {
@@ -39,43 +39,47 @@ export class DevicesService {
     return qb.orderBy('d."deviceNo"').getMany()
   }
 
-  async findOne(id: string): Promise<Device> {
-    const d = await this.repo.findOne({ where: { id } })
+  async findOne(id: string, projectId?: string): Promise<Device> {
+    const d = await this.repo.findOne({ where: projectId ? { id, projectId } : { id } })
     if (!d) throw new NotFoundException('设备不存在')
     return d
   }
 
-  async findByQrCode(qrCode: string): Promise<Device> {
+  async findByQrCode(qrCode: string, projectId?: string): Promise<Device> {
     const d = await this.repo.findOne({
-      where: [
-        { qrCode },
-        { deviceNo: qrCode },
-      ],
+      where: projectId
+        ? [
+          { qrCode, projectId },
+          { deviceNo: qrCode, projectId },
+        ]
+        : [
+          { qrCode },
+          { deviceNo: qrCode },
+        ],
     })
     if (!d) throw new NotFoundException('未找到对应设备，请检查二维码')
     return d
   }
 
-  async update(id: string, dto: Partial<Device>): Promise<Device> {
-    const d = await this.findOne(id)
-    return this.repo.save(Object.assign(d, dto))
+  async update(id: string, dto: Partial<Device>, projectId?: string): Promise<Device> {
+    const d = await this.findOne(id, projectId)
+    const { projectId: _ignoredProjectId, id: _ignoredId, ...safeDto } = dto as Partial<Device> & { id?: string }
+    return this.repo.save(Object.assign(d, safeDto))
   }
 
-  async remove(id: string): Promise<{ deleted: true }> {
-    const d = await this.findOne(id)
+  async remove(id: string, projectId?: string): Promise<{ deleted: true }> {
+    const d = await this.findOne(id, projectId)
     await this.repo.remove(d)
     return { deleted: true }
   }
 
-  /** 更新设备健康分 */
   async updateHealthScore(id: string, score: number): Promise<void> {
     await this.repo.update(id, { healthScore: Math.max(0, Math.min(100, score)) })
   }
 
-  /** 扫码报修快速入口 */
-  async getDeviceForOrder(qrCode: string) {
-    const device = await this.findByQrCode(qrCode)
-    return { device, hint: `已识别设备: ${device.name} (${device.deviceNo})` }
+  async getDeviceForOrder(qrCode: string, projectId?: string) {
+    const device = await this.findByQrCode(qrCode, projectId)
+    return { device, hint: `已识别设备 ${device.name} (${device.deviceNo})` }
   }
 
   async batchImport(devices: Partial<Device>[], projectId: string): Promise<{ imported: number; errors: string[] }> {
@@ -83,8 +87,8 @@ export class DevicesService {
     let imported = 0
     for (const d of devices) {
       try {
-        await this.repo.save(this.repo.create(this.normalizeDevice({ ...d, projectId: d.projectId || projectId })))
-        imported++
+        await this.repo.save(this.repo.create(this.normalizeDevice({ ...d, projectId })))
+        imported += 1
       } catch (e) {
         errors.push(`${d.deviceNo}: ${e.message}`)
       }
