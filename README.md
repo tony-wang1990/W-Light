@@ -279,6 +279,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | 通用部署/移动端发布 | 已完成 | 新增 `scripts/server-deploy.sh`，支持 ARM64/AMD64 Ubuntu 与 1C1G 低内存机器自动 swap、串行 Docker 构建和低内存运行参数；Web 容器挂载 `deploy/downloads` 提供 APK 下载；Android release 已支持正式签名变量并新增 bash/PowerShell 打包脚本；新增 [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md) 记录 APP 运行、打包、上传下载和手机端使用流程。 |
 | 2026-06-03 | 全端客户端矩阵 | 已完成 | Web 端已补 PWA manifest、service worker 和图标，Windows/Mac 可通过 Edge/Chrome/Safari 安装为桌面客户端；新增 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md) 和 `/downloads/` 下载中心页面，明确 Android、iOS、Windows、Mac、Web 全端连接同一 API 并同步同一套云端数据。 |
 | 2026-06-03 | 桌面客户端安装包 | 已完成 | 新增 `apps/desktop` Electron 客户端工程、Windows/Mac/Linux 打包脚本、下载中心真实安装包入口和 [DESKTOP_CLIENT_GUIDE.md](DESKTOP_CLIENT_GUIDE.md)；Web 登录页支持配置服务器 API 地址，桌面端可连接 `http://服务器IP:3005/v1` 与手机端/Web 端同步数据。 |
+| 2026-06-03 | 全代码全功能审计 | 已完成 | 已完成后端、Web、手机端、桌面端、部署脚本和发布链路审计，新增 [FULL_CODE_AUDIT_REPORT.md](FULL_CODE_AUDIT_REPORT.md)；结论是整仓构建通过但最终上线前必须优先修复角色权限、项目隔离、附件访问、测试基础设施和生产安全。 |
 
 ## 当前验证命令
 
