@@ -282,6 +282,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | 全代码全功能审计 | 已完成 | 已完成后端、Web、手机端、桌面端、部署脚本和发布链路审计，新增 [FULL_CODE_AUDIT_REPORT.md](FULL_CODE_AUDIT_REPORT.md)；结论是整仓构建通过但最终上线前必须优先修复角色权限、项目隔离、附件访问、测试基础设施和生产安全。 |
 | 2026-06-03 | 权限与项目隔离加固 | 已完成 | 后端已接入 `ProjectAccessGuard`，工单、设备、备件、巡检、报表和上传接口均按 `X-Project-Id` 校验项目访问；工单派单/验收/取消、设备/备件/巡检计划、备份恢复等高风险操作已限制管理员或对应执行角色；Web/桌面端去除硬编码项目 ID，新增当前项目选择与请求头同步；上传文件按项目分目录并增加图片/视频 MIME 白名单；新增项目访问守卫单元测试，`corepack pnpm --filter backend exec jest --runInBand` 与 `corepack pnpm run build` 已通过。 |
 | 2026-06-03 | 全量生产加固补齐 | 已完成 | 附件访问改为后端 `/v1/files/...` 鉴权代理，上传 URL 不再直接暴露 MinIO bucket；设备/项目/备件/巡检 DTO 已补校验；生产环境会拒绝默认/弱 JWT、数据库、Redis、MinIO 密钥，Swagger 默认关闭并通过 `ENABLE_SWAGGER=true` 显式开启；设备编号/二维码改为项目内组合唯一并新增迁移；工单状态流转改为条件更新避免并发覆盖；项目备份会记录附件对象清单，服务器新增 `scripts/server-backup.sh` 一键备份/恢复 PostgreSQL + MinIO；根 `build`、根 `test`、根 `lint` 已通过，其中 lint 仍有类型/console warning 待后续整理。 |
+| 2026-06-03 | Docker pnpm 版本固定 | 已完成 | 修复服务器 Docker 构建时 Corepack 自动拉取 `pnpm@11` 导致 Node 20 镜像报 `node:sqlite`/`requires Node.js v22` 的问题；根 `package.json` 固定 `packageManager: pnpm@9.15.9`，后端和 Web Dockerfile 显式 `corepack prepare pnpm@9.15.9 --activate`。 |
 
 ## 当前验证命令
 
@@ -402,6 +403,7 @@ http://服务器IP:3005/v1
 - API 日志报 migration 失败：保留日志，不要删除数据卷；先执行 `docker compose logs --tail=200 api` 定位是哪条 migration。
 - 上传文件失败：检查 `docker compose logs -f --tail=100 api minio`，确认 MinIO 容器健康。
 - 构建时卡死或 OOM：确认脚本已创建 swap，执行 `free -h` 查看；1C1G 机器首次构建会比较慢，属于正常情况。
+- 构建时报 `pnpm requires at least Node.js v22.13` 或 `No such built-in module: node:sqlite`：说明旧代码/旧镜像层仍在拉 `pnpm@11`。拉取最新代码后执行 `docker builder prune -f`，再重新运行 `bash scripts/server-deploy.sh --port 3005`。
 - 修改端口：推荐仍使用 `3005`；如必须改端口，执行 `bash scripts/server-deploy.sh --port 3006`，同时放行新的云服务器安全组端口。
 
 ### 6. 生产前备份建议

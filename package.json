@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "文旅灯光运维一体化 APP - Monorepo",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "start:web": "corepack pnpm --filter web run dev",
     "start:mobile": "corepack pnpm --filter LightOps run start",
