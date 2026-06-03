@@ -1,0 +1,80 @@
+{
+  "name": "desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "W-Light desktop client for Windows and macOS",
+  "author": "W-Light",
+  "main": "src/main.cjs",
+  "scripts": {
+    "prepare:web": "corepack pnpm --filter web run build && node scripts/prepare-web.mjs",
+    "dev": "electron .",
+    "dist": "corepack pnpm run prepare:web && electron-builder",
+    "dist:win": "corepack pnpm run prepare:web && electron-builder --win nsis",
+    "dist:mac": "corepack pnpm run prepare:web && electron-builder --mac dmg",
+    "dist:linux": "corepack pnpm run prepare:web && electron-builder --linux AppImage"
+  },
+  "build": {
+    "appId": "com.wlight.desktop",
+    "productName": "W-Light",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "web/**/*",
+      "package.json"
+    ],
+    "win": {
+      "forceCodeSigning": false,
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "W-Light-Setup-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.business",
+      "artifactName": "W-Light-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "Utility",
+      "artifactName": "W-Light-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "W-Light"
+    }
+  },
+  "devDependencies": {
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1"
+  }
+}

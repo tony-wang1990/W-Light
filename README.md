@@ -200,7 +200,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 后端查询方言二次审计，覆盖搜索、分页、统计、导出接口。
 - [x] 通用服务器部署脚本支持 ARM64/AMD64 与 1C1G 低内存部署。
 - [x] Android release 签名配置、打包脚本和 APK Web 下载目录。
-- [x] Web/PWA 可安装桌面客户端基础，支持 Windows/Mac 以桌面应用方式使用。
+- [x] Electron 桌面客户端打包工程，支持 Windows `.exe`、Mac `.dmg` 与 Linux `.AppImage` 安装包。
 - [x] 全端客户端发布矩阵与下载中心页面。
 - [ ] Android `JAVA_HOME`/SDK/release 签名打包实机验证。
 - [ ] iOS Xcode 工程、签名和真机安装验证。
@@ -278,6 +278,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | 生产版进度/部署文档 | 已完成 | README 已补充生产版进度评估、已完成范围、剩余上线工序和服务器部署操作说明，包含 Oracle 端口放行、一键部署、已有服务器更新、部署后验证、常见故障排查、手机端 API 地址和升级前备份建议。 |
 | 2026-06-03 | 通用部署/移动端发布 | 已完成 | 新增 `scripts/server-deploy.sh`，支持 ARM64/AMD64 Ubuntu 与 1C1G 低内存机器自动 swap、串行 Docker 构建和低内存运行参数；Web 容器挂载 `deploy/downloads` 提供 APK 下载；Android release 已支持正式签名变量并新增 bash/PowerShell 打包脚本；新增 [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md) 记录 APP 运行、打包、上传下载和手机端使用流程。 |
 | 2026-06-03 | 全端客户端矩阵 | 已完成 | Web 端已补 PWA manifest、service worker 和图标，Windows/Mac 可通过 Edge/Chrome/Safari 安装为桌面客户端；新增 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md) 和 `/downloads/` 下载中心页面，明确 Android、iOS、Windows、Mac、Web 全端连接同一 API 并同步同一套云端数据。 |
+| 2026-06-03 | 桌面客户端安装包 | 已完成 | 新增 `apps/desktop` Electron 客户端工程、Windows/Mac/Linux 打包脚本、下载中心真实安装包入口和 [DESKTOP_CLIENT_GUIDE.md](DESKTOP_CLIENT_GUIDE.md)；Web 登录页支持配置服务器 API 地址，桌面端可连接 `http://服务器IP:3005/v1` 与手机端/Web 端同步数据。 |
 
 ## 当前验证命令
 
@@ -287,13 +288,16 @@ corepack pnpm --filter @lightops/toolbox-core run build
 corepack pnpm --filter @lightops/toolbox-core run test
 corepack pnpm --filter backend run build
 corepack pnpm --filter web run build
+corepack pnpm --filter desktop run prepare:web
 corepack pnpm --filter LightOps run lint
 corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm run build
+.\scripts\desktop-release.ps1 -Target win -PublishWeb
 docker compose config
 bash -n scripts/server-deploy.sh
 bash -n scripts/oracle-arm-deploy.sh
 bash -n scripts/android-release.sh
+bash -n scripts/desktop-release.sh
 ```
 
 ## 当前已知问题
@@ -486,6 +490,87 @@ http://服务器IP:3005/v1
 ```
 
 4. 登录后，手机端和 Web 端会共用同一套后端数据。
+
+## 桌面客户端安装包与下载
+
+W-Light 现在已补齐真正可安装的桌面客户端打包工程，位置是 `apps/desktop/`。桌面端使用 Electron 封装 Web 管理端，不再只是浏览器 PWA；用户可以下载 Windows `.exe` 或 Mac `.dmg` 安装包，打开后在登录页填写同一套服务器 API 地址：
+
+```text
+http://服务器IP:3005/v1
+https://你的域名/v1
+```
+
+只要桌面端、手机端、Web 端连接同一个 API，工单、设备、巡检、备件、附件都会同步到同一套云端数据库。
+
+完整桌面端打包与安装说明见 [DESKTOP_CLIENT_GUIDE.md](DESKTOP_CLIENT_GUIDE.md)，全端发布矩阵见 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md)。
+
+### Windows 安装包
+
+在 Windows 打包机上执行：
+
+```powershell
+corepack pnpm install
+.\scripts\desktop-release.ps1 -Target win -PublishWeb
+```
+
+产物：
+
+```text
+apps/desktop/dist/W-Light-Setup-1.0.0-x64.exe
+deploy/downloads/W-Light-Setup-latest.exe
+```
+
+上传到服务器：
+
+```powershell
+scp deploy\downloads\W-Light-Setup-latest.exe root@服务器IP:/root/W-Light/deploy/downloads/
+scp deploy\downloads\W-Light-Setup-latest.exe.sha256 root@服务器IP:/root/W-Light/deploy/downloads/
+ssh root@服务器IP "cd /root/W-Light && docker compose restart web"
+```
+
+用户下载安装：
+
+```text
+http://服务器IP:3005/downloads/
+```
+
+下载 `W-Light-Setup-latest.exe`，双击安装，启动后服务器地址填写 `http://服务器IP:3005/v1`。
+
+### Mac 安装包
+
+在 macOS 打包机上执行：
+
+```bash
+corepack pnpm install
+bash scripts/desktop-release.sh --mac --publish-web
+```
+
+产物：
+
+```text
+apps/desktop/dist/W-Light-1.0.0-x64.dmg
+apps/desktop/dist/W-Light-1.0.0-arm64.dmg
+deploy/downloads/W-Light-latest.dmg
+```
+
+用户从下载中心下载 DMG 后拖入 Applications。未签名内测包首次打开可能需要右键选择“打开”；正式对外分发建议配置 Apple Developer ID 签名和公证。
+
+### 下载中心
+
+部署成功后统一访问：
+
+```text
+http://服务器IP:3005/downloads/
+```
+
+下载中心包含：
+
+- Windows：`W-Light-Setup-latest.exe`
+- Mac：`W-Light-latest.dmg`
+- Android：`w-light-latest.apk`
+- iOS：TestFlight/Ad Hoc 或 Safari Web/PWA 说明
+
+如果某个下载按钮 404，说明对应安装包还没放入服务器 `/root/W-Light/deploy/downloads/` 目录。
 
 ## 本地运行
 

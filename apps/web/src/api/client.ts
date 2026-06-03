@@ -1,12 +1,44 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+export const WEB_API_BASE_URL_STORAGE_KEY = 'wlight-web-api-base-url';
+const DEFAULT_DESKTOP_API_URL = 'http://127.0.0.1:3005/v1';
+
+function defaultApiBaseUrl() {
+  return window.location.protocol === 'file:' ? DEFAULT_DESKTOP_API_URL : '/v1';
+}
+
+export function normalizeApiBaseUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return defaultApiBaseUrl();
+
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
+  if (withoutTrailingSlash === '/v1') return '/v1';
+  return withoutTrailingSlash.endsWith('/v1') ? withoutTrailingSlash : `${withoutTrailingSlash}/v1`;
+}
+
+export function getApiBaseUrl() {
+  return normalizeApiBaseUrl(localStorage.getItem(WEB_API_BASE_URL_STORAGE_KEY) || '');
+}
+
+export function setApiBaseUrl(value: string) {
+  const normalized = normalizeApiBaseUrl(value);
+  if (normalized === defaultApiBaseUrl()) {
+    localStorage.removeItem(WEB_API_BASE_URL_STORAGE_KEY);
+  } else {
+    localStorage.setItem(WEB_API_BASE_URL_STORAGE_KEY, normalized);
+  }
+  axiosClient.defaults.baseURL = normalized;
+  return normalized;
+}
+
 const axiosClient = axios.create({
-  baseURL: '/v1', // Using Vite proxy to localhost:3000/v1
+  baseURL: getApiBaseUrl(),
   timeout: 10000,
 });
 
 axiosClient.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
   const state = useAuthStore.getState();
   const token = state.token;
   if (token) {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login/Login';
 import AdminLayout from './layouts/AdminLayout';
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -10,8 +10,10 @@ import Inspections from './pages/Inspections/Inspections';
 import Users from './pages/Users/Users';
 
 function App() {
+  const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
+
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<AdminLayout />}>
@@ -25,7 +27,7 @@ function App() {
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 

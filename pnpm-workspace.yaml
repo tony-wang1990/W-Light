@@ -6,6 +6,11 @@ allowBuilds:
   'esbuild': true
   '@nestjs/core': true
   '@shopify/react-native-skia': true
+  app-builder-bin: true
+  dmg-builder: true
+  electron: true
+  electron-builder: true
+  electron-winstaller: true
   sqlite3: true
   msgpackr-extract: true
   protobufjs: true

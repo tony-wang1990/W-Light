@@ -7,6 +7,8 @@ dist/
 build/
 .next/
 out/
+apps/desktop/dist/
+apps/desktop/web/
 
 # Environment files
 .env
@@ -53,6 +55,11 @@ coverage/
 deploy/downloads/*.apk
 deploy/downloads/*.aab
 deploy/downloads/*.ipa
+deploy/downloads/*.exe
+deploy/downloads/*.dmg
+deploy/downloads/*.AppImage
+deploy/downloads/*.blockmap
+deploy/downloads/*.yml
 deploy/downloads/*.sha256
 deploy/downloads/*.json
 apps/LightOps/android/app/*.keystore
