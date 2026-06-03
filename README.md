@@ -285,6 +285,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | Docker pnpm 版本固定 | 已完成 | 修复服务器 Docker 构建时 Corepack 自动拉取 `pnpm@11` 导致 Node 20 镜像报 `node:sqlite`/`requires Node.js v22` 的问题；根 `package.json` 固定 `packageManager: pnpm@9.15.9`，后端和 Web Dockerfile 显式 `corepack prepare pnpm@9.15.9 --activate`。 |
 | 2026-06-03 | Docker 端口收敛 | 已完成 | Docker Compose 默认只对外暴露 Web 统一入口 `3005`；API `3000`、PostgreSQL `5432`、Redis `6379`、MinIO `9000/9001` 均改为 Docker 内部网络端口，避免服务器已有本机服务占用端口导致部署失败。 |
 | 2026-06-03 | Web 白屏修复 | 已完成 | 修复线上首页只显示空白的问题：Vite 手动 `manualChunks` 将 React/Zustand 等依赖拆出循环依赖，导致浏览器报 `Cannot read properties of undefined (reading 'useState')`；已移除手动分包，改回 Rollup 默认分包策略。 |
+| 2026-06-03 | 初始管理员脚本 | 已完成 | 新增 `scripts/server-admin.sh`，服务器部署后可一键创建或重置管理员账号，并自动创建一个示例项目用于首次登录测试。 |
 
 ## 当前验证命令
 
@@ -305,6 +306,7 @@ corepack pnpm -r run lint
 docker compose config
 bash -n scripts/server-deploy.sh
 bash -n scripts/server-backup.sh
+bash -n scripts/server-admin.sh
 bash -n scripts/oracle-arm-deploy.sh
 bash -n scripts/android-release.sh
 bash -n scripts/desktop-release.sh
@@ -398,7 +400,30 @@ docker compose logs -f --tail=100 api web
 http://服务器IP:3005/v1
 ```
 
-### 5. 常见故障排查
+### 5. 初始化管理员账号
+
+首次部署后，如果还没有管理员账号，在服务器执行：
+
+```bash
+cd /root/W-Light
+bash scripts/server-admin.sh --phone 13800000001 --password 'WLight@2026'
+```
+
+然后 Web 登录页填写：
+
+```text
+服务器地址：/v1
+账号：13800000001
+密码：WLight@2026
+```
+
+手机 APP 或桌面客户端不在同一网页里运行时，服务器地址填写完整地址：
+
+```text
+http://服务器IP:3005/v1
+```
+
+### 6. 常见故障排查
 
 - 浏览器显示 `ERR_CONNECTION_REFUSED`：先看 `docker compose ps`，确认 `lightops-web` 是否启动；再确认云服务器安全组/安全列表/NSG 已放行 TCP `3005`。
 - API 日志报数据库连接失败：执行 `docker compose logs -f --tail=100 api postgres`，重点检查 `.env` 中 `DB_PASSWORD` 与 PostgreSQL 容器是否一致。
@@ -410,7 +435,7 @@ http://服务器IP:3005/v1
 - 页面标题出现但内容空白：打开浏览器开发者工具，如果看到 `Cannot read properties of undefined (reading 'useState')`，说明仍在使用旧 Web 镜像。拉取最新代码后重新执行部署脚本，并在浏览器里强制刷新。
 - 修改端口：推荐仍使用 `3005`；如必须改端口，执行 `bash scripts/server-deploy.sh --port 3006`，同时放行新的云服务器安全组端口。
 
-### 6. 生产前备份建议
+### 7. 生产前备份建议
 
 进入真实项目试运行后，升级前先备份数据库和 MinIO 数据卷。推荐直接使用一键脚本：
 
