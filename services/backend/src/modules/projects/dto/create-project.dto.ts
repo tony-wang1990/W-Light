@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ProjectStatus } from '../entities/project.entity';
 
 export class CreateProjectDto {
   @ApiProperty({ example: 'West Lake Scenic Zone', description: 'Project name' })
@@ -7,38 +9,25 @@ export class CreateProjectDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Project description' })
+  @ApiPropertyOptional({ example: 'West Lake Main Stage' })
   @IsOptional()
   @IsString()
-  description?: string;
+  venue?: string;
 
   @ApiPropertyOptional({ example: '1 West Lake Ave, Hangzhou' })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ example: 'Li Ming' })
+  @ApiPropertyOptional({ description: 'Project manager user id' })
   @IsOptional()
   @IsString()
-  contactPerson?: string;
+  managerId?: string;
 
-  @ApiPropertyOptional({ example: '13800000099' })
+  @ApiPropertyOptional({ enum: ProjectStatus })
   @IsOptional()
-  @IsString()
-  contactPhone?: string;
-
-  @ApiPropertyOptional({ example: 30.2741 })
-  @IsOptional()
-  @IsNumber()
-  latitude?: number;
-
-  @ApiPropertyOptional({ example: 120.1551 })
-  @IsOptional()
-  @IsNumber()
-  longitude?: number;
-
-  @ApiPropertyOptional({ example: 'Asia/Shanghai' })
-  @IsOptional()
-  @IsString()
-  timezone?: string;
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
 }
+
+export class UpdateProjectDto extends PartialType(CreateProjectDto) {}

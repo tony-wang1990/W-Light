@@ -7,6 +7,8 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { UserRole } from '../users/entities/user.entity'
 import { Device } from './entities/device.entity'
 import { DevicesService } from './devices.service'
+import { CreateDeviceDto } from './dto/create-device.dto'
+import { UpdateDeviceDto } from './dto/update-device.dto'
 
 @ApiTags('设备台账')
 @ApiBearerAuth()
@@ -18,7 +20,7 @@ export class DevicesController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '新增设备' })
-  create(@Body() dto: Partial<Device>, @Request() req) {
+  create(@Body() dto: CreateDeviceDto, @Request() req) {
     return this.svc.create({ ...dto, projectId: req.projectId })
   }
 
@@ -55,7 +57,7 @@ export class DevicesController {
   @Put(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '更新设备信息' })
-  update(@Param('id') id: string, @Body() dto: Partial<Device>, @Request() req) {
+  update(@Param('id') id: string, @Body() dto: UpdateDeviceDto, @Request() req) {
     return this.svc.update(id, dto, req.projectId)
   }
 

@@ -5,8 +5,9 @@ import { ProjectAccessGuard } from '../../common/guards/project-access.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { UserRole } from '../users/entities/user.entity'
-import { SparePart } from './entities/spare-part.entity'
 import { PartsService } from './parts.service'
+import { CreatePartDto, UpdatePartDto } from './dto/create-part.dto'
+import { StockMovementDto } from './dto/stock-movement.dto'
 
 @ApiTags('备件库存')
 @ApiBearerAuth()
@@ -17,7 +18,7 @@ export class PartsController {
 
   @Post()
   @Roles(UserRole.ADMIN)
-  create(@Body() dto: Partial<SparePart>, @Request() req) {
+  create(@Body() dto: CreatePartDto, @Request() req) {
     return this.svc.create({ ...dto, projectId: req.projectId })
   }
 
@@ -42,7 +43,7 @@ export class PartsController {
 
   @Put(':id')
   @Roles(UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() dto: Partial<SparePart>, @Request() req) {
+  update(@Param('id') id: string, @Body() dto: UpdatePartDto, @Request() req) {
     return this.svc.update(id, dto, req.projectId)
   }
 
@@ -55,7 +56,7 @@ export class PartsController {
   @Post(':id/inbound')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '入库' })
-  inbound(@Param('id') id: string, @Body() body: { quantity: number; note?: string }, @Request() req) {
+  inbound(@Param('id') id: string, @Body() body: StockMovementDto, @Request() req) {
     return this.svc.inbound(id, body.quantity, req.user.id, body.note, undefined, req.projectId)
   }
 
@@ -64,7 +65,7 @@ export class PartsController {
   @ApiOperation({ summary: '出库' })
   outbound(
     @Param('id') id: string,
-    @Body() body: { quantity: number; orderId?: string; note?: string },
+    @Body() body: StockMovementDto,
     @Request() req,
   ) {
     return this.svc.outbound(id, body.quantity, req.user.id, body.orderId, body.note, undefined, req.projectId)

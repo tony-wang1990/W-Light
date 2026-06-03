@@ -1,4 +1,18 @@
-import { BadRequestException, Module, Controller, Post, Request, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common'
+import {
+  BadRequestException,
+  Controller,
+  ForbiddenException,
+  Get,
+  Module,
+  NotFoundException,
+  Param,
+  Post,
+  Request,
+  Res,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -11,6 +25,13 @@ import * as path from 'path'
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
 const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm'])
+const DOWNLOADABLE_MIME_TYPES = new Set([...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES])
+
+interface FileResponse extends NodeJS.WritableStream {
+  headersSent?: boolean
+  setHeader(name: string, value: string): void
+  status(code: number): { end(): void }
+}
 
 function fileTypeFilter(allowedTypes: Set<string>, label: string) {
   return (_req: unknown, file: Express.Multer.File, callback: (error: Error | null, acceptFile: boolean) => void) => {
@@ -45,7 +66,31 @@ class MinioService {
     const ext = path.extname(originalName).toLowerCase()
     const objectName = `projects/${projectId}/uploads/${new Date().getFullYear()}/${uuid()}${ext}`
     await this.client.putObject(this.bucket, objectName, buffer, buffer.length, { 'Content-Type': mimetype })
-    return `/${this.bucket}/${objectName}`
+    return `/v1/files/${objectName}`
+  }
+
+  async streamObject(objectName: string, res: FileResponse) {
+    try {
+      const stat = await this.client.statObject(this.bucket, objectName)
+      const contentType = String(stat.metaData?.['content-type'] || stat.metaData?.['Content-Type'] || 'application/octet-stream')
+      if (!DOWNLOADABLE_MIME_TYPES.has(contentType)) {
+        throw new ForbiddenException('Unsupported attachment type')
+      }
+
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Length', String(stat.size))
+      res.setHeader('Content-Disposition', `inline; filename="${path.basename(objectName)}"`)
+      res.setHeader('Cache-Control', 'private, max-age=300')
+
+      const stream = await this.client.getObject(this.bucket, objectName)
+      stream.on('error', () => {
+        if (!res.headersSent) res.status(500).end()
+      })
+      stream.pipe(res)
+    } catch (error) {
+      if (error instanceof ForbiddenException) throw error
+      throw new NotFoundException('Attachment not found')
+    }
   }
 }
 
@@ -81,8 +126,34 @@ class UploadController {
   }
 }
 
+@ApiTags('附件访问')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, ProjectAccessGuard)
+@Controller('files')
+class FilesController {
+  constructor(private readonly minioService: MinioService) {}
+
+  @Get('projects/:projectId/uploads/:year/:fileName')
+  async getProjectFile(
+    @Param('projectId') projectId: string,
+    @Param('year') year: string,
+    @Param('fileName') fileName: string,
+    @Request() req,
+    @Res() res: FileResponse,
+  ) {
+    if (projectId !== req.projectId) {
+      throw new ForbiddenException('No access to this attachment')
+    }
+    if (!/^\d{4}$/.test(year) || fileName.includes('/') || fileName.includes('\\')) {
+      throw new BadRequestException('Invalid attachment path')
+    }
+
+    return this.minioService.streamObject(`projects/${projectId}/uploads/${year}/${fileName}`, res)
+  }
+}
+
 @Module({
-  controllers: [UploadController],
+  controllers: [UploadController, FilesController],
   providers: [MinioService],
   exports: [MinioService],
 })

@@ -4,8 +4,8 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { UserRole } from '../users/entities/user.entity'
-import { Project } from './entities/project.entity'
 import { ProjectsService } from './projects.service'
+import { CreateProjectDto, UpdateProjectDto } from './dto/create-project.dto'
 
 function assertProjectAccess(req: any, projectId: string) {
   if (req.user.role === UserRole.ADMIN) return
@@ -24,7 +24,7 @@ export class ProjectsController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '创建项目' })
-  create(@Body() dto: Partial<Project>) {
+  create(@Body() dto: CreateProjectDto) {
     return this.svc.create(dto)
   }
 
@@ -44,7 +44,7 @@ export class ProjectsController {
   @Put(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '更新项目' })
-  update(@Param('id') id: string, @Body() dto: Partial<Project>) {
+  update(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
     return this.svc.update(id, dto)
   }
 }

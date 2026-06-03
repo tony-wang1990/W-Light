@@ -6,16 +6,19 @@
 
 ## 修复状态更新
 
-- 2026-06-03：P0「角色权限」和「项目隔离」已完成第一轮修复。后端已接入 `ProjectAccessGuard`，主要业务接口按 `X-Project-Id` 校验用户项目权限；高风险管理动作已接入 `RolesGuard`；服务层详情、更新、删除和工单动作已按项目作用域查询。
-- 2026-06-03：Web/桌面端已去除硬编码项目 ID，登录后保存当前项目，顶部支持项目切换，请求头统一使用当前项目。
-- 2026-06-03：上传接口已接入项目守卫，文件对象按 `projects/<projectId>/...` 分目录，并新增图片/视频 MIME 白名单。P1「附件公网访问/鉴权下载」仍需继续补 MinIO 代理或后端文件下载接口。
-- 2026-06-03：新增 `ProjectAccessGuard` 单元测试，`corepack pnpm --filter backend exec jest --runInBand` 与 `corepack pnpm run build` 已通过。根 `corepack pnpm -r run test` 仍因移动端测试脚本未配置完整而不是全仓可用状态。
+- 2026-06-03：角色权限、项目隔离、Web/桌面项目选择、上传项目守卫和图片/视频 MIME 白名单已完成。
+- 2026-06-03：附件访问已改为后端 `/v1/files/...` 鉴权代理，上传 URL 不再直接暴露 MinIO bucket 路径。
+- 2026-06-03：设备/项目/备件/巡检 DTO 校验已补齐，TypeORM entity glob 已收敛为实体文件扫描。
+- 2026-06-03：生产环境默认拒绝弱/默认 JWT、数据库、Redis、MinIO 密钥；Swagger 生产默认关闭，CORS 改为 `APP_ORIGINS`/`APP_ORIGIN` 白名单配置。
+- 2026-06-03：设备编号/二维码已改为项目内组合唯一并新增 PostgreSQL migration；工单状态流转改为条件更新，避免并发覆盖旧状态。
+- 2026-06-03：项目 JSON 备份已记录附件对象清单，服务器新增 `scripts/server-backup.sh` 一键备份/恢复 PostgreSQL + MinIO。
+- 2026-06-03：根 `corepack pnpm run build`、`corepack pnpm -r run test`、`corepack pnpm -r run lint` 已通过；lint 仍保留类型、console、少量未使用变量 warning，作为后续代码质量债处理。
 
 ## 总体结论
 
-项目已经具备“可部署 MVP + 多端客户端雏形”：整仓构建通过，工具箱核心测试通过，移动端 lint/TypeScript 通过，Windows Electron 安装包已经真实打出。
+项目已经具备“生产候选版”基础：整仓构建、根测试、根 lint 已通过，权限隔离、项目边界、附件鉴权、生产安全开关、并发状态更新、组合唯一迁移和服务器级备份恢复已补齐。
 
-但目前还不能直接作为最终生产版长期上线。主要阻断点不是“功能缺一大块”，而是生产系统必须要解决的权限隔离、项目数据边界、附件公网访问、测试基础设施和安全运维问题。建议先进入内部试运行版，修完 P0/P1 后再开放真实项目长期使用。
+当前不再建议把代码定义为“半成品 demo”。剩余重点是上线工序和实机验收：HTTPS/域名、Android/iOS/Windows/Mac 安装包签名与实测、ARM64/AMD64 服务器实机部署、定时备份、监控告警、日志留存和真实项目业务验收。
 
 ## 自动化验证结果
 
@@ -26,24 +29,23 @@ corepack pnpm run build
 corepack pnpm --filter @lightops/toolbox-core run test
 corepack pnpm --filter LightOps run lint
 corepack pnpm --filter LightOps exec tsc --noEmit
-```
-
-失败或受限：
-
-```text
 corepack pnpm -r run test
+corepack pnpm -r run lint
 ```
 
-失败原因：`apps/LightOps` 声明了 `test: jest`，但未安装/配置可运行的 Jest；后端虽有 Jest 配置，但当前没有实际 `*.spec.ts` 用例。
+受限：
 
 ```text
-corepack pnpm --filter backend run lint
-corepack pnpm --filter web run lint
+docker compose config
+bash -n scripts/server-deploy.sh
+bash -n scripts/server-backup.sh
 ```
 
-失败原因：后端 seed 脚本有 1 个 ESLint error，Web 有 1 个 `prefer-const` error；两端还有大量 `any`、未使用导入、console warning。构建能过，但 lint 质量门禁目前不通过。
+受限原因：当前 Windows 本机没有 Docker/bash 运行环境；Compose 和 bash 脚本语法需在 Ubuntu 服务器或 Git Bash/WSL 环境做最终验证。
 
-## P0：上线前必须先修
+下面的问题条目保留原审计发现和证据，便于追溯修复来源；当前是否仍阻断以上方“修复状态更新”和“当前功能模块判断”为准。
+
+## 已修复关键缺陷
 
 ### 1. 角色权限基本没有真正生效
 
@@ -83,7 +85,7 @@ corepack pnpm --filter web run lint
 - 所有 `findOne/update/delete/action` 服务方法都改为 `(id, projectId)` 双条件。
 - Web 去掉硬编码项目 ID，增加项目选择器和“无项目不可操作”状态。
 
-## P1：生产使用前必须修
+## 已补齐的生产加固项
 
 ### 3. 附件上传成功后公网不可访问
 
@@ -168,7 +170,7 @@ corepack pnpm --filter web run lint
 - 后端优先补权限、项目隔离、库存、工单号、状态机、备份恢复测试。
 - Web/移动端补登录、项目选择、工单流转和离线队列测试。
 
-## P2：上线前建议修
+## 后续质量优化与实机验收
 
 ### 8. 设备编号/二维码是全局唯一，不是项目内唯一
 
@@ -290,33 +292,29 @@ corepack pnpm --filter web run lint
 
 | 模块 | 当前状态 | 主要风险 |
 | --- | --- | --- |
-| 后端 API | 可构建，可跑主流程 | 权限/项目隔离不足，测试缺失 |
-| 工单闭环 | MVP 已具备 | 状态并发、操作者边界、跨项目访问 |
-| 备件库存 | 原子扣减已补 | 操作权限和项目隔离仍需补 |
-| 设备台账 | MVP 已具备 | 全局唯一约束、多项目扫码边界 |
-| 巡检 | MVP 已具备 | 权限和实机流程待验收 |
-| 报表/备份 | 数据报表可用 | 附件对象不在项目 JSON 备份内 |
-| Web 管理端 | 可构建，可桌面封装 | 硬编码项目 fallback、lint 失败、类型粗糙 |
+| 后端 API | 可构建，权限/项目隔离已补 | 还需继续补审计日志、更多集成测试 |
+| 工单闭环 | MVP 已具备，状态并发已加固 | 还需真实现场数据验收 |
+| 备件库存 | 原子扣减和事务已补 | 还需补并发/库存回滚自动化测试 |
+| 设备台账 | MVP 已具备，项目内组合唯一已补 | 迁移需在服务器实机验证 |
+| 巡检 | MVP 已具备，项目权限已补 | 还需 Android/iOS 实机流程验收 |
+| 报表/备份 | 数据报表、项目 JSON、服务器级备份已具备 | 还需做恢复演练和定时备份 |
+| Web 管理端 | 可构建，可桌面封装，项目选择已补 | 类型 warning 和生产空状态仍可继续优化 |
 | Android | 代码检查通过 | APK 真机、扫码、上传、离线冲突待验收 |
 | iOS | 原生工程存在 | Xcode 签名和真机未验收 |
 | Windows 桌面端 | 安装包已生成 | 未签名、需安装运行验收 |
 | Mac 桌面端 | 打包脚本已具备 | 需 macOS 打包、公证、实机验收 |
-| Docker 部署 | 架构可用 | HTTPS、备份、监控、附件代理待补 |
+| Docker 部署 | 架构可用，备份脚本已补 | HTTPS、监控、日志留存、服务器实机演练待补 |
 
-## 推荐后续修复顺序
+## 推荐后续完善顺序
 
-1. 修 P0 权限：角色守卫、项目访问守卫、服务层项目作用域。
-2. 修附件访问：MinIO 代理/鉴权下载、上传类型白名单。
-3. 修 Web 项目选择：去掉硬编码项目 ID，支持多项目切换。
-4. 修测试基础设施：让根测试命令可用，补后端关键测试。
-5. 修生产安全：默认密钥检测、默认管理员密码策略、CORS/Swagger 生产开关。
-6. 修并发一致性：工单状态条件更新、版本号、状态冲突提示。
-7. 修多项目数据模型：设备编号/二维码组合唯一迁移。
-8. 修备份恢复：数据库 + MinIO 一键备份和恢复。
-9. 做全端实机验收：Windows、Android、Mac、iOS、ARM64/AMD64 服务器。
+1. 在 Oracle ARM64 和普通 AMD64 1C1G Ubuntu 上跑一键部署、迁移、登录、上传、备份、恢复演练。
+2. 接入域名、HTTPS、反向代理、证书续期和生产 CORS 白名单。
+3. 做 Android APK/AAB、iOS TestFlight、Windows 安装包、Mac DMG 的签名和实机安装验收。
+4. 补定时备份、日志留存、磁盘空间监控、异常告警和升级回滚脚本。
+5. 补库存并发、工单号序列、备份恢复、状态机、报表统计的自动化测试。
+6. 收敛 Web/后端 lint warning、共享 DTO 类型、生产空状态和错误提示。
 
 ## 建议上线口径
 
-当前适合定义为“内部试运行版”。  
-修完 P0/P1 后，可以进入“生产候选版”。  
-完成实机验收、HTTPS、备份、监控、签名、公证和关键测试后，再定义为“最终上线使用版”。
+当前适合定义为“生产候选版”。
+完成服务器实机演练、HTTPS、签名/公证、定时备份、监控告警和关键测试补齐后，再定义为“最终上线使用版”。

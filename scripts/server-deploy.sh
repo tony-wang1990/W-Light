@@ -204,6 +204,8 @@ ensure_env() {
   set_env_default REDIS_PASSWORD "$(random_hex 24)"
   set_env_default JWT_SECRET "$(random_hex 48)"
   set_env_default JWT_EXPIRES_IN "7d"
+  set_env_default APP_ORIGINS ""
+  set_env_default ENABLE_SWAGGER "false"
   set_env_default MINIO_USER "lightopsadmin"
   set_env_default MINIO_PASSWORD "$(random_hex 24)"
   set_env_default MINIO_BUCKET "lightops-files"

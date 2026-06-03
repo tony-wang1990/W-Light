@@ -20,6 +20,8 @@ export enum DeviceCategory {
   OTHER        = '其他',
 }
 
+@Index('IDX_devices_project_deviceNo_unique', ['projectId', 'deviceNo'], { unique: true })
+@Index('IDX_devices_project_qrCode_unique', ['projectId', 'qrCode'], { unique: true })
 @Entity('devices')
 export class Device {
   @PrimaryGeneratedColumn('uuid')
@@ -32,7 +34,6 @@ export class Device {
   @JoinColumn({ name: 'projectId' })
   project: Project
 
-  @Index({ unique: true })
   @Column({ length: 50 })
   deviceNo: string
 
@@ -51,7 +52,6 @@ export class Device {
   @Column({ length: 200, nullable: true })
   location?: string
 
-  @Index({ unique: true })
   @Column({ length: 100 })
   qrCode: string
 

@@ -5,9 +5,11 @@ import { OrdersService } from '../orders/orders.service'
 import { OrderCategory, OrderPriority } from '../orders/entities/order.entity'
 import { InspectionFrequency, InspectionPlan } from './entities/inspection-plan.entity'
 import { InspectionRecord, InspectionStatus } from './entities/inspection-record.entity'
+import { CreateInspectionPlanDto, UpdateInspectionPlanDto } from './dto/inspection-plan.dto'
+import { CreateInspectionRecordDto } from './dto/inspection-record.dto'
 
-export interface CreateInspectionRecordPayload extends Partial<InspectionRecord> {
-  createOrder?: boolean
+type InspectionPlanWriteDto = (CreateInspectionPlanDto | UpdateInspectionPlanDto) & {
+  projectId?: string
 }
 
 @Injectable()
@@ -18,10 +20,20 @@ export class InspectionsService {
     private readonly ordersService: OrdersService,
   ) {}
 
-  createPlan(dto: Partial<InspectionPlan>) { return this.planRepo.save(this.planRepo.create(dto)) }
+  private normalizePlanDto(dto: InspectionPlanWriteDto): Partial<InspectionPlan> {
+    const { nextInspectionAt, ...rest } = dto
+    return {
+      ...rest,
+      nextInspectionAt: nextInspectionAt ? new Date(nextInspectionAt) : undefined,
+    }
+  }
 
-  updatePlan(id: string, dto: Partial<InspectionPlan>, projectId: string) {
-    return this.planRepo.update({ id, projectId }, { ...dto, projectId })
+  createPlan(dto: CreateInspectionPlanDto & { projectId: string }) {
+    return this.planRepo.save(this.planRepo.create(this.normalizePlanDto(dto)))
+  }
+
+  updatePlan(id: string, dto: UpdateInspectionPlanDto, projectId: string) {
+    return this.planRepo.update({ id, projectId }, { ...this.normalizePlanDto(dto), projectId })
   }
 
   deletePlan(id: string) { return this.planRepo.delete(id) }
@@ -36,7 +48,7 @@ export class InspectionsService {
     return next
   }
 
-  async createRecord(dto: CreateInspectionRecordPayload, inspectorId: string, projectId: string) {
+  async createRecord(dto: CreateInspectionRecordDto, inspectorId: string, projectId: string) {
     const { createOrder, ...recordDto } = dto
     const plan = dto.planId ? await this.planRepo.findOne({ where: { id: dto.planId, projectId } }) : null
     if (dto.planId && !plan) throw new NotFoundException('巡检计划不存在')

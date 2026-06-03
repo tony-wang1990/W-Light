@@ -30,7 +30,7 @@ import { HealthModule } from './modules/health/health.module'
       useFactory: (config: ConfigService) => {
         const dbType = config.get<string>('DB_TYPE', 'postgres')
         const isDevelopment = config.get<string>('NODE_ENV') === 'development'
-        const entities = [__dirname + '/modules/**/*.entity{.ts,.js}', __dirname + '/modules/**/*.module{.ts,.js}']
+        const entities = [__dirname + '/modules/**/*.entity{.ts,.js}']
         const migrations = [__dirname + '/database/migrations/*{.ts,.js}']
         const synchronize = config.get<string>(
           'DB_SYNCHRONIZE',

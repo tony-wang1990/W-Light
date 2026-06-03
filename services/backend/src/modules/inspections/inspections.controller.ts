@@ -5,8 +5,9 @@ import { ProjectAccessGuard } from '../../common/guards/project-access.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { UserRole } from '../users/entities/user.entity'
-import { InspectionPlan } from './entities/inspection-plan.entity'
-import { CreateInspectionRecordPayload, InspectionsService } from './inspections.service'
+import { InspectionsService } from './inspections.service'
+import { CreateInspectionPlanDto, UpdateInspectionPlanDto } from './dto/inspection-plan.dto'
+import { CreateInspectionRecordDto } from './dto/inspection-record.dto'
 
 @ApiTags('巡检管理')
 @ApiBearerAuth()
@@ -17,7 +18,7 @@ export class InspectionsController {
 
   @Post('plans')
   @Roles(UserRole.ADMIN)
-  createPlan(@Body() dto: Partial<InspectionPlan>, @Request() req) {
+  createPlan(@Body() dto: CreateInspectionPlanDto, @Request() req) {
     return this.svc.createPlan({ ...dto, projectId: req.projectId })
   }
 
@@ -28,7 +29,7 @@ export class InspectionsController {
 
   @Put('plans/:id')
   @Roles(UserRole.ADMIN)
-  updatePlan(@Param('id') id: string, @Body() dto: Partial<InspectionPlan>, @Request() req) {
+  updatePlan(@Param('id') id: string, @Body() dto: UpdateInspectionPlanDto, @Request() req) {
     return this.svc.updatePlan(id, dto, req.projectId)
   }
 
@@ -39,7 +40,7 @@ export class InspectionsController {
 
   @Post('records')
   @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR)
-  createRecord(@Body() dto: CreateInspectionRecordPayload, @Request() req) {
+  createRecord(@Body() dto: CreateInspectionRecordDto, @Request() req) {
     return this.svc.createRecord(dto, req.user.id, req.projectId)
   }
 

@@ -54,7 +54,7 @@ export default function Toolbox() {
     const dips = Array(10).fill(false);
     if (addr < 1 || addr > 512) return dips;
     
-    let temp = addr;
+    const temp = addr;
     for (let i = 0; i < 9; i++) {
       if ((temp & (1 << i)) !== 0) {
         dips[i] = true;

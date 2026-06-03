@@ -58,9 +58,9 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - HTTPS 与域名：临时可用 `http://服务器IP:3005`，正式交付建议接入域名、HTTPS、反向代理和证书自动续期。
 - 移动端正式包实测：Android release 签名配置和打包脚本已补齐，仍需在装好 JDK/Android SDK 的打包机上真实生成 APK/AAB 并安装；iOS 需要 macOS/Xcode、签名、TestFlight 或真机验证。
 - 现场业务验收：用真实项目数据验证工单流转、备件扣减、巡检转工单、离线队列冲突、附件上传、报表导出。
-- 安全与权限加固：继续细化管理员/工程师/灯光师权限边界、默认账号策略、强密码、敏感信息脱敏、接口访问审计。
-- 运维保障：数据库/MinIO 定时备份、日志留存、异常告警、磁盘空间监控、升级回滚方案。
-- 测试补齐：当前后端还没有 `*.spec.ts` 测试文件，后续要补库存并发、工单号生成、备份恢复、报表统计等关键单元/集成测试。
+- 安全与权限加固：角色/项目隔离、附件鉴权访问、生产密钥检测和 Swagger 生产关闭已补齐；后续继续补强密码策略、敏感信息脱敏、接口访问审计。
+- 运维保障：已补数据库 + MinIO 一键备份/恢复脚本；后续继续补定时任务、日志留存、异常告警、磁盘空间监控、升级回滚方案。
+- 测试补齐：根 `test` 命令和后端项目守卫测试已可运行；后续继续补库存并发、工单号生成、备份恢复、报表统计等关键单元/集成测试。
 
 ## 产品功能架构
 
@@ -280,7 +280,8 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | 全端客户端矩阵 | 已完成 | Web 端已补 PWA manifest、service worker 和图标，Windows/Mac 可通过 Edge/Chrome/Safari 安装为桌面客户端；新增 [CLIENT_RELEASE_MATRIX.md](CLIENT_RELEASE_MATRIX.md) 和 `/downloads/` 下载中心页面，明确 Android、iOS、Windows、Mac、Web 全端连接同一 API 并同步同一套云端数据。 |
 | 2026-06-03 | 桌面客户端安装包 | 已完成 | 新增 `apps/desktop` Electron 客户端工程、Windows/Mac/Linux 打包脚本、下载中心真实安装包入口和 [DESKTOP_CLIENT_GUIDE.md](DESKTOP_CLIENT_GUIDE.md)；Web 登录页支持配置服务器 API 地址，桌面端可连接 `http://服务器IP:3005/v1` 与手机端/Web 端同步数据。 |
 | 2026-06-03 | 全代码全功能审计 | 已完成 | 已完成后端、Web、手机端、桌面端、部署脚本和发布链路审计，新增 [FULL_CODE_AUDIT_REPORT.md](FULL_CODE_AUDIT_REPORT.md)；结论是整仓构建通过但最终上线前必须优先修复角色权限、项目隔离、附件访问、测试基础设施和生产安全。 |
-| 2026-06-03 | P0 权限与项目隔离加固 | 已完成 | 后端已接入 `ProjectAccessGuard`，工单、设备、备件、巡检、报表和上传接口均按 `X-Project-Id` 校验项目访问；工单派单/验收/取消、设备/备件/巡检计划、备份恢复等高风险操作已限制管理员或对应执行角色；Web/桌面端去除硬编码项目 ID，新增当前项目选择与请求头同步；上传文件按项目分目录并增加图片/视频 MIME 白名单；新增项目访问守卫单元测试，`corepack pnpm --filter backend exec jest --runInBand` 与 `corepack pnpm run build` 已通过。 |
+| 2026-06-03 | 权限与项目隔离加固 | 已完成 | 后端已接入 `ProjectAccessGuard`，工单、设备、备件、巡检、报表和上传接口均按 `X-Project-Id` 校验项目访问；工单派单/验收/取消、设备/备件/巡检计划、备份恢复等高风险操作已限制管理员或对应执行角色；Web/桌面端去除硬编码项目 ID，新增当前项目选择与请求头同步；上传文件按项目分目录并增加图片/视频 MIME 白名单；新增项目访问守卫单元测试，`corepack pnpm --filter backend exec jest --runInBand` 与 `corepack pnpm run build` 已通过。 |
+| 2026-06-03 | 全量生产加固补齐 | 已完成 | 附件访问改为后端 `/v1/files/...` 鉴权代理，上传 URL 不再直接暴露 MinIO bucket；设备/项目/备件/巡检 DTO 已补校验；生产环境会拒绝默认/弱 JWT、数据库、Redis、MinIO 密钥，Swagger 默认关闭并通过 `ENABLE_SWAGGER=true` 显式开启；设备编号/二维码改为项目内组合唯一并新增迁移；工单状态流转改为条件更新避免并发覆盖；项目备份会记录附件对象清单，服务器新增 `scripts/server-backup.sh` 一键备份/恢复 PostgreSQL + MinIO；根 `build`、根 `test`、根 `lint` 已通过，其中 lint 仍有类型/console warning 待后续整理。 |
 
 ## 当前验证命令
 
@@ -295,9 +296,12 @@ corepack pnpm --filter desktop run prepare:web
 corepack pnpm --filter LightOps run lint
 corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm run build
+corepack pnpm -r run test
+corepack pnpm -r run lint
 .\scripts\desktop-release.ps1 -Target win -PublishWeb
 docker compose config
 bash -n scripts/server-deploy.sh
+bash -n scripts/server-backup.sh
 bash -n scripts/oracle-arm-deploy.sh
 bash -n scripts/android-release.sh
 bash -n scripts/desktop-release.sh
@@ -382,7 +386,7 @@ docker compose logs -f --tail=100 api web
 
 - Web 管理端：`http://服务器IP:3005`
 - API 健康检查：`http://服务器IP:3005/v1/health`
-- Swagger 文档：`http://服务器IP:3005/api-docs`
+- Swagger 文档：生产默认关闭；如临时调试，先在 `.env` 设置 `ENABLE_SWAGGER=true` 后重启 API，再访问 `http://服务器IP:3005/api-docs`
 - Android APK 下载：`http://服务器IP:3005/downloads/w-light-latest.apk`
 
 手机 APP 登录页填写：
@@ -402,21 +406,26 @@ http://服务器IP:3005/v1
 
 ### 6. 生产前备份建议
 
-进入真实项目试运行后，升级前先备份数据库和 MinIO 数据卷。示例：
+进入真实项目试运行后，升级前先备份数据库和 MinIO 数据卷。推荐直接使用一键脚本：
 
 ```bash
 cd /root/W-Light
-mkdir -p backups
-docker compose exec -T postgres pg_dump -U lightops lightops > backups/lightops-$(date +%F).sql
-tar -czf backups/minio-data-$(date +%F).tar.gz -C /var/lib/docker/volumes/w-light_minio_data/_data .
+bash scripts/server-backup.sh
 ```
 
-如果 Docker volume 名称和服务器实际不一致，先用下面命令确认：
+脚本会生成：
+
+- `deploy/backups/<时间>/postgres.sql`
+- `deploy/backups/<时间>/minio-data.tar.gz`
+
+需要恢复时执行：
 
 ```bash
-docker volume ls | grep minio
-docker volume ls | grep postgres
+cd /root/W-Light
+bash scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-120000
 ```
+
+项目 JSON 备份仍用于项目级迁移/预检；服务器灾难恢复必须使用上面的一键备份脚本，因为它同时包含 PostgreSQL 和 MinIO 附件对象。
 
 更完整的 Oracle ARM 说明见 [ORACLE_ARM_DEPLOY.md](ORACLE_ARM_DEPLOY.md)。
 

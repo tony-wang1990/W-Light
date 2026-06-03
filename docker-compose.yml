@@ -49,6 +49,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_pwd}
       JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production_min_64_chars}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      APP_ORIGINS: ${APP_ORIGINS:-}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: 'false'

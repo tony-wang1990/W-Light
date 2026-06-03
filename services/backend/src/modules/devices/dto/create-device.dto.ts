@@ -1,29 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
   IsEnum,
-  IsNumber,
   IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
 } from 'class-validator';
 import { DeviceStatus, DeviceCategory } from '../entities/device.entity';
 
 export class CreateDeviceDto {
-  @ApiProperty({ description: 'Project ID this device belongs to' })
+  @ApiProperty({ example: 'DEV-2026-0001', description: '项目内设备编号' })
   @IsString()
   @IsNotEmpty()
-  projectId: string;
+  deviceNo: string;
 
-  @ApiProperty({ example: 'Main Stage Light 01' })
+  @ApiProperty({ example: '主舞台摇头灯 01' })
   @IsString()
   @IsNotEmpty()
   name: string;
-
-  @ApiProperty({ example: 'DEV-2024-001', description: 'Unique device code' })
-  @IsString()
-  @IsNotEmpty()
-  deviceCode: string;
 
   @ApiPropertyOptional({ example: 'QR-DEV-001' })
   @IsOptional()
@@ -34,77 +32,64 @@ export class CreateDeviceDto {
   @IsEnum(DeviceCategory)
   category: DeviceCategory;
 
+  @ApiPropertyOptional({ example: 'MA Lighting' })
+  @IsOptional()
+  @IsString()
+  manufacturer?: string;
+
+  @ApiPropertyOptional({ example: 'grandMA3 full-size' })
+  @IsOptional()
+  @IsString()
+  model?: string;
+
+  @ApiPropertyOptional({ example: '主舞台左侧灯架' })
+  @IsOptional()
+  @IsString()
+  location?: string;
+
   @ApiPropertyOptional({ enum: DeviceStatus, default: DeviceStatus.NORMAL })
   @IsOptional()
   @IsEnum(DeviceStatus)
   status?: DeviceStatus;
 
-  @ApiPropertyOptional({ example: 'West Lake Main Stage' })
-  @IsOptional()
-  @IsString()
-  location?: string;
-
-  @ApiPropertyOptional({ example: 'Position 3, Row B' })
-  @IsOptional()
-  @IsString()
-  locationDetail?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsNumber()
-  latitude?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsNumber()
-  longitude?: number;
-
-  @ApiPropertyOptional({ example: 'Philips' })
-  @IsOptional()
-  @IsString()
-  manufacturer?: string;
-
-  @ApiPropertyOptional({ example: 'ColorGraze MX' })
-  @IsOptional()
-  @IsString()
-  model?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  serialNumber?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  installedAt?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  warrantyUntil?: string;
-
   @ApiPropertyOptional({ description: 'DMX universe number' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   dmxUniverse?: number;
 
   @ApiPropertyOptional({ description: 'DMX start address (1-512)' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
+  @Max(512)
   dmxAddress?: number;
 
-  @ApiPropertyOptional({ description: 'Rated power in watts' })
+  @ApiPropertyOptional({ description: '灯具通道数' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(512)
+  channelCount?: number;
+
+  @ApiPropertyOptional({ description: '额定功率 W' })
   @IsOptional()
   @IsNumber()
-  ratedPower?: number;
+  @Min(0)
+  power?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  warrantyExpire?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  installDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  imageUrl?: string;
-
-  @ApiPropertyOptional({ description: 'Custom attributes as key-value pairs' })
-  @IsOptional()
-  attributes?: Record<string, any>;
+  manualUrl?: string;
 }

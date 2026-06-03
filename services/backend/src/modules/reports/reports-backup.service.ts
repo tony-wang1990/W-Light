@@ -18,6 +18,7 @@ interface BackupPayload {
   version?: number
   projectId?: string
   tables?: BackupTables
+  attachments?: BackupRow[]
 }
 
 const tableLabels: Record<string, string> = {
@@ -160,9 +161,12 @@ export class ReportsBackupService {
     return { users, userIdMap }
   }
 
-  private async resolveDeviceConflicts(rows: BackupRow[], warnings: string[]): Promise<BackupRow[]> {
+  private async resolveDeviceConflicts(rows: BackupRow[], targetProjectId: string, warnings: string[]): Promise<BackupRow[]> {
     const deviceRepo = this.ds.getRepository(Device)
-    const existingDevices = await deviceRepo.find({ select: ['id', 'deviceNo', 'qrCode'] as any })
+    const existingDevices = await deviceRepo.find({
+      where: { projectId: targetProjectId },
+      select: ['id', 'deviceNo', 'qrCode'] as any,
+    })
     const existingByNo = new Map(existingDevices.map(device => [device.deviceNo, device]))
     const existingByQr = new Map(existingDevices.map(device => [device.qrCode, device]))
     const usedDeviceNos = new Set(existingDevices.map(device => device.deviceNo))
@@ -212,6 +216,39 @@ export class ReportsBackupService {
 
   private restoreCount(received: number, accepted: number) {
     return { received, accepted, skipped: Math.max(0, received - accepted) }
+  }
+
+  private extractProjectObjectName(projectId: string, value: unknown): string | null {
+    if (typeof value !== 'string') return null
+    const marker = `projects/${projectId}/`
+    const index = value.indexOf(marker)
+    if (index < 0) return null
+    return value.slice(index)
+  }
+
+  private collectAttachmentReferences(
+    projectId: string,
+    orders: WorkOrder[],
+    repairLogs: RepairLog[],
+    inspectionRecords: InspectionRecord[],
+  ) {
+    const attachments: BackupRow[] = []
+    const addUrl = (sourceType: string, sourceId: string, field: string, url: unknown) => {
+      const objectName = this.extractProjectObjectName(projectId, url)
+      if (!objectName) return
+      attachments.push({
+        sourceType,
+        sourceId,
+        field,
+        url,
+        objectName,
+      })
+    }
+
+    orders.forEach(order => parseJsonArray(order.mediaUrls).forEach(url => addUrl('workOrder', order.id, 'mediaUrls', url)))
+    repairLogs.forEach(log => parseJsonArray(log.photoUrls).forEach(url => addUrl('repairLog', log.id, 'photoUrls', url)))
+    inspectionRecords.forEach(record => parseJsonArray(record.photoUrls).forEach(url => addUrl('inspectionRecord', record.id, 'photoUrls', url)))
+    return attachments
   }
 
   async backupProjectData(projectId: string) {
@@ -264,6 +301,7 @@ export class ReportsBackupService {
       version: 1,
       projectId,
       exportedAt: new Date().toISOString(),
+      attachments: this.collectAttachmentReferences(projectId, orders, repairLogs, inspectionRecords),
       tables: {
         project: project ? [project] : [],
         users,
@@ -289,7 +327,7 @@ export class ReportsBackupService {
       .slice(0, 1)
       .map(row => ({ ...row, id: projectId }))
 
-    const devices = await this.resolveDeviceConflicts(this.projectRows(ensureArray(tables.devices), projectId), warnings)
+    const devices = await this.resolveDeviceConflicts(this.projectRows(ensureArray(tables.devices), projectId), projectId, warnings)
     const workOrders: BackupRow[] = this.projectRows(ensureArray(tables.workOrders), projectId, ['mediaUrls'])
       .map(row => ({
         ...row,

@@ -13,7 +13,7 @@ export const getDatabaseConfig = (
     database: configService.get<string>('DB_NAME', 'lightops'),
     username: configService.get<string>('DB_USER', 'lightops'),
     password: configService.get<string>('DB_PASSWORD', 'lightops_dev_pwd'),
-    entities: [__dirname + '/../modules/**/*.entity{.ts,.js}', __dirname + '/../modules/**/*.module{.ts,.js}'],
+    entities: [__dirname + '/../modules/**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     migrationsRun: configService.get<string>('DB_MIGRATIONS_RUN', 'false') === 'true',
     synchronize: configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
