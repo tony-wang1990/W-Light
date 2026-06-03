@@ -7,7 +7,8 @@
 - 当前主移动端目录是 `apps/LightOps`。
 - 该目录已包含基于 React Native 0.74.5 模板生成的 `android/`、`ios/` 原生工程目录。
 - 当前已同步原生 module name `WLight`、显示名 `W-Light`、Android applicationId `com.wlight.lightops` 和 iOS Bundle Identifier `com.wlight.lightops`。
-- 正式 APK/AAB/IPA 仍需要在具备 Android SDK/Xcode/CocoaPods 的打包机上完成签名、依赖安装和真机验证。
+- Android release 已支持从 `gradle.properties` 或环境变量读取正式签名；APK/AAB 仍需要在具备 Android SDK 的打包机上完成实际构建和真机验证。
+- iOS IPA 仍需要在具备 Xcode/CocoaPods 的 macOS 打包机上完成签名、归档和真机验证。
 - 当前 Windows 工作机未配置 `JAVA_HOME`，因此 Android Gradle 尚未完成本机验证。
 - 本地敏感数据使用 MMKV 加密，MMKV 密钥通过 `react-native-keychain` 写入 iOS Keychain / Android Keystore，并保留旧 MVP 固定密钥迁移路径。
 - 扫码查验已接入 `react-native-camera-kit` 与 `react-native-permissions`，真机包需验证相机权限和二维码识别。
@@ -61,7 +62,7 @@ W_LIGHT_UPLOAD_STORE_PASSWORD=change-me
 W_LIGHT_UPLOAD_KEY_PASSWORD=change-me
 ```
 
-3. 在 `android/app/build.gradle` 的 release signingConfig 中读取上述变量。
+3. 当前 `android/app/build.gradle` 已读取上述变量；如果变量缺失，release 会临时回退到 debug 签名，仅可用于内部调试，不可作为正式交付包。
 
 4. 打包：
 
@@ -83,6 +84,20 @@ cd apps/LightOps/android
 
 - APK：`apps/LightOps/android/app/build/outputs/apk/release/app-release.apk`
 - AAB：`apps/LightOps/android/app/build/outputs/bundle/release/app-release.aab`
+
+也可以使用仓库脚本打包：
+
+```bash
+bash scripts/android-release.sh --publish-web
+```
+
+Windows PowerShell：
+
+```powershell
+.\scripts\android-release.ps1 -PublishWeb
+```
+
+加上 `--publish-web` / `-PublishWeb` 后，APK 会复制到 `deploy/downloads/w-light-latest.apk`，服务器 Web 入口可通过 `http://服务器IP:3005/downloads/w-light-latest.apk` 下载。
 
 ## iOS Release
 
@@ -107,6 +122,8 @@ open LightOps.xcworkspace
 
 - Web 同域反代：`https://your-domain.com/v1`
 - 手机登录页服务器地址：`https://your-domain.com/v1`
+- 临时 IP 内测地址：`http://服务器IP:3005/v1`
+- APK 内测下载地址：`http://服务器IP:3005/downloads/w-light-latest.apk`
 - 后端数据链路：NestJS API -> PostgreSQL -> MinIO/对象存储。
 
 甲骨文云 ARM 部署步骤见 [ORACLE_ARM_DEPLOY.md](ORACLE_ARM_DEPLOY.md)。

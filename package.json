@@ -7,6 +7,8 @@
     "start:web": "corepack pnpm --filter web run dev",
     "start:mobile": "corepack pnpm --filter LightOps run start",
     "android": "corepack pnpm --filter LightOps run android",
+    "android:release": "bash scripts/android-release.sh",
+    "android:release:publish": "bash scripts/android-release.sh --publish-web",
     "ios": "corepack pnpm --filter LightOps run ios",
     "start:backend": "corepack pnpm --filter backend run start:dev",
     "build:toolbox-core": "corepack pnpm --filter @lightops/toolbox-core run build",

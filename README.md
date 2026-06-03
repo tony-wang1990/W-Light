@@ -39,7 +39,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 
 ## 生产版进度评估
 
-当前项目已经从“半成品 demo”推进到“可部署联调的 MVP+生产加固初版”。按真实交付口径估算，整体完成度约 `80% - 85%`：核心业务闭环、工具箱主体、Web 管理端、后端 API、离线缓存/队列、备份导出恢复、Docker 部署骨架都已经具备；距离正式生产版主要还差服务器实机验证、移动端正式包验证、HTTPS/备份/监控/权限安全这些上线工序。
+当前项目已经从“半成品 demo”推进到“可部署联调的 MVP+生产加固初版”。按真实交付口径估算，整体完成度约 `85%`：核心业务闭环、工具箱主体、Web 管理端、后端 API、离线缓存/队列、备份导出恢复、Docker 部署骨架、通用服务器部署脚本和 Android 打包发布说明都已经具备；距离正式生产版主要还差服务器实机验收、移动端正式包实机验收、HTTPS/备份/监控/权限安全这些上线工序。
 
 ### 已完成到什么程度
 
@@ -48,13 +48,14 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - 工具箱：DMX、功率、BPM、光束角、照度、故障诊断、MA 宏、术语、RGB/色温、灯位、理论、LTC、灯库制作等主要功能已接入。
 - 报表/数据：综合报表、Excel 导出、项目 JSON 备份、备份恢复、唯一约束冲突预处理已完成。
 - 离线/移动端：工单创建、维修记录离线队列，工单/设备/备件列表缓存，加密存储和离线状态提示已完成。
-- 部署：后端已支持 PostgreSQL migration；Docker Compose 已包含 Web/Nginx、API、PostgreSQL、Redis、MinIO；默认 Web 入口为宿主机 `3005`。
+- 部署：后端已支持 PostgreSQL migration；Docker Compose 已包含 Web/Nginx、API、PostgreSQL、Redis、MinIO；默认 Web 入口为宿主机 `3005`；部署脚本支持 ARM64/AMD64 Ubuntu，并会为 1C1G 低配机器自动创建 swap、降低 Redis/PostgreSQL/Node 内存参数。
+- 手机端交付：Android release 已支持正式签名变量，新增 Android 打包脚本和 APK Web 下载目录；手机端安装、服务器地址配置和验收指南已补齐。
 
 ### 距离正式生产版还缺的工序
 
-- 服务器实机验收：在 Oracle Cloud ARM 上跑通 `docker compose config`、一键脚本、镜像构建、数据库迁移、Web 登录、API 健康检查、文件上传、备份恢复。
+- 服务器实机验收：在 Oracle Cloud ARM64 与普通 AMD64 1C1G Ubuntu 上分别跑通 `docker compose config`、一键脚本、镜像构建、数据库迁移、Web 登录、API 健康检查、文件上传、备份恢复。
 - HTTPS 与域名：临时可用 `http://服务器IP:3005`，正式交付建议接入域名、HTTPS、反向代理和证书自动续期。
-- 移动端正式包：Android release 签名、APK/AAB 打包、真机安装；iOS 需要 macOS/Xcode、签名、TestFlight 或真机验证。
+- 移动端正式包实测：Android release 签名配置和打包脚本已补齐，仍需在装好 JDK/Android SDK 的打包机上真实生成 APK/AAB 并安装；iOS 需要 macOS/Xcode、签名、TestFlight 或真机验证。
 - 现场业务验收：用真实项目数据验证工单流转、备件扣减、巡检转工单、离线队列冲突、附件上传、报表导出。
 - 安全与权限加固：继续细化管理员/工程师/灯光师权限边界、默认账号策略、强密码、敏感信息脱敏、接口访问审计。
 - 运维保障：数据库/MinIO 定时备份、日志留存、异常告警、磁盘空间监控、升级回滚方案。
@@ -196,7 +197,9 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 - [x] 备份下载查询改用 TypeORM repository，减少数据库方言依赖。
 - [x] 生产数据库迁移脚本补齐，替代生产环境 `synchronize`。
 - [x] 后端查询方言二次审计，覆盖搜索、分页、统计、导出接口。
-- [ ] Android `JAVA_HOME`/SDK/release 签名打包验证。
+- [x] 通用服务器部署脚本支持 ARM64/AMD64 与 1C1G 低内存部署。
+- [x] Android release 签名配置、打包脚本和 APK Web 下载目录。
+- [ ] Android `JAVA_HOME`/SDK/release 签名打包实机验证。
 - [ ] iOS Xcode 工程、签名和真机安装验证。
 - [x] 移动端 MMKV 密钥升级为 Keychain/Keystore 派生。
 - [x] 真机摄像头扫码闭环接入。
@@ -270,6 +273,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-02 | 阶段 6 生产加固 | 已完成 | 报表统计查询已拆入 `ReportsStatsService`，`ReportsService` 现在只保留对统计、导出、备份恢复的门面委托；后端构建通过。 |
 | 2026-06-03 | 阶段 6 生产加固/部署止血 | 已完成 | 修复 Oracle ARM 上 `bcrypt` 原生 binding 缺失导致 API 崩溃的问题，改用 `bcryptjs`；`docker-compose.yml` 改为生产构建并新增 Web/Nginx 容器，默认通过宿主机 `3005` 访问 Web 和 `/v1` API；新增 `scripts/oracle-arm-deploy.sh` 一键部署脚本；同时修复备件库存原子扣减、维修记录事务、工单号并发序列和月末统计日期溢出问题；`corepack pnpm run build` 已通过，本机无 Docker/bash，compose 与脚本需在 Oracle 服务器做最终验证。 |
 | 2026-06-03 | 生产版进度/部署文档 | 已完成 | README 已补充生产版进度评估、已完成范围、剩余上线工序和服务器部署操作说明，包含 Oracle 端口放行、一键部署、已有服务器更新、部署后验证、常见故障排查、手机端 API 地址和升级前备份建议。 |
+| 2026-06-03 | 通用部署/移动端发布 | 已完成 | 新增 `scripts/server-deploy.sh`，支持 ARM64/AMD64 Ubuntu 与 1C1G 低内存机器自动 swap、串行 Docker 构建和低内存运行参数；Web 容器挂载 `deploy/downloads` 提供 APK 下载；Android release 已支持正式签名变量并新增 bash/PowerShell 打包脚本；新增 [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md) 记录 APP 运行、打包、上传下载和手机端使用流程。 |
 
 ## 当前验证命令
 
@@ -283,7 +287,9 @@ corepack pnpm --filter LightOps run lint
 corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm run build
 docker compose config
+bash -n scripts/server-deploy.sh
 bash -n scripts/oracle-arm-deploy.sh
+bash -n scripts/android-release.sh
 ```
 
 ## 当前已知问题
@@ -291,17 +297,23 @@ bash -n scripts/oracle-arm-deploy.sh
 - 移动端扫码查验已接入相机扫码，仍需在 Android/iOS 真机包验证相机权限弹窗、二维码识别、弱光/反光现场识别率和 Camera Kit 原生链接。
 - 移动端 Keychain/Keystore 密钥升级已接入，仍需在 Android/iOS 真机包验证首次安装、升级迁移、重装和系统安全存储异常场景。
 - LTC WAV 当前通过 Data URI 复制/系统分享导出，仍需在真机和目标控台/时码读取器上验证音量、相位、帧率识别和长时段稳定性。
-- `apps/LightOps` 已补入 Android/iOS 原生工程目录，但当前机器未配置 `JAVA_HOME`，尚未在 Android SDK/Xcode 环境完成 Gradle、release 签名打包和真机安装验证。
+- `apps/LightOps` 已补入 Android/iOS 原生工程目录，Android release 签名配置和打包脚本已补齐；当前机器未配置 `JAVA_HOME`，尚未在 Android SDK 环境真实生成 APK/AAB 并完成真机安装验证。
 - 后续每次新增/调整数据库结构，都需要继续生成新的 TypeORM migration，并在服务器更新代码后执行迁移。
-- 当前本机环境没有 Docker CLI 和 bash，`docker compose config` 与 `scripts/oracle-arm-deploy.sh` 语法检查需在 Oracle/Ubuntu 服务器上执行；服务器侧重点验证 `http://服务器IP:3005`、`http://服务器IP:3005/v1/health`、`docker compose ps` 和 `docker compose logs -f api web`。
+- 当前本机环境没有 Docker CLI 和 bash，`docker compose config` 与 `scripts/server-deploy.sh` 需在 ARM64/AMD64 Ubuntu 服务器上执行；服务器侧重点验证 `http://服务器IP:3005`、`http://服务器IP:3005/v1/health`、`docker compose ps` 和 `docker compose logs -f api web`。
 
 ## 服务器部署操作说明
 
-当前推荐部署目标是 Oracle Cloud ARM Ubuntu 服务器。默认对外端口使用 `3005`：浏览器访问 `http://服务器IP:3005`，手机 APP 服务器地址填写 `http://服务器IP:3005/v1`。
+当前推荐部署目标是 Ubuntu/Debian 服务器，支持 Oracle Cloud ARM64，也支持常规 AMD64 1C1G 小机器。默认对外端口使用 `3005`：浏览器访问 `http://服务器IP:3005`，手机 APP 服务器地址填写 `http://服务器IP:3005/v1`。
 
-### 1. Oracle Cloud 放行端口
+低配 1C1G 机器说明：
 
-在 Oracle Cloud 控制台的安全列表或 NSG 中放行：
+- 脚本会检测内存；低于约 2GB 且 swap 不足时，会自动创建 `/swapfile-lightops`。
+- Docker 构建会使用串行构建，减少小内存机器 OOM 风险。
+- Redis、PostgreSQL、Node API 会使用偏保守的默认内存参数。
+
+### 1. 云服务器放行端口
+
+在云厂商控制台的安全组/安全列表/NSG 中放行：
 
 - TCP `3005`：当前 Web/API 统一入口。
 - TCP `80`、`443`：后续绑定域名和 HTTPS 时使用。
@@ -317,6 +329,12 @@ sudo ufw allow 3005/tcp
 用 root 或具备 sudo 的用户登录服务器后执行：
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/server-deploy.sh | bash -s -- --port 3005
+```
+
+旧命令仍可用，`scripts/oracle-arm-deploy.sh` 会自动转到通用脚本：
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/oracle-arm-deploy.sh | bash -s -- --port 3005
 ```
 
@@ -325,6 +343,7 @@ curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/
 - 安装 Docker 和 Docker Compose 插件。
 - 克隆或更新 `https://github.com/tony-wang1990/W-Light.git`。
 - 在 `/root/W-Light` 生成 `.env`，包含数据库密码、Redis 密码、JWT 密钥、MinIO 密钥。
+- 低内存机器自动创建 swap，并写入低内存运行参数。
 - 构建并启动 `lightops-web`、`lightops-api`、`lightops-postgres`、`lightops-redis`、`lightops-minio`。
 - 默认执行已提交的数据库 migration。
 
@@ -335,7 +354,7 @@ curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/
 ```bash
 cd /root/W-Light
 git pull
-bash scripts/oracle-arm-deploy.sh --port 3005
+bash scripts/server-deploy.sh --port 3005
 docker compose ps
 ```
 
@@ -353,6 +372,7 @@ docker compose logs -f --tail=100 api web
 - Web 管理端：`http://服务器IP:3005`
 - API 健康检查：`http://服务器IP:3005/v1/health`
 - Swagger 文档：`http://服务器IP:3005/api-docs`
+- Android APK 下载：`http://服务器IP:3005/downloads/w-light-latest.apk`
 
 手机 APP 登录页填写：
 
@@ -362,11 +382,12 @@ http://服务器IP:3005/v1
 
 ### 5. 常见故障排查
 
-- 浏览器显示 `ERR_CONNECTION_REFUSED`：先看 `docker compose ps`，确认 `lightops-web` 是否启动；再确认 Oracle 安全列表/NSG 已放行 TCP `3005`。
+- 浏览器显示 `ERR_CONNECTION_REFUSED`：先看 `docker compose ps`，确认 `lightops-web` 是否启动；再确认云服务器安全组/安全列表/NSG 已放行 TCP `3005`。
 - API 日志报数据库连接失败：执行 `docker compose logs -f --tail=100 api postgres`，重点检查 `.env` 中 `DB_PASSWORD` 与 PostgreSQL 容器是否一致。
 - API 日志报 migration 失败：保留日志，不要删除数据卷；先执行 `docker compose logs --tail=200 api` 定位是哪条 migration。
 - 上传文件失败：检查 `docker compose logs -f --tail=100 api minio`，确认 MinIO 容器健康。
-- 修改端口：推荐仍使用 `3005`；如必须改端口，执行 `bash scripts/oracle-arm-deploy.sh --port 3006`，同时放行新的 Oracle 安全列表端口。
+- 构建时卡死或 OOM：确认脚本已创建 swap，执行 `free -h` 查看；1C1G 机器首次构建会比较慢，属于正常情况。
+- 修改端口：推荐仍使用 `3005`；如必须改端口，执行 `bash scripts/server-deploy.sh --port 3006`，同时放行新的云服务器安全组端口。
 
 ### 6. 生产前备份建议
 
@@ -387,6 +408,73 @@ docker volume ls | grep postgres
 ```
 
 更完整的 Oracle ARM 说明见 [ORACLE_ARM_DEPLOY.md](ORACLE_ARM_DEPLOY.md)。
+
+## 手机端 APP 打包与下载
+
+完整说明见 [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)，验收清单见 [MOBILE_RELEASE_CHECKLIST.md](MOBILE_RELEASE_CHECKLIST.md)。
+
+### Android 打包
+
+打包机需要 JDK 17 和 Android SDK。正式包需要先生成 keystore，并在 `apps/LightOps/android/gradle.properties` 或系统环境变量中配置：
+
+```properties
+W_LIGHT_UPLOAD_STORE_FILE=wlight-upload-key.keystore
+W_LIGHT_UPLOAD_KEY_ALIAS=wlight-upload
+W_LIGHT_UPLOAD_STORE_PASSWORD=你的密码
+W_LIGHT_UPLOAD_KEY_PASSWORD=你的密码
+```
+
+Windows PowerShell 打包：
+
+```powershell
+.\scripts\android-release.ps1
+```
+
+Linux/macOS/WSL 打包：
+
+```bash
+bash scripts/android-release.sh
+```
+
+APK 产物：
+
+```text
+apps/LightOps/android/app/build/outputs/apk/release/app-release.apk
+```
+
+### 发布 APK 到服务器下载
+
+如果在服务器仓库内打包，可以直接发布到 Web 下载目录：
+
+```bash
+bash scripts/android-release.sh --publish-web
+docker compose restart web
+```
+
+如果在本地 Windows 打包，再上传到服务器：
+
+```powershell
+scp apps\LightOps\android\app\build\outputs\apk\release\app-release.apk root@服务器IP:/root/W-Light/deploy/downloads/w-light-latest.apk
+ssh root@服务器IP "cd /root/W-Light && docker compose restart web"
+```
+
+手机浏览器下载：
+
+```text
+http://服务器IP:3005/downloads/w-light-latest.apk
+```
+
+### 手机端使用
+
+1. 安装 APK。
+2. 打开 `W-Light`。
+3. 登录页服务器地址填写：
+
+```text
+http://服务器IP:3005/v1
+```
+
+4. 登录后，手机端和 Web 端会共用同一套后端数据。
 
 ## 本地运行
 

@@ -69,6 +69,19 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+def releaseSigningValue = { key ->
+    def value = project.findProperty(key)
+    if (value == null || value.toString().trim().isEmpty()) {
+        value = System.getenv(key)
+    }
+    return value == null ? null : value.toString()
+}
+
+def hasReleaseSigning = releaseSigningValue('W_LIGHT_UPLOAD_STORE_FILE') &&
+        releaseSigningValue('W_LIGHT_UPLOAD_KEY_ALIAS') &&
+        releaseSigningValue('W_LIGHT_UPLOAD_STORE_PASSWORD') &&
+        releaseSigningValue('W_LIGHT_UPLOAD_KEY_PASSWORD')
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -89,15 +102,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseSigningValue('W_LIGHT_UPLOAD_STORE_FILE'))
+                storePassword releaseSigningValue('W_LIGHT_UPLOAD_STORE_PASSWORD')
+                keyAlias releaseSigningValue('W_LIGHT_UPLOAD_KEY_ALIAS')
+                keyPassword releaseSigningValue('W_LIGHT_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

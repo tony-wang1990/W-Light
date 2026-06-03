@@ -1,0 +1,56 @@
+param(
+  [switch]$PublishWeb,
+  [switch]$SkipChecks
+)
+
+$ErrorActionPreference = "Stop"
+
+$RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
+$AndroidDir = Join-Path $RootDir "apps/LightOps/android"
+$ApkPath = Join-Path $AndroidDir "app/build/outputs/apk/release/app-release.apk"
+$DownloadDir = Join-Path $RootDir "deploy/downloads"
+
+if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
+  throw "Java is required. Install JDK 17 and set JAVA_HOME before building Android."
+}
+
+Set-Location $RootDir
+
+if (-not $SkipChecks) {
+  corepack pnpm install --frozen-lockfile
+  corepack pnpm --filter LightOps exec tsc --noEmit
+  corepack pnpm --filter LightOps run lint
+}
+
+Set-Location $AndroidDir
+.\gradlew.bat assembleRelease
+
+if (-not (Test-Path $ApkPath)) {
+  throw "APK not found at $ApkPath"
+}
+
+if ($PublishWeb) {
+  New-Item -ItemType Directory -Force -Path $DownloadDir | Out-Null
+  $TargetApk = Join-Path $DownloadDir "w-light-latest.apk"
+  Copy-Item $ApkPath $TargetApk -Force
+
+  $Hash = Get-FileHash $TargetApk -Algorithm SHA256
+  Set-Content -Path (Join-Path $DownloadDir "w-light-latest.apk.sha256") -Value "$($Hash.Hash.ToLower())  w-light-latest.apk"
+
+  $Commit = "unknown"
+  try {
+    $Commit = (git -C $RootDir rev-parse --short HEAD).Trim()
+  } catch {}
+
+  $Meta = [ordered]@{
+    platform = "android"
+    file = "w-light-latest.apk"
+    builtAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    commit = $Commit
+  }
+  $Meta | ConvertTo-Json | Set-Content -Path (Join-Path $DownloadDir "w-light-android.json")
+
+  Write-Host "Published APK to $TargetApk"
+}
+
+Write-Host "Android release APK: $ApkPath"

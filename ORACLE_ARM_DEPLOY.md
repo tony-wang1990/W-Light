@@ -1,6 +1,6 @@
-# 甲骨文云 ARM 部署与多端同步说明
+# 甲骨文云 ARM / 普通 AMD 服务器部署与多端同步说明
 
-本文档记录 W-Light 后续部署到 Oracle Cloud ARM 服务器时的推荐逻辑。核心原则只有一个：移动 APP 和 Web 管理端不各自存一套业务数据，而是同时连接同一个云端后端。
+本文档记录 W-Light 部署到 Oracle Cloud ARM64 或常规 AMD64 Ubuntu 服务器时的推荐逻辑。核心原则只有一个：移动 APP 和 Web 管理端不各自存一套业务数据，而是同时连接同一个云端后端。
 
 ## 同步架构
 
@@ -21,7 +21,7 @@ flowchart LR
 
 ## Oracle Cloud 准备
 
-建议使用 Ubuntu ARM 实例。安全列表/防火墙至少开放：
+建议使用 Ubuntu 服务器，ARM64 与 AMD64 均可。1C1G 小机器可以部署，通用部署脚本会自动创建 swap 并使用低内存参数。安全列表/防火墙至少开放：
 
 - `80`：HTTP，用于申请证书或临时访问。
 - `443`：HTTPS，正式给 Web 和手机端使用。
@@ -43,14 +43,21 @@ sudo usermod -aG docker $USER
 ## 一键部署（推荐）
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/server-deploy.sh | bash -s -- --port 3005
+```
+
+旧的 Oracle ARM 脚本入口仍可用，会自动转到通用部署脚本：
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/oracle-arm-deploy.sh | bash -s -- --port 3005
 ```
 
-脚本会自动安装 Docker、拉取/更新仓库、生成 `.env` 强随机密钥、构建镜像并启动服务。部署完成后访问：
+脚本会自动安装 Docker、拉取/更新仓库、生成 `.env` 强随机密钥、在低内存机器上创建 swap、构建镜像并启动服务。部署完成后访问：
 
 - Web 管理端：`http://服务器IP:3005`
 - API 健康检查：`http://服务器IP:3005/v1/health`
 - 手机 APP 服务器地址：`http://服务器IP:3005/v1`
+- Android APK 下载地址：`http://服务器IP:3005/downloads/w-light-latest.apk`
 
 如果浏览器仍然连接失败，先确认 Oracle Cloud 安全列表/NSG 已放行 TCP `3005`，再执行：
 
@@ -65,7 +72,7 @@ docker compose logs -f --tail=100 api web
 ```bash
 git clone https://github.com/tony-wang1990/W-Light.git
 cd W-Light
-bash scripts/oracle-arm-deploy.sh --port 3005
+bash scripts/server-deploy.sh --port 3005
 ```
 
 当前 `docker-compose.yml` 会启动：
@@ -150,7 +157,7 @@ docker compose up -d --build
 ```bash
 cd /root/W-Light
 git pull
-bash scripts/oracle-arm-deploy.sh --port 3005
+bash scripts/server-deploy.sh --port 3005
 docker compose ps
 ```
 
