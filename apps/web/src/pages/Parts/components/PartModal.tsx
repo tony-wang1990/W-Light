@@ -1,65 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { apiClient } from '../../../api/client';
+import { getErrorMessage } from '../../../utils/errors';
 import styles from './PartModal.module.css';
 
 interface PartModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  part?: any; // If provided, edit mode
+  part?: any;
 }
 
-export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModalProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    model: '',
-    unit: '个',
-    minStock: 5,
-    supplier: '',
-    supplierPhone: '',
-  });
+const emptyForm = {
+  name: '',
+  model: '',
+  unit: '件',
+  minStock: 5,
+  supplier: '',
+  supplierPhone: '',
+};
 
+export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModalProps) {
+  const [formData, setFormData] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      if (part) {
-        setFormData({
-          name: part.name || '',
-          model: part.model || '',
-          unit: part.unit || '个',
-          minStock: part.minStock ?? 5,
-          supplier: part.supplier || '',
-          supplierPhone: part.supplierPhone || '',
-        });
-      } else {
-        setFormData({
-          name: '',
-          model: '',
-          unit: '个',
-          minStock: 5,
-          supplier: '',
-          supplierPhone: '',
-        });
-      }
-      setErrorMsg('');
-    }
+    if (!isOpen) return;
+    setFormData(part ? {
+      name: part.name || '',
+      model: part.model || '',
+      unit: part.unit || '件',
+      minStock: part.minStock ?? 5,
+      supplier: part.supplier || '',
+      supplierPhone: part.supplierPhone || '',
+    } : emptyForm);
+    setErrorMsg('');
   }, [isOpen, part]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: name === 'minStock' ? Number(value) : value 
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'minStock' ? Number(value) : value,
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setErrorMsg('');
     try {
@@ -70,8 +60,8 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
       }
       onSuccess();
       onClose();
-    } catch (error: any) {
-      setErrorMsg(error.message || '操作失败');
+    } catch (error) {
+      setErrorMsg(getErrorMessage(error, '保存备件失败'));
     } finally {
       setLoading(false);
     }
@@ -82,26 +72,26 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
       <div className={styles.modal}>
         <div className={styles.header}>
           <h2>{part ? '编辑备件' : '新增备件'}</h2>
-          <button className={styles.closeBtn} onClick={onClose}>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="关闭">
             <X size={20} />
           </button>
         </div>
-        
+
         <form className={styles.form} onSubmit={handleSubmit}>
           {errorMsg && <div className={styles.errorMessage}>{errorMsg}</div>}
-          
+
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>备件名称 *</label>
-              <input name="name" value={formData.name} onChange={handleChange} required placeholder="例如: 欧司朗 330W 灯泡" />
+              <input name="name" value={formData.name} onChange={handleChange} required placeholder="例如：光束灯灯泡" />
             </div>
             <div className={styles.formGroup}>
               <label>型号规格</label>
-              <input name="model" value={formData.model} onChange={handleChange} placeholder="例如: 330W 15R" />
+              <input name="model" value={formData.model} onChange={handleChange} placeholder="例如：330W 15R" />
             </div>
             <div className={styles.formGroup}>
               <label>单位 *</label>
-              <input name="unit" value={formData.unit} onChange={handleChange} placeholder="例如: 个、米" required />
+              <input name="unit" value={formData.unit} onChange={handleChange} placeholder="例如：件、米、套" required />
             </div>
             <div className={styles.formGroup}>
               <label>安全库存阈值</label>
@@ -109,14 +99,14 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
             </div>
             <div className={styles.formGroup}>
               <label>供应商</label>
-              <input name="supplier" value={formData.supplier} onChange={handleChange} placeholder="例如: 鑫海光电" />
+              <input name="supplier" value={formData.supplier} onChange={handleChange} placeholder="供应商名称" />
             </div>
             <div className={styles.formGroup}>
               <label>供应商电话</label>
-              <input name="supplierPhone" value={formData.supplierPhone} onChange={handleChange} placeholder="例如: 13800138000" />
+              <input name="supplierPhone" value={formData.supplierPhone} onChange={handleChange} placeholder="例如：13800138000" />
             </div>
           </div>
-          
+
           <div className={styles.footer}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>取消</button>
             <button type="submit" className={styles.submitBtn} disabled={loading}>

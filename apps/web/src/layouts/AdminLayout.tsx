@@ -1,29 +1,37 @@
-import { useEffect, useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
-import { apiClient } from '../api/client';
-import { 
-  LayoutDashboard, 
-  Settings2, 
-  Wrench, 
-  Briefcase, 
-  Package, 
-  LogOut,
-  User as UserIcon,
-  Menu,
+import { useEffect, useMemo, useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import {
+  BarChart3,
+  Briefcase,
+  Building2,
   ClipboardList,
-  Users as UsersIcon
+  DownloadCloud,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Settings2,
+  User as UserIcon,
+  Users as UsersIcon,
+  Wrench,
 } from 'lucide-react';
+import { apiClient } from '../api/client';
+import { useAuthStore } from '../store/authStore';
 import styles from './AdminLayout.module.css';
 
 const MENU_ITEMS = [
   { path: '/dashboard', label: '控制台概览', icon: LayoutDashboard },
+  { path: '/projects', label: '项目管理', icon: Building2 },
   { path: '/orders', label: '工单调度中心', icon: Briefcase },
+  { path: '/maintenance', label: '维修记录台账', icon: FileText },
   { path: '/devices', label: '设备台账管理', icon: Settings2 },
   { path: '/parts', label: '备件库存管理', icon: Package },
   { path: '/inspections', label: '巡检管理', icon: ClipboardList },
+  { path: '/reports', label: '报表与数据', icon: BarChart3 },
   { path: '/users', label: '用户权限管理', icon: UsersIcon },
   { path: '/toolbox', label: '专业工具箱', icon: Wrench },
+  { path: '/clients', label: '客户端下载中心', icon: DownloadCloud },
 ];
 
 interface ProjectOption {
@@ -34,13 +42,27 @@ interface ProjectOption {
 
 type ProjectListResponse = ProjectOption[] | { items?: ProjectOption[] };
 
+function roleLabel(role?: string) {
+  switch (role) {
+    case 'admin': return 'Admin';
+    case 'engineer': return 'Engineer';
+    case 'inspector': return 'Inspector';
+    case 'viewer': return 'Viewer';
+    default: return role || 'User';
+  }
+}
+
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const { user, currentProjectId, setCurrentProject, logout } = useAuthStore();
   const navigate = useNavigate();
-  const fallbackProjects: ProjectOption[] = (user?.projectIds || []).map(id => ({ id, name: id.slice(0, 8) }));
-  const projectOptions: ProjectOption[] = projects.length > 0 ? projects : fallbackProjects;
+
+  const fallbackProjects: ProjectOption[] = useMemo(
+    () => (user?.projectIds || []).map(id => ({ id, name: id.slice(0, 8) })),
+    [user?.projectIds],
+  );
+  const projectOptions = projects.length > 0 ? projects : fallbackProjects;
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +98,6 @@ export default function AdminLayout() {
 
   return (
     <div className={styles.layout}>
-      {/* Sidebar */}
       <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
         <div className={styles.sidebarHeader}>
           <div className={styles.logoBox}>W</div>
@@ -88,9 +109,10 @@ export default function AdminLayout() {
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
               }
+              title={item.label}
             >
               <item.icon className={styles.navIcon} size={20} />
               {!collapsed && <span>{item.label}</span>}
@@ -106,13 +128,13 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className={styles.mainWrapper}>
         <header className={styles.header}>
           <div className={styles.headerLeft}>
-            <button 
+            <button
               className={styles.collapseBtn}
               onClick={() => setCollapsed(!collapsed)}
+              aria-label="折叠菜单"
             >
               <Menu size={20} />
             </button>
@@ -124,10 +146,10 @@ export default function AdminLayout() {
                 className={styles.projectSelect}
                 value={currentProjectId || ''}
                 onChange={(event) => setCurrentProject(event.target.value)}
-                aria-label="Current project"
-                title="Current project"
+                aria-label="当前项目"
+                title="当前项目"
               >
-                <option value="" disabled>Project</option>
+                <option value="" disabled>选择项目</option>
                 {projectOptions.map(project => (
                   <option key={project.id} value={project.id}>
                     {project.name || project.projectName || project.id.slice(0, 8)}
@@ -138,7 +160,7 @@ export default function AdminLayout() {
             <div className={styles.userInfo}>
               <UserIcon size={18} />
               <span>{user?.name || '管理员'}</span>
-              <span className={styles.roleTag}>Admin</span>
+              <span className={styles.roleTag}>{roleLabel(user?.role)}</span>
             </div>
           </div>
         </header>

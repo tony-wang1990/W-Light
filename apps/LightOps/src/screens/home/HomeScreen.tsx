@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
 import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
+import { useNotificationStore } from '../../store/notificationStore'
 import { ordersApi } from '../../api/orders.api'
 import { inspectionsApi } from '../../api/inspections.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
@@ -23,6 +24,7 @@ const QUICK_ACTIONS = [
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const { user } = useAuthStore()
+  const { unreadCount, fetchNotifications } = useNotificationStore()
   const [summary, setSummary] = useState<Summary>({ pending: 0, processing: 0, reviewing: 0, suspended: 0 })
   const [todayInspections, setTodayInspections] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -32,6 +34,7 @@ export function HomeScreen() {
       const [data, plans] = await Promise.all([
         ordersApi.summary(),
         inspectionsApi.getTodayPlans().catch(() => []),
+        fetchNotifications().catch(() => undefined),
       ])
       setSummary({
         pending: (data.pending || 0) + (data.assigned || 0),
@@ -85,8 +88,13 @@ export function HomeScreen() {
             <Text style={styles.greeting}>{greeting()}，{user?.name || '灯光师'} 👋</Text>
             <Text style={styles.roleTag}>{user?.role === 'admin' ? '🔑 管理员' : '🔧 维修工程师'}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationBtn} onPress={() => Alert.alert('通知中心', '通知中心将在后续版本接入')}>
+          <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Notifications')}>
             <Text style={styles.notificationIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -208,6 +216,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   notificationIcon: { fontSize: 18 },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.background,
+  },
+  notificationBadgeText: { fontSize: 10, color: colors.white, fontWeight: '800' },
   // Stats Grid
   statsGrid: {
     flexDirection: 'row',

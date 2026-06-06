@@ -286,6 +286,16 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-03 | Docker 端口收敛 | 已完成 | Docker Compose 默认只对外暴露 Web 统一入口 `3005`；API `3000`、PostgreSQL `5432`、Redis `6379`、MinIO `9000/9001` 均改为 Docker 内部网络端口，避免服务器已有本机服务占用端口导致部署失败。 |
 | 2026-06-03 | Web 白屏修复 | 已完成 | 修复线上首页只显示空白的问题：Vite 手动 `manualChunks` 将 React/Zustand 等依赖拆出循环依赖，导致浏览器报 `Cannot read properties of undefined (reading 'useState')`；已移除手动分包，改回 Rollup 默认分包策略。 |
 | 2026-06-03 | 初始管理员脚本 | 已完成 | 新增 `scripts/server-admin.sh`，服务器部署后可一键创建或重置管理员账号，并自动创建一个示例项目用于首次登录测试。 |
+| 2026-06-06 | Web 工单闭环实装补齐 | 已完成 | 针对线上 Web 菜单过简和工单“点击即消失”的问题，已重写 Web 工单看板与详情抽屉：状态列改为待派单/已派单/处理中/挂起/待验收/归档取消，派单不再默认指派给自己，操作后保持详情并刷新当前工单；维修记录表单已改为后端真实字段 `stepType`、`stepDesc`、`partUsages`，可在 Web 端选择备件并触发后端事务扣库存。`corepack pnpm --filter web run build` 已通过。 |
+| 2026-06-06 | Web 菜单与业务入口补齐 | 已完成 | 左侧菜单已扩展为控制台概览、项目管理、工单调度、维修台账、设备台账、备件库存、巡检、报表与数据、用户权限、专业工具箱、客户端下载中心；新增项目管理、维修记录台账、报表备份导出和客户端下载中心页面，并接入真实后端接口或 `/downloads/` 下载目录。`corepack pnpm --filter web run build` 已通过。 |
+| 2026-06-06 | Web 设备/备件交互补齐 | 已完成 | 重写 Web 设备台账列表、设备新增编辑弹窗和设备详情弹窗，补齐分类/状态筛选、清晰中文字段、二维码批量生成与打印、错误提示；重写备件列表、备件新增编辑弹窗和入出库弹窗，去除不存在的老接口调用，出入库直接走 `/parts/:id/inbound|outbound`，补齐 CSV 导出和库存预警统计。`corepack pnpm --filter web run build` 已通过。 |
+| 2026-06-06 | Web 专业工具箱矩阵补齐 | 已完成 | Web 专业工具箱已从 BPM/DMX 两个小工具扩展为 12 个入口：BPM、DMX 地址、功率负荷、光束角、照度、RGB/色温、故障诊断、MA 宏命令、行业术语、LTC 时码、灯库制作、灯位理论；Web 已显式依赖 `@lightops/toolbox-core` 复用共享计算逻辑。`corepack pnpm --filter web run build` 已通过。 |
+| 2026-06-06 | Web 控制台/巡检实装补齐 | 已完成 | 重写 Web 控制台首页，去除旧 mock 兜底，改为直接读取 `/reports/operations-summary`、`/reports/weekly-trend`、`/reports/device-status`、`/reports/parts-rank`、`/inspections/stats` 等真实接口；重写 Web 巡检管理，补齐计划创建、设备/人员关联、巡检记录、异常自动生成维修工单和记录台账。`corepack pnpm --filter web run build` 已通过。 |
+| 2026-06-06 | Web 用户权限/账号逻辑补齐 | 已完成 | 重写 Web 用户权限页，补齐项目授权、技能标签、派单负载、账号禁用和密码重置入口；后端 `UsersService.update()` 已修复密码重置未 hash 写入 `passwordHash` 的逻辑缺陷，并在 DTO 中允许技能标签字段。`corepack pnpm --filter web run build` 与 `corepack pnpm --filter backend run build` 已通过。 |
+| 2026-06-06 | 移动端通知中心实装补齐 | 已完成 | 手机端首页通知按钮已从“后续版本”提示改为真实通知中心页面，支持未读角标、通知列表、全部已读、单条已读和关联工单跳转；移动端通知 store 已修正为后端真实 `PUT /notifications/:id/read` 与 `PUT /notifications/read-all` 接口，并兼容后端分页 tuple 响应。`corepack pnpm --filter LightOps exec tsc --noEmit` 与 `corepack pnpm --filter LightOps run lint` 已通过。 |
+| 2026-06-06 | 桌面客户端同步最新 Web | 已完成 | 已运行 `corepack pnpm --filter desktop run prepare:web`，最新 Web 控制台构建产物已同步到 Electron 客户端 `apps/desktop/web`，Windows/Mac/Linux 桌面安装包后续会打入当前完整控制台而不是旧半成品页面。 |
+| 2026-06-06 | Web 浏览器渲染验证 | 已完成 | 已用本地 `vite preview` 验证 `/login`、`/dashboard`、`/orders`、`/inspections`、`/users`、`/toolbox`、`/clients`：页面均非白屏，11 个左侧菜单完整出现，关键标题和功能入口可见，浏览器控制台无前端 JS error；因本地未启动 API，接口区域显示 500 错误提示属于预期无后端状态。验证截图保存在 `tmp/wlight-web-toolbox-verify.png`。 |
+| 2026-06-06 | 整仓验证 | 已完成 | `corepack pnpm run build`、`corepack pnpm -r run test`、`corepack pnpm -r run lint` 已通过；lint 当前仍有历史 `any`、seed `console`、少量未使用变量 warning，但无 lint error。 |
 
 ## 当前验证命令
 

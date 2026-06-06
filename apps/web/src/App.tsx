@@ -8,6 +8,10 @@ import Parts from './pages/Parts/Parts';
 import Toolbox from './pages/Toolbox/Toolbox';
 import Inspections from './pages/Inspections/Inspections';
 import Users from './pages/Users/Users';
+import Projects from './pages/Projects/Projects';
+import Maintenance from './pages/Maintenance/Maintenance';
+import Reports from './pages/Reports/Reports';
+import Clients from './pages/Clients/Clients';
 
 function App() {
   const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
@@ -18,12 +22,16 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route element={<AdminLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/projects" element={<Projects />} />
           <Route path="/devices" element={<Devices />} />
           <Route path="/orders" element={<Orders />} />
+          <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/parts" element={<Parts />} />
           <Route path="/inspections" element={<Inspections />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/users" element={<Users />} />
           <Route path="/toolbox" element={<Toolbox />} />
+          <Route path="/clients" element={<Clients />} />
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>

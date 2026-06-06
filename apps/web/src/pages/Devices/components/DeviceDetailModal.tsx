@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { X, QrCode, MapPin, Tag, Cpu, Building, Activity } from 'lucide-react';
+import { Activity, Building, Cpu, MapPin, QrCode, Tag, X } from 'lucide-react';
 import styles from './DeviceDetailModal.module.css';
 
 interface DeviceDetailModalProps {
@@ -10,14 +10,14 @@ interface DeviceDetailModalProps {
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   normal: { label: '正常运行', color: '#10B981' },
-  maintenance: { label: '报修中', color: '#F59E0B' },
+  maintenance: { label: '维修中', color: '#F59E0B' },
   fault: { label: '故障', color: '#EF4444' },
   offline: { label: '离线', color: '#6B7280' },
 };
 
 export default function DeviceDetailModal({ device, onClose }: DeviceDetailModalProps) {
   const statusInfo = STATUS_MAP[device.status?.toLowerCase()] || { label: '未知', color: '#9CA3AF' };
-  const healthScore = device.healthScore || 0;
+  const healthScore = Number(device.healthScore || 0);
   const healthColor = healthScore > 80 ? '#10B981' : healthScore > 60 ? '#F59E0B' : '#EF4444';
   const qrValue = device.qrCode || device.deviceNo || device.id;
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -44,8 +44,7 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+      <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.deviceIcon}>
@@ -56,13 +55,12 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
               <span className={styles.deviceNo}>{device.deviceNo}</span>
             </div>
           </div>
-          <button className={styles.closeBtn} onClick={onClose}>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="关闭">
             <X size={20} />
           </button>
         </div>
 
         <div className={styles.body}>
-          {/* Status & Health */}
           <div className={styles.statusRow}>
             <div className={styles.statusBadge} style={{ backgroundColor: statusInfo.color + '20', color: statusInfo.color }}>
               <Activity size={13} />
@@ -77,34 +75,33 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
             </div>
           </div>
 
-          {/* Info Grid */}
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
               <Tag size={15} color="#6B7280" />
               <div>
                 <div className={styles.infoLabel}>分类</div>
-                <div className={styles.infoValue}>{device.category || '—'}</div>
+                <div className={styles.infoValue}>{device.category || '-'}</div>
               </div>
             </div>
             <div className={styles.infoItem}>
               <MapPin size={15} color="#6B7280" />
               <div>
                 <div className={styles.infoLabel}>安装位置</div>
-                <div className={styles.infoValue}>{device.location || '—'}</div>
+                <div className={styles.infoValue}>{device.location || '-'}</div>
               </div>
             </div>
             <div className={styles.infoItem}>
               <Building size={15} color="#6B7280" />
               <div>
                 <div className={styles.infoLabel}>品牌/厂商</div>
-                <div className={styles.infoValue}>{device.manufacturer || '—'}</div>
+                <div className={styles.infoValue}>{device.manufacturer || '-'}</div>
               </div>
             </div>
             <div className={styles.infoItem}>
               <Cpu size={15} color="#6B7280" />
               <div>
                 <div className={styles.infoLabel}>型号</div>
-                <div className={styles.infoValue}>{device.model || '—'}</div>
+                <div className={styles.infoValue}>{device.model || '-'}</div>
               </div>
             </div>
             <div className={styles.infoItem}>
@@ -121,13 +118,12 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
               <div>
                 <div className={styles.infoLabel}>创建时间</div>
                 <div className={styles.infoValue}>
-                  {device.createdAt ? new Date(device.createdAt).toLocaleDateString('zh-CN') : '—'}
+                  {device.createdAt ? new Date(device.createdAt).toLocaleDateString('zh-CN') : '-'}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* QR Code Section */}
           <div className={styles.qrSection}>
             <div className={styles.qrHeader}>
               <QrCode size={16} color="#374151" />
@@ -151,7 +147,7 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
               <div className={styles.qrEmpty}>
                 <QrCode size={36} color="#D1D5DB" />
                 <p>暂无二维码信息</p>
-                <span>设备ID: {device.id?.substring(0, 16)}...</span>
+                <span>设备 ID：{device.id?.substring(0, 16)}...</span>
               </div>
             )}
           </div>

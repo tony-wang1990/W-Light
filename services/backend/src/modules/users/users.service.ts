@@ -34,6 +34,7 @@ export class CreateUserDto {
 export class UpdateUserDto {
   name?: string
   phone?: string
+  password?: string
   role?: UserRole
   projectIds?: string[]
   skillTags?: string[]
@@ -131,7 +132,11 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto): Promise<PublicUser> {
     const user = await this.repo.findOne({ where: { id } })
     if (!user) throw new NotFoundException('用户不存在')
-    Object.assign(user, dto)
+    const { password, ...profile } = dto
+    Object.assign(user, profile)
+    if (password) {
+      user.passwordHash = await bcrypt.hash(password, 10)
+    }
     return this.toPublicUser(await this.repo.save(user))
   }
 

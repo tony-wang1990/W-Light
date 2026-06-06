@@ -1,7 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
-import { Search, Filter, Plus, MoreHorizontal, Edit, Trash2, QrCode as QrCodeIcon, Printer, X } from 'lucide-react';
+import {
+  Edit,
+  Filter,
+  MoreHorizontal,
+  Plus,
+  Printer,
+  QrCode as QrCodeIcon,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { apiClient } from '../../api/client';
+import { getErrorMessage } from '../../utils/errors';
 import DeviceModal from './components/DeviceModal';
 import DeviceDetailModal from './components/DeviceDetailModal';
 import styles from './Devices.module.css';
@@ -26,6 +37,21 @@ interface QrLabel {
   dataUrl: string;
 }
 
+type DeviceListResponse = Device[] | { items?: Device[] };
+
+const CATEGORY_OPTIONS = ['', '灯具', '控台', '配电', '网络', '音频', '视频', '其他'];
+const STATUS_OPTIONS = [
+  { value: '', label: '全部状态' },
+  { value: 'normal', label: '正常运行' },
+  { value: 'maintenance', label: '维修中' },
+  { value: 'fault', label: '故障' },
+  { value: 'offline', label: '离线' },
+];
+
+function normalizeDevices(res: DeviceListResponse) {
+  return Array.isArray(res) ? res : res.items || [];
+}
+
 function escapeHtml(value: string | undefined) {
   return (value || '').replace(/[&<>"']/g, (char) => ({
     '&': '&amp;',
@@ -36,13 +62,26 @@ function escapeHtml(value: string | undefined) {
   }[char] || char));
 }
 
+function statusText(status: string) {
+  switch (status?.toLowerCase()) {
+    case 'normal': return '正常运行';
+    case 'maintenance': return '维修中';
+    case 'fault': return '故障';
+    case 'offline': return '离线';
+    default: return '未知';
+  }
+}
+
 export default function Devices() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [category, setCategory] = useState('');
+  const [status, setStatus] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [qrLabels, setQrLabels] = useState<QrLabel[]>([]);
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | undefined>();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -50,19 +89,31 @@ export default function Devices() {
 
   const fetchDevices = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const res = await apiClient.get('/devices');
-      setDevices(res.items || res || []);
+      const params = new URLSearchParams();
+      if (searchTerm.trim()) params.set('keyword', searchTerm.trim());
+      if (category) params.set('category', category);
+      if (status) params.set('status', status);
+      const res = await apiClient.get<DeviceListResponse>(`/devices${params.toString() ? `?${params.toString()}` : ''}`);
+      setDevices(normalizeDevices(res));
     } catch (err) {
-      console.error('Failed to fetch devices:', err);
+      setError(getErrorMessage(err, '设备列表加载失败'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [category, searchTerm, status]);
 
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
+
+  const statusCounts = useMemo(() => {
+    return devices.reduce<Record<string, number>>((acc, device) => {
+      acc[device.status || 'unknown'] = (acc[device.status || 'unknown'] || 0) + 1;
+      return acc;
+    }, {});
+  }, [devices]);
 
   const handleAddDevice = () => {
     setEditingDevice(undefined);
@@ -76,25 +127,24 @@ export default function Devices() {
   };
 
   const handleDeleteDevice = async (id: string) => {
-    if (!window.confirm('确定要删除该设备吗？此操作不可恢复。')) return;
+    if (!window.confirm('确定删除该设备吗？此操作不可恢复。')) return;
     try {
       await apiClient.delete(`/devices/${id}`);
       fetchDevices();
     } catch (err) {
-      alert('删除失败');
+      window.alert(getErrorMessage(err, '删除失败'));
     }
     setActiveMenuId(null);
   };
 
-  const handleRowClick = (device: Device, e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
+  const handleRowClick = (device: Device, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
     if (target.closest('button')) return;
     setSelectedDevice(device);
   };
 
-  const getStatusStyle = (status: string) => {
-    const s = status?.toLowerCase();
-    switch (s) {
+  const getStatusStyle = (deviceStatus: string) => {
+    switch (deviceStatus?.toLowerCase()) {
       case 'normal': return styles.statusOnline;
       case 'maintenance': return styles.statusMaintenance;
       case 'fault':
@@ -103,33 +153,15 @@ export default function Devices() {
     }
   };
 
-  const getStatusText = (status: string) => {
-    const s = status?.toLowerCase();
-    switch (s) {
-      case 'normal': return '正常运行';
-      case 'maintenance': return '报修中';
-      case 'fault': return '故障';
-      case 'offline': return '离线';
-      default: return '未知';
-    }
-  };
-
-  const filteredDevices = devices.filter(d =>
-    (d.name || '').includes(searchTerm) ||
-    (d.deviceNo || '').includes(searchTerm) ||
-    (d.location || '').includes(searchTerm)
-  );
-
   const handleGenerateQrLabels = async () => {
-    const targetDevices = filteredDevices.length > 0 ? filteredDevices : devices;
-    if (targetDevices.length === 0) {
-      alert('暂无可生成二维码的设备');
+    if (devices.length === 0) {
+      window.alert('暂无可生成二维码的设备');
       return;
     }
 
     setIsGeneratingQr(true);
     try {
-      const labels = await Promise.all(targetDevices.map(async (device) => {
+      const labels = await Promise.all(devices.map(async (device) => {
         const qrValue = device.qrCode || device.deviceNo || device.id;
         const dataUrl = await QRCode.toDataURL(qrValue, {
           width: 192,
@@ -139,9 +171,8 @@ export default function Devices() {
         return { device: { ...device, qrCode: qrValue }, dataUrl };
       }));
       setQrLabels(labels);
-    } catch (error) {
-      console.error('Failed to generate QR labels:', error);
-      alert('生成二维码失败');
+    } catch (err) {
+      window.alert(getErrorMessage(err, '二维码生成失败'));
     } finally {
       setIsGeneratingQr(false);
     }
@@ -150,7 +181,7 @@ export default function Devices() {
   const handlePrintQrLabels = () => {
     const printWindow = window.open('', '_blank', 'width=960,height=720');
     if (!printWindow) {
-      alert('浏览器阻止了打印窗口，请允许弹窗后重试');
+      window.alert('浏览器阻止了打印窗口，请允许弹窗后重试。');
       return;
     }
 
@@ -191,40 +222,61 @@ export default function Devices() {
     printWindow.print();
   };
 
+  const hasFilter = Boolean(searchTerm.trim() || category || status);
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
           <h1 className={styles.pageTitle}>设备台账</h1>
-          <p className={styles.pageSubtitle}>管理所有场馆设备、生成资产二维码与健康度跟踪。</p>
+          <p className={styles.pageSubtitle}>管理现场设备、二维码标签、安装位置、健康度和运行状态。</p>
         </div>
         <div className={styles.headerActions}>
-          <button className={styles.exportBtn} onClick={handleGenerateQrLabels} disabled={isGeneratingQr}>
-            <QrCodeIcon size={18} />
-            {isGeneratingQr ? '生成中...' : '批量二维码'}
+          <button className={styles.exportBtn} onClick={handleGenerateQrLabels} disabled={isGeneratingQr || devices.length === 0}>
+            <QrCodeIcon size={18} /> {isGeneratingQr ? '生成中...' : '批量二维码'}
           </button>
           <button className={styles.addBtn} onClick={handleAddDevice}>
-            <Plus size={18} />
-            新增设备
+            <Plus size={18} /> 新增设备
           </button>
         </div>
       </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 8, background: '#FEF2F2', color: '#B91C1C', fontSize: 13 }}>{error}</div>}
 
       <div className={styles.tableCard}>
         <div className={styles.toolbar}>
           <div className={styles.searchBox}>
             <Search size={18} className={styles.searchIcon} />
-            <input 
-              type="text" 
-              placeholder="搜索设备编号 / 名称 / 位置..." 
+            <input
+              type="text"
+              placeholder="搜索设备编号 / 名称 / 位置..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
             />
           </div>
-          <button className={styles.filterBtn}>
-            <Filter size={16} /> 高级筛选
+          <button className={styles.filterBtn} onClick={() => setShowFilter(!showFilter)}>
+            <Filter size={16} /> {hasFilter ? '筛选中' : '高级筛选'}
           </button>
         </div>
+
+        {showFilter && (
+          <div className={styles.toolbar} style={{ paddingTop: 0 }}>
+            <select className={styles.filterBtn as string} value={category} onChange={event => setCategory(event.target.value)}>
+              {CATEGORY_OPTIONS.map(option => <option key={option || 'all'} value={option}>{option || '全部分类'}</option>)}
+            </select>
+            <select className={styles.filterBtn as string} value={status} onChange={event => setStatus(event.target.value)}>
+              {STATUS_OPTIONS.map(option => <option key={option.value || 'all'} value={option.value}>{option.label}</option>)}
+            </select>
+            {hasFilter && (
+              <button className={styles.filterBtn} onClick={() => { setSearchTerm(''); setCategory(''); setStatus(''); }}>
+                <X size={14} /> 清除
+              </button>
+            )}
+            <span style={{ color: '#6B7280', fontSize: 12 }}>
+              正常 {statusCounts.normal || 0} · 维修 {statusCounts.maintenance || 0} · 故障 {statusCounts.fault || 0} · 离线 {statusCounts.offline || 0}
+            </span>
+          </div>
+        )}
 
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
@@ -243,45 +295,48 @@ export default function Devices() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center' }}>加载中...</td></tr>
-              ) : filteredDevices.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: '#9CA3AF' }}>暂无设备数据</td></tr>
-              ) : filteredDevices.map(device => (
-                <tr key={device.id} onClick={(e) => handleRowClick(device, e)} style={{ cursor: 'pointer' }}>
+              ) : devices.length === 0 ? (
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#9CA3AF' }}>暂无设备数据</td></tr>
+              ) : devices.map(device => (
+                <tr key={device.id} onClick={(event) => handleRowClick(device, event)} style={{ cursor: 'pointer' }}>
                   <td className={styles.cellId}>{device.deviceNo}</td>
                   <td className={styles.cellName}>{device.name}</td>
                   <td className={styles.cellCategory}>{device.category}</td>
                   <td>{device.location}</td>
                   <td>
                     <span className={`${styles.statusBadge} ${getStatusStyle(device.status)}`}>
-                      {getStatusText(device.status)}
+                      {statusText(device.status)}
                     </span>
                   </td>
                   <td>
                     <div className={styles.healthBar}>
-                      <div 
-                        className={styles.healthProgress} 
-                        style={{ 
+                      <div
+                        className={styles.healthProgress}
+                        style={{
                           width: `${device.healthScore || 0}%`,
-                          backgroundColor: (device.healthScore || 0) > 80 ? '#1EAE98' : ((device.healthScore || 0) > 60 ? '#F59E0B' : '#DC3545')
-                        }} 
+                          backgroundColor: (device.healthScore || 0) > 80 ? '#1EAE98' : ((device.healthScore || 0) > 60 ? '#F59E0B' : '#DC3545'),
+                        }}
                       />
                     </div>
                     <span className={styles.healthText}>{device.healthScore || 0}分</span>
                   </td>
-                  <td className={styles.cellDate}>{device.lastMaintainAt ? new Date(device.lastMaintainAt).toLocaleDateString() : '从未'}</td>
+                  <td className={styles.cellDate}>{device.lastMaintainAt ? new Date(device.lastMaintainAt).toLocaleDateString('zh-CN') : '从未'}</td>
                   <td style={{ position: 'relative' }}>
-                    <button 
+                    <button
                       className={styles.actionBtn}
-                      onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === device.id ? null : device.id); }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActiveMenuId(activeMenuId === device.id ? null : device.id);
+                      }}
                     >
                       <MoreHorizontal size={18} />
                     </button>
                     {activeMenuId === device.id && (
                       <div className={styles.dropdownMenu}>
-                        <button onClick={(e) => { e.stopPropagation(); handleEditDevice(device); }}>
+                        <button onClick={(event) => { event.stopPropagation(); handleEditDevice(device); }}>
                           <Edit size={14} /> 编辑
                         </button>
-                        <button className={styles.dangerBtn} onClick={(e) => { e.stopPropagation(); handleDeleteDevice(device.id); }}>
+                        <button className={styles.dangerBtn} onClick={(event) => { event.stopPropagation(); handleDeleteDevice(device.id); }}>
                           <Trash2 size={14} /> 删除
                         </button>
                       </div>
@@ -292,21 +347,21 @@ export default function Devices() {
             </tbody>
           </table>
         </div>
-        
+
         <div className={styles.pagination}>
-          <span className={styles.pageInfo}>共 {filteredDevices.length} 条记录</span>
+          <span className={styles.pageInfo}>共 {devices.length} 条记录</span>
         </div>
       </div>
 
       {isModalOpen && (
-        <DeviceModal 
+        <DeviceModal
           isOpen={isModalOpen}
-          device={editingDevice} 
-          onClose={() => setIsModalOpen(false)} 
+          device={editingDevice}
+          onClose={() => setIsModalOpen(false)}
           onSuccess={() => {
             setIsModalOpen(false);
             fetchDevices();
-          }} 
+          }}
         />
       )}
 
@@ -331,8 +386,7 @@ export default function Devices() {
             </div>
             <div className={styles.qrModalActions}>
               <button className={styles.addBtn} onClick={handlePrintQrLabels}>
-                <Printer size={18} />
-                打印标签
+                <Printer size={18} /> 打印标签
               </button>
             </div>
             <div className={styles.qrLabelGrid}>

@@ -245,7 +245,7 @@ export function RecordsScreen() {
         />
       )}
 
-      {/* Inspections Tab - Static placeholder with plan */}
+      {/* Inspections Tab - API backed plan and record list */}
       {tab === 'inspections' && (
         <InspectionsTab />
       )}

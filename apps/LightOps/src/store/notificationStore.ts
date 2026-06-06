@@ -18,6 +18,36 @@ interface NotificationActions {
 
 type NotificationStore = NotificationState & NotificationActions;
 
+type NotificationListResponse = { items?: Notification[]; unreadCount?: number } | [Notification[], number] | Notification[];
+
+function isNotificationTuple(response: NotificationListResponse): response is [Notification[], number] {
+  return Array.isArray(response) && response.length === 2 && Array.isArray(response[0]) && typeof response[1] === 'number';
+}
+
+function normalizeNotificationResponse(
+  response: NotificationListResponse,
+) {
+  if (isNotificationTuple(response)) {
+    const [items] = response;
+    return {
+      items,
+      unreadCount: items.filter(item => !item.isRead).length,
+    };
+  }
+
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      unreadCount: response.filter(item => !item.isRead).length,
+    };
+  }
+
+  return {
+    items: response.items || [],
+    unreadCount: response.unreadCount ?? (response.items || []).filter(item => !item.isRead).length,
+  };
+}
+
 export const useNotificationStore = create<NotificationStore>((set) => ({
   // State
   notifications: [],
@@ -28,13 +58,11 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
   fetchNotifications: async () => {
     set({ isLoading: true });
     try {
-      const response = await client.get<{
-        items: Notification[];
-        unreadCount: number;
-      }>('/notifications');
+      const response = await client.get<NotificationListResponse>('/notifications');
+      const normalized = normalizeNotificationResponse(response);
       set({
-        notifications: response.items,
-        unreadCount: response.unreadCount,
+        notifications: normalized.items,
+        unreadCount: normalized.unreadCount,
         isLoading: false,
       });
     } catch {
@@ -44,7 +72,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
 
   markAsRead: async (id: string) => {
     try {
-      await client.patch(`/notifications/${id}/read`);
+      await client.put(`/notifications/${id}/read`);
       set(state => ({
         notifications: state.notifications.map(n =>
           n.id === id ? { ...n, isRead: true } : n,
@@ -58,7 +86,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
 
   markAllAsRead: async () => {
     try {
-      await client.post('/notifications/read-all');
+      await client.put('/notifications/read-all');
       set(state => ({
         notifications: state.notifications.map(n => ({ ...n, isRead: true })),
         unreadCount: 0,

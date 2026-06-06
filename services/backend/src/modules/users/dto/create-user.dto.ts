@@ -37,6 +37,12 @@ export class CreateUserDto {
   @IsString({ each: true })
   projectIds?: string[];
 
+  @ApiPropertyOptional({ example: ['MA2', 'MA3', '强电'], description: 'Skill tags for dispatch matching' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  skillTags?: string[];
+
   @ApiPropertyOptional({ example: 'EMP-001' })
   @IsOptional()
   @IsString()

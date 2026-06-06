@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { X, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowDownToLine, ArrowUpFromLine, X } from 'lucide-react';
 import { apiClient } from '../../../api/client';
+import { getErrorMessage } from '../../../utils/errors';
 import styles from './PartModal.module.css';
 
 interface PartLogModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  part: any; // The part being operated on
+  part: any;
   type: 'in' | 'out';
 }
 
@@ -16,64 +17,50 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
     quantity: 1,
     note: '',
   });
-
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        quantity: 1,
-        note: type === 'in' ? '采购入库' : '领料出库',
-      });
-      setErrorMsg('');
-    }
+    if (!isOpen) return;
+    setFormData({
+      quantity: 1,
+      note: type === 'in' ? '采购入库' : '领料出库',
+    });
+    setErrorMsg('');
   }, [isOpen, type]);
 
   if (!isOpen || !part) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: name === 'quantity' ? Number(value) : value 
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'quantity' ? Number(value) : value,
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (type === 'out' && formData.quantity > part.stock) {
-      setErrorMsg('库存不足！当前库存只有 ' + part.stock);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!Number.isFinite(formData.quantity) || formData.quantity <= 0) {
+      setErrorMsg('操作数量必须大于 0');
       return;
     }
-    
+    if (type === 'out' && formData.quantity > Number(part.stock || 0)) {
+      setErrorMsg(`库存不足，当前库存只有 ${part.stock} ${part.unit || ''}`);
+      return;
+    }
+
     setLoading(true);
     setErrorMsg('');
     try {
-      // Get current user for operatorId
-      const me = await apiClient.get('/auth/me');
-      // POST /spare-parts/logs with correct opType: 'inbound' or 'outbound'
-      await apiClient.post('/spare-parts/logs', {
-        partId: part.id,
-        opType: type === 'in' ? 'inbound' : 'outbound',
+      await apiClient.post(`/parts/${part.id}/${type === 'in' ? 'inbound' : 'outbound'}`, {
         quantity: formData.quantity,
-        note: formData.note,
-        operatorId: me.id,
+        note: formData.note.trim() || undefined,
       });
       onSuccess();
       onClose();
-    } catch (error: any) {
-      // Fallback: try direct inbound/outbound endpoints
-      try {
-        await apiClient.post(`/parts/${part.id}/${type === 'in' ? 'inbound' : 'outbound'}`, {
-          quantity: formData.quantity,
-          note: formData.note,
-        });
-        onSuccess();
-        onClose();
-      } catch (err2: any) {
-        setErrorMsg(error.message || '操作失败');
-      }
+    } catch (error) {
+      setErrorMsg(getErrorMessage(error, type === 'in' ? '入库失败' : '出库失败'));
     } finally {
       setLoading(false);
     }
@@ -87,52 +74,52 @@ export default function PartLogModal({ isOpen, onClose, onSuccess, part, type }:
             {type === 'in' ? <ArrowDownToLine color="#00A67E" /> : <ArrowUpFromLine color="#DC2626" />}
             <h2>{type === 'in' ? '备件入库' : '备件出库'}</h2>
           </div>
-          <button className={styles.closeBtn} onClick={onClose}>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="关闭">
             <X size={20} />
           </button>
         </div>
-        
+
         <form className={styles.form} onSubmit={handleSubmit}>
           {errorMsg && <div className={styles.errorMessage}>{errorMsg}</div>}
-          
+
           <div style={{ padding: '24px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
             <div style={{ fontWeight: 600, color: '#111827', fontSize: 16 }}>{part.name}</div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: '#6B7280' }}>
-              <span>型号: {part.model || '无'}</span>
-              <span>当前库存: <strong style={{color: type === 'out' ? '#DC2626' : '#111827'}}>{part.stock} {part.unit}</strong></span>
+              <span>型号：{part.model || '无'}</span>
+              <span>当前库存：<strong style={{ color: type === 'out' ? '#DC2626' : '#111827' }}>{part.stock} {part.unit}</strong></span>
             </div>
           </div>
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>操作数量 ({part.unit})</label>
-              <input 
-                type="number" 
-                name="quantity" 
-                value={formData.quantity} 
-                onChange={handleChange} 
-                min={1} 
+              <label>操作数量 ({part.unit || '件'})</label>
+              <input
+                type="number"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleChange}
+                min={1}
                 max={type === 'out' ? part.stock : undefined}
-                required 
+                required
               />
             </div>
             <div className={styles.formGroup} style={{ gridColumn: 'span 2' }}>
               <label>备注说明</label>
-              <input 
-                name="note" 
-                value={formData.note} 
-                onChange={handleChange} 
-                placeholder="请输入说明，例如：用于A区主舞台光束灯维修" 
-                required 
+              <input
+                name="note"
+                value={formData.note}
+                onChange={handleChange}
+                placeholder="例如：用于主舞台光束灯维修"
+                required
               />
             </div>
           </div>
-          
+
           <div className={styles.footer}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>取消</button>
-            <button 
-              type="submit" 
-              className={styles.submitBtn} 
+            <button
+              type="submit"
+              className={styles.submitBtn}
               style={{ backgroundColor: type === 'out' ? '#DC2626' : '#00A67E' }}
               disabled={loading || formData.quantity <= 0}
             >

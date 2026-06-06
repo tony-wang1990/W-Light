@@ -4,6 +4,7 @@ import { colors } from '../theme';
 import { HomeStackParamList } from './types';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { DeviceScanScreen } from '../screens/home/DeviceScanScreen';
+import { NotificationsScreen } from '../screens/home/NotificationsScreen';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -16,6 +17,7 @@ export function HomeStack() {
       }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
       <Stack.Screen name="DeviceScan" component={DeviceScanScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }
