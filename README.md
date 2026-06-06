@@ -296,6 +296,7 @@ W-Light 是面向文旅灯光项目现场的移动端运维工具，目标是把
 | 2026-06-06 | 桌面客户端同步最新 Web | 已完成 | 已运行 `corepack pnpm --filter desktop run prepare:web`，最新 Web 控制台构建产物已同步到 Electron 客户端 `apps/desktop/web`，Windows/Mac/Linux 桌面安装包后续会打入当前完整控制台而不是旧半成品页面。 |
 | 2026-06-06 | Web 浏览器渲染验证 | 已完成 | 已用本地 `vite preview` 验证 `/login`、`/dashboard`、`/orders`、`/inspections`、`/users`、`/toolbox`、`/clients`：页面均非白屏，11 个左侧菜单完整出现，关键标题和功能入口可见，浏览器控制台无前端 JS error；因本地未启动 API，接口区域显示 500 错误提示属于预期无后端状态。验证截图保存在 `tmp/wlight-web-toolbox-verify.png`。 |
 | 2026-06-06 | 整仓验证 | 已完成 | `corepack pnpm run build`、`corepack pnpm -r run test`、`corepack pnpm -r run lint` 已通过；lint 当前仍有历史 `any`、seed `console`、少量未使用变量 warning，但无 lint error。 |
+| 2026-06-06 | 客户端打包脚本修复 | 已完成 | Windows 桌面端最新 Web 已能生成 `win-unpacked` 和 NSIS 7z 中间产物，但本机 NSIS 最终安装器阶段报 `allowOnlyOneInstallerInstance.nsh` include 失败，下载目录旧 `.exe` 不能视为最新安装包；已修复 `scripts/desktop-release.ps1` 与 `scripts/android-release.ps1`，PowerShell native 命令失败时会立即停止，避免继续发布旧安装包。Android 脚本已验证在本机缺少 Java/JDK 时明确失败并提示配置 JDK 17。 |
 
 ## 当前验证命令
 

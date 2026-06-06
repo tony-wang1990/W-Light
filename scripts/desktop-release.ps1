@@ -7,6 +7,20 @@ param(
 $ErrorActionPreference = 'Stop'
 $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 
+function Invoke-Checked {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Arguments
+  )
+
+  & $FilePath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($Arguments -join ' ')"
+  }
+}
+
 $shimDir = Join-Path (Get-Location) 'tmp\pnpm-shim'
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
   New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
@@ -36,8 +50,8 @@ $latestName = switch ($Target) {
   default { 'W-Light-latest' }
 }
 
-corepack enable | Out-Null
-corepack pnpm --filter desktop run $scriptName
+Invoke-Checked corepack enable
+Invoke-Checked corepack pnpm --filter desktop run $scriptName
 
 if (-not $PublishWeb) {
   exit 0

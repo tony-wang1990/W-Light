@@ -5,6 +5,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Invoke-Checked {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Arguments
+  )
+
+  & $FilePath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($Arguments -join ' ')"
+  }
+}
+
 $RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
 $AndroidDir = Join-Path $RootDir "apps/LightOps/android"
 $ApkPath = Join-Path $AndroidDir "app/build/outputs/apk/release/app-release.apk"
@@ -17,13 +31,13 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
 Set-Location $RootDir
 
 if (-not $SkipChecks) {
-  corepack pnpm install --frozen-lockfile
-  corepack pnpm --filter LightOps exec tsc --noEmit
-  corepack pnpm --filter LightOps run lint
+  Invoke-Checked corepack pnpm install --frozen-lockfile
+  Invoke-Checked corepack pnpm --filter LightOps exec tsc --noEmit
+  Invoke-Checked corepack pnpm --filter LightOps run lint
 }
 
 Set-Location $AndroidDir
-.\gradlew.bat assembleRelease
+Invoke-Checked ".\gradlew.bat" assembleRelease
 
 if (-not (Test-Path $ApkPath)) {
   throw "APK not found at $ApkPath"
