@@ -58,7 +58,7 @@ export class OrdersService {
       .leftJoinAndMapOne('o.reporter', User, 'reporter', this.columnEqualsColumn('reporter.id', 'o."reporterId"'))
       .leftJoinAndMapOne('o.assignee', User, 'assignee', this.columnEqualsColumn('assignee.id', 'o."assigneeId"'))
       .where(this.columnEqualsParam('o."projectId"', 'projectId'), { projectId })
-      .orderBy('o."createdAt"', 'DESC')
+      .orderBy('o.createdAt', 'DESC')
 
     if (status) qb.andWhere('o.status = :status', { status })
     if (priority) qb.andWhere('o.priority = :priority', { priority })
@@ -216,7 +216,7 @@ export class OrdersService {
       .createQueryBuilder('log')
       .leftJoinAndMapOne('log.engineer', User, 'engineer', this.columnEqualsColumn('engineer.id', 'log."engineerId"'))
       .where(this.columnEqualsParam('log."orderId"', 'orderId'), { orderId })
-      .orderBy('log."loggedAt"', 'ASC')
+      .orderBy('log.loggedAt', 'ASC')
       .getMany()
   }
 

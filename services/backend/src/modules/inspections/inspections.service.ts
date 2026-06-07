@@ -99,7 +99,7 @@ export class InspectionsService {
         `${this.columnEqualsColumn('p.id', 'r."planId"')} AND ${this.columnEqualsParam('p."projectId"', 'projectId')}`,
         { projectId },
       )
-      .orderBy('r."inspectedAt"', 'DESC')
+      .orderBy('r.inspectedAt', 'DESC')
 
     if (planId) qb.andWhere(this.columnEqualsParam('r."planId"', 'planId'), { planId })
 
@@ -118,7 +118,7 @@ export class InspectionsService {
       .andWhere('p."isActive" = :isActive', { isActive: 1 })
       .andWhere(`(${this.columnEqualsParam('p."assigneeId"', 'assigneeId')} OR p."assigneeId" IS NULL)`, { assigneeId })
       .andWhere('(p."nextInspectionAt" IS NULL OR p."nextInspectionAt" <= :now)', { now: new Date() })
-      .orderBy('p."nextInspectionAt"', 'ASC')
+      .orderBy('p.nextInspectionAt', 'ASC')
       .getMany()
   }
 

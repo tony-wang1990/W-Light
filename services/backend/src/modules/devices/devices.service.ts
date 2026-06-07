@@ -36,7 +36,7 @@ export class DevicesService {
         { kw: `%${keyword.trim().toLowerCase()}%` },
       )
     }
-    return qb.orderBy('d."deviceNo"').getMany()
+    return qb.orderBy('d.deviceNo').getMany()
   }
 
   async findOne(id: string, projectId?: string): Promise<Device> {
