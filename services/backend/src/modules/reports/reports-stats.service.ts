@@ -68,7 +68,7 @@ export class ReportsStatsService {
           END
         ) as avg_hours
       FROM work_orders
-      WHERE "projectId" = $1 AND "createdAt" BETWEEN $2 AND $3
+      WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3
       GROUP BY status, priority
     `, [projectId, startDate, endDate])
   }
@@ -91,7 +91,7 @@ export class ReportsStatsService {
         "faultType" as "faultType",
         COUNT(*) as count
       FROM work_orders
-      WHERE "projectId" = $1
+      WHERE "projectId"::text = $1
         AND "createdAt" >= $2
       GROUP BY to_char("createdAt", 'YYYY-MM'), "faultType"
       ORDER BY month DESC
@@ -131,8 +131,8 @@ export class ReportsStatsService {
           END
         ) as avg_response_hours
       FROM work_orders o
-      JOIN users u ON u.id = o."assigneeId"
-      WHERE o."projectId" = $1 AND o."createdAt" BETWEEN $2 AND $3
+      JOIN users u ON u.id::text = o."assigneeId"::text
+      WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
       GROUP BY u.id, u.name
       ORDER BY completed DESC
     `, [projectId, startDate, endDate])
@@ -158,7 +158,7 @@ export class ReportsStatsService {
         COUNT(*) as order_count,
         AVG("repairCost") as avg_cost
       FROM work_orders
-      WHERE "projectId" = $1
+      WHERE "projectId"::text = $1
         AND "createdAt" BETWEEN $2 AND $3
         AND "repairCost" IS NOT NULL
       GROUP BY to_char("createdAt", 'YYYY-MM')
@@ -186,7 +186,7 @@ export class ReportsStatsService {
         COUNT(*) as new_orders,
         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as solved
       FROM work_orders
-      WHERE "projectId" = $1
+      WHERE "projectId"::text = $1
         AND "createdAt" >= $2
       GROUP BY to_char("createdAt", 'YYYY-MM-DD'), EXTRACT(DOW FROM "createdAt")
       ORDER BY date_str ASC
@@ -202,7 +202,7 @@ export class ReportsStatsService {
     `, `
       SELECT status, COUNT(*) as count
       FROM devices
-      WHERE "projectId" = $1
+      WHERE "projectId"::text = $1
       GROUP BY status
     `, [projectId])
   }
@@ -223,8 +223,8 @@ export class ReportsStatsService {
         p.name,
         SUM(CASE WHEN l."opType" = 'outbound' THEN l.quantity ELSE 0 END) as total_consumed
       FROM spare_parts p
-      LEFT JOIN spare_part_logs l ON l."partId" = p.id
-      WHERE p."projectId" = $1
+      LEFT JOIN spare_part_logs l ON l."partId"::text = p.id::text
+      WHERE p."projectId"::text = $1
       GROUP BY p.id, p.name
       ORDER BY total_consumed DESC
       LIMIT 5
@@ -278,7 +278,7 @@ export class ReportsStatsService {
           END
         ) as avg_response_hours
       FROM work_orders
-      WHERE "projectId" = $2 AND "createdAt" BETWEEN $3 AND $4
+      WHERE "projectId"::text = $2 AND "createdAt" BETWEEN $3 AND $4
     `, [faultCategory, projectId, startDate, endDate])
 
     const [deviceRow] = await this.query(`
@@ -288,7 +288,7 @@ export class ReportsStatsService {
     `, `
       SELECT COUNT(*) as device_count
       FROM devices
-      WHERE "projectId" = $1
+      WHERE "projectId"::text = $1
     `, [projectId])
 
     const faultTypes = await this.query(`
@@ -307,7 +307,7 @@ export class ReportsStatsService {
         COALESCE("faultType", $1) as fault_type,
         COUNT(*) as count
       FROM work_orders
-      WHERE "projectId" = $2
+      WHERE "projectId"::text = $2
         AND "createdAt" BETWEEN $3 AND $4
         AND ("faultType" IS NOT NULL OR category = $5)
       GROUP BY COALESCE("faultType", $1)
@@ -346,8 +346,8 @@ export class ReportsStatsService {
         COUNT(o.id) as fault_count,
         MAX(o."createdAt") as last_fault_at
       FROM work_orders o
-      LEFT JOIN devices d ON d.id = o."deviceId"
-      WHERE o."projectId" = $1
+      LEFT JOIN devices d ON d.id::text = o."deviceId"::text
+      WHERE o."projectId"::text = $1
         AND o."createdAt" BETWEEN $2 AND $3
         AND o."deviceId" IS NOT NULL
         AND (o."faultType" IS NOT NULL OR o.category = $4)
@@ -392,8 +392,8 @@ export class ReportsStatsService {
           END
         ) as avg_repair_hours
       FROM work_orders o
-      LEFT JOIN users u ON u.id = o."assigneeId"
-      WHERE o."projectId" = $1
+      LEFT JOIN users u ON u.id::text = o."assigneeId"::text
+      WHERE o."projectId"::text = $1
         AND o."createdAt" BETWEEN $2 AND $3
         AND o."assigneeId" IS NOT NULL
       GROUP BY u.id, u.name
@@ -424,8 +424,8 @@ export class ReportsStatsService {
         SUM(CASE WHEN l."opType" = 'outbound' THEN l.quantity ELSE 0 END) as consumed_quantity,
         COUNT(DISTINCT l."orderId") as order_count
       FROM spare_parts p
-      JOIN spare_part_logs l ON l."partId" = p.id
-      WHERE p."projectId" = $1
+      JOIN spare_part_logs l ON l."partId"::text = p.id::text
+      WHERE p."projectId"::text = $1
         AND l."createdAt" BETWEEN $2 AND $3
         AND l."opType" = 'outbound'
       GROUP BY p.id, p.name, p.unit

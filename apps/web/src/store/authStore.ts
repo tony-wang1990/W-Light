@@ -10,6 +10,12 @@ export interface AuthUser {
   [key: string]: unknown;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidProjectId(projectId?: string | null) {
+  return typeof projectId === 'string' && UUID_PATTERN.test(projectId);
+}
+
 interface AuthState {
   token: string | null;
   user: AuthUser | null;
@@ -23,11 +29,11 @@ export function getCurrentProjectId(user?: AuthUser | null, currentProjectId?: s
   const projectIds = user?.projectIds || [];
   const isAdmin = user?.role === 'admin';
 
-  if (currentProjectId && (isAdmin || projectIds.includes(currentProjectId))) {
+  if (currentProjectId && isValidProjectId(currentProjectId) && (isAdmin || projectIds.includes(currentProjectId))) {
     return currentProjectId;
   }
 
-  return projectIds[0] || null;
+  return projectIds.find(isValidProjectId) || null;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -42,7 +48,7 @@ export const useAuthStore = create<AuthState>()(
         currentProjectId: getCurrentProjectId(user, state.currentProjectId),
       })),
       setCurrentProject: (projectId) => set((state) => {
-        if (!projectId) return {};
+        if (!projectId || !isValidProjectId(projectId)) return {};
         const isAdmin = state.user?.role === 'admin';
         const projectIds = state.user?.projectIds || [];
         if (!isAdmin && !projectIds.includes(projectId)) return {};

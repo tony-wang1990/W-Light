@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { DataSource, Repository } from 'typeorm'
 import { OrdersService } from '../orders/orders.service'
 import { OrderCategory, OrderPriority } from '../orders/entities/order.entity'
 import { InspectionFrequency, InspectionPlan } from './entities/inspection-plan.entity'
@@ -17,6 +17,7 @@ export class InspectionsService {
   constructor(
     @InjectRepository(InspectionPlan) private planRepo: Repository<InspectionPlan>,
     @InjectRepository(InspectionRecord) private recordRepo: Repository<InspectionRecord>,
+    private readonly dataSource: DataSource,
     private readonly ordersService: OrdersService,
   ) {}
 
@@ -38,7 +39,13 @@ export class InspectionsService {
 
   deletePlan(id: string) { return this.planRepo.delete(id) }
 
-  getPlans(projectId: string) { return this.planRepo.find({ where: { projectId, isActive: 1 } }) }
+  getPlans(projectId: string) {
+    return this.planRepo
+      .createQueryBuilder('p')
+      .where(this.columnEqualsParam('p."projectId"', 'projectId'), { projectId })
+      .andWhere('p."isActive" = :isActive', { isActive: 1 })
+      .getMany()
+  }
 
   private getNextInspectionAt(current: Date, frequency: string) {
     const next = new Date(current)
@@ -86,10 +93,15 @@ export class InspectionsService {
   async getRecords(projectId: string, planId?: string, page = 1, ps = 20) {
     const qb = this.recordRepo
       .createQueryBuilder('r')
-      .innerJoin(InspectionPlan, 'p', 'p.id = r."planId" AND p."projectId" = :projectId', { projectId })
+      .innerJoin(
+        InspectionPlan,
+        'p',
+        `${this.columnEqualsColumn('p.id', 'r."planId"')} AND ${this.columnEqualsParam('p."projectId"', 'projectId')}`,
+        { projectId },
+      )
       .orderBy('r."inspectedAt"', 'DESC')
 
-    if (planId) qb.andWhere('r."planId" = :planId', { planId })
+    if (planId) qb.andWhere(this.columnEqualsParam('r."planId"', 'planId'), { planId })
 
     const [items, total] = await qb
       .skip((page - 1) * ps)
@@ -102,17 +114,21 @@ export class InspectionsService {
   getTodayPlans(assigneeId: string, projectId: string) {
     return this.planRepo
       .createQueryBuilder('p')
-      .where('p."projectId" = :projectId', { projectId })
+      .where(this.columnEqualsParam('p."projectId"', 'projectId'), { projectId })
       .andWhere('p."isActive" = :isActive', { isActive: 1 })
-      .andWhere('(p."assigneeId" = :assigneeId OR p."assigneeId" IS NULL)', { assigneeId })
+      .andWhere(`(${this.columnEqualsParam('p."assigneeId"', 'assigneeId')} OR p."assigneeId" IS NULL)`, { assigneeId })
       .andWhere('(p."nextInspectionAt" IS NULL OR p."nextInspectionAt" <= :now)', { now: new Date() })
       .orderBy('p."nextInspectionAt"', 'ASC')
       .getMany()
   }
 
   async getStats(projectId: string) {
-    const total = await this.planRepo.count({ where: { projectId, isActive: 1 } })
-    const plans = await this.planRepo.find({ where: { projectId, isActive: 1 }, select: ['id'] })
+    const planScope = this.planRepo
+      .createQueryBuilder('p')
+      .where(this.columnEqualsParam('p."projectId"', 'projectId'), { projectId })
+      .andWhere('p."isActive" = :isActive', { isActive: 1 })
+    const total = await planScope.getCount()
+    const plans = await planScope.select('p.id', 'id').getRawMany<{ id: string }>()
     const planIds = plans.map(plan => plan.id)
     const start = new Date()
     start.setHours(0, 0, 0, 0)
@@ -122,10 +138,25 @@ export class InspectionsService {
       ? 0
       : await this.recordRepo
         .createQueryBuilder('r')
-        .where('r."planId" IN (:...planIds)', { planIds })
+        .where(this.columnInParams('r."planId"', 'planIds'), { planIds })
         .andWhere('r."inspectedAt" >= :start', { start })
         .andWhere('r."inspectedAt" < :end', { end })
         .getCount()
     return { totalPlans: total, todayRecords }
+  }
+
+  private columnEqualsColumn(left: string, right: string) {
+    if (this.dataSource.options.type === 'postgres') return `CAST(${left} AS text) = CAST(${right} AS text)`
+    return `${left} = ${right}`
+  }
+
+  private columnEqualsParam(column: string, paramName: string) {
+    if (this.dataSource.options.type === 'postgres') return `CAST(${column} AS text) = :${paramName}`
+    return `${column} = :${paramName}`
+  }
+
+  private columnInParams(column: string, paramName: string) {
+    if (this.dataSource.options.type === 'postgres') return `CAST(${column} AS text) IN (:...${paramName})`
+    return `${column} IN (:...${paramName})`
   }
 }

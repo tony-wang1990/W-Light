@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common'
 import { UserRole } from '../../modules/users/entities/user.entity'
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 function normalizeHeaderProjectId(value: unknown): string | null {
   if (Array.isArray(value)) return normalizeHeaderProjectId(value[0])
   if (typeof value !== 'string') return null
@@ -26,6 +28,9 @@ export class ProjectAccessGuard implements CanActivate {
     const projectId = normalizeHeaderProjectId(request.headers['x-project-id'])
     if (!projectId) {
       throw new BadRequestException('Missing X-Project-Id header')
+    }
+    if (!UUID_PATTERN.test(projectId)) {
+      throw new BadRequestException('Invalid X-Project-Id header')
     }
 
     request.projectId = projectId

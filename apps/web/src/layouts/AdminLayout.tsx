@@ -17,7 +17,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
-import { useAuthStore } from '../store/authStore';
+import { isValidProjectId, useAuthStore } from '../store/authStore';
 import styles from './AdminLayout.module.css';
 
 const MENU_ITEMS = [
@@ -86,8 +86,9 @@ export default function AdminLayout() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (currentProjectId) return;
-    const firstProjectId = projectOptions[0]?.id;
+    const validProjectIds = projectOptions.map(project => project.id).filter(isValidProjectId);
+    if (currentProjectId && validProjectIds.includes(currentProjectId)) return;
+    const firstProjectId = validProjectIds[0];
     if (firstProjectId) setCurrentProject(firstProjectId);
   }, [currentProjectId, projectOptions, setCurrentProject]);
 

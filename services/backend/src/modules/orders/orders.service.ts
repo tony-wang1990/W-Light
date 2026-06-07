@@ -9,7 +9,8 @@ import { WorkOrder, OrderPriority, OrderStatus } from './entities/order.entity'
 import { RepairLog } from './entities/repair-log.entity'
 import { OrderStateMachine } from './order-state.machine'
 import { PartsService } from '../parts/parts.service'
-import { UserRole } from '../users/entities/user.entity'
+import { Device } from '../devices/entities/device.entity'
+import { User, UserRole } from '../users/entities/user.entity'
 
 @Injectable()
 export class OrdersService {
@@ -53,16 +54,16 @@ export class OrdersService {
     const normalizedKeyword = keyword?.trim().toLowerCase()
     const qb = this.orderRepo
       .createQueryBuilder('o')
-      .leftJoinAndSelect('o.device', 'device')
-      .leftJoinAndSelect('o.reporter', 'reporter')
-      .leftJoinAndSelect('o.assignee', 'assignee')
-      .where('o."projectId" = :projectId', { projectId })
+      .leftJoinAndMapOne('o.device', Device, 'device', this.columnEqualsColumn('device.id', 'o."deviceId"'))
+      .leftJoinAndMapOne('o.reporter', User, 'reporter', this.columnEqualsColumn('reporter.id', 'o."reporterId"'))
+      .leftJoinAndMapOne('o.assignee', User, 'assignee', this.columnEqualsColumn('assignee.id', 'o."assigneeId"'))
+      .where(this.columnEqualsParam('o."projectId"', 'projectId'), { projectId })
       .orderBy('o."createdAt"', 'DESC')
 
     if (status) qb.andWhere('o.status = :status', { status })
     if (priority) qb.andWhere('o.priority = :priority', { priority })
-    if (assigneeId) qb.andWhere('o."assigneeId" = :assigneeId', { assigneeId })
-    if (deviceId) qb.andWhere('o."deviceId" = :deviceId', { deviceId })
+    if (assigneeId) qb.andWhere(this.columnEqualsParam('o."assigneeId"', 'assigneeId'), { assigneeId })
+    if (deviceId) qb.andWhere(this.columnEqualsParam('o."deviceId"', 'deviceId'), { deviceId })
     if (normalizedKeyword) {
       qb.andWhere(
         `(
@@ -83,10 +84,16 @@ export class OrdersService {
   }
 
   async findOne(id: string, projectId?: string): Promise<WorkOrder> {
-    const order = await this.orderRepo.findOne({
-      where: projectId ? { id, projectId } : { id },
-      relations: ['device', 'reporter', 'assignee', 'project'],
-    })
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoinAndMapOne('o.device', Device, 'device', this.columnEqualsColumn('device.id', 'o."deviceId"'))
+      .leftJoinAndMapOne('o.reporter', User, 'reporter', this.columnEqualsColumn('reporter.id', 'o."reporterId"'))
+      .leftJoinAndMapOne('o.assignee', User, 'assignee', this.columnEqualsColumn('assignee.id', 'o."assigneeId"'))
+      .where(this.columnEqualsParam('o.id', 'id'), { id })
+
+    if (projectId) qb.andWhere(this.columnEqualsParam('o."projectId"', 'projectId'), { projectId })
+
+    const order = await qb.getOne()
     if (!order) throw new NotFoundException(`工单 ${id} 不存在`)
     return order
   }
@@ -205,11 +212,12 @@ export class OrdersService {
 
   async getRepairLogs(orderId: string, projectId: string): Promise<RepairLog[]> {
     await this.findOne(orderId, projectId)
-    return this.repairLogRepo.find({
-      where: { orderId },
-      relations: ['engineer'],
-      order: { loggedAt: 'ASC' },
-    })
+    return this.repairLogRepo
+      .createQueryBuilder('log')
+      .leftJoinAndMapOne('log.engineer', User, 'engineer', this.columnEqualsColumn('engineer.id', 'log."engineerId"'))
+      .where(this.columnEqualsParam('log."orderId"', 'orderId'), { orderId })
+      .orderBy('log."loggedAt"', 'ASC')
+      .getMany()
   }
 
   async markOvertimeOrders(): Promise<number> {
@@ -232,7 +240,7 @@ export class OrdersService {
       .createQueryBuilder('o')
       .select('o.status', 'status')
       .addSelect('COUNT(o.id)', 'count')
-      .where('o."projectId" = :projectId', { projectId })
+      .where(this.columnEqualsParam('o."projectId"', 'projectId'), { projectId })
       .groupBy('o.status')
       .getRawMany()
 
@@ -287,5 +295,15 @@ export class OrdersService {
       RETURNING value
     `, [dateKey, prefix])
     return Number(row.value)
+  }
+
+  private columnEqualsColumn(left: string, right: string) {
+    if (this.dataSource.options.type === 'postgres') return `CAST(${left} AS text) = CAST(${right} AS text)`
+    return `${left} = ${right}`
+  }
+
+  private columnEqualsParam(column: string, paramName: string) {
+    if (this.dataSource.options.type === 'postgres') return `CAST(${column} AS text) = :${paramName}`
+    return `${column} = :${paramName}`
   }
 }

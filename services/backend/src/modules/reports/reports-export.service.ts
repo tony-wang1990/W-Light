@@ -68,10 +68,10 @@ export class ReportsExportService {
         o."isOvertime" as "isOvertime",
         o."repairCost" as "repairCost"
       FROM work_orders o
-      LEFT JOIN devices d ON d.id = o."deviceId"
-      LEFT JOIN users reporter ON reporter.id = o."reporterId"
-      LEFT JOIN users assignee ON assignee.id = o."assigneeId"
-      WHERE o."projectId" = $1 AND o."createdAt" BETWEEN $2 AND $3
+      LEFT JOIN devices d ON d.id::text = o."deviceId"::text
+      LEFT JOIN users reporter ON reporter.id::text = o."reporterId"::text
+      LEFT JOIN users assignee ON assignee.id::text = o."assigneeId"::text
+      WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
       ORDER BY o."createdAt" DESC
     `, [projectId, startDate, endDate])
 
