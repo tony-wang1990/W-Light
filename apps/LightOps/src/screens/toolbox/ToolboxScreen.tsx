@@ -1,13 +1,14 @@
 import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native'
+import { useNavigation, type NavigationProp } from '@react-navigation/native'
 import { colors, spacing, fontSize, radius } from '../../theme'
+import type { ToolboxStackParamList } from '../../navigation/types'
 
 interface ToolCard {
   icon: string
   name: string
   desc: string
-  route: string
+  route: keyof ToolboxStackParamList
   color: string
 }
 
@@ -28,22 +29,13 @@ const TOOLS: ToolCard[] = [
 ]
 
 export function ToolboxScreen() {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const navigation = useNavigation<NavigationProp<ToolboxStackParamList>>()
 
   const renderCard = (tool: ToolCard) => (
     <TouchableOpacity
       key={tool.route}
       style={styles.card}
-      onPress={() => {
-        // 只跳转已实现的路由
-        const implemented = [
-          'Bpm', 'Ltc', 'Dmx', 'FixtureLibrary', 'BeamAngle', 'PowerCalc', 'Diagnosis',
-          'MaMacros', 'Terms', 'Lux', 'RgbColor', 'LightLayout', 'Theory',
-        ]
-        if (implemented.includes(tool.route)) {
-          navigation.navigate(tool.route)
-        }
-      }}
+      onPress={() => navigation.navigate(tool.route)}
       activeOpacity={0.75}
     >
       <View style={[styles.iconCircle, { backgroundColor: tool.color + '22' }]}>

@@ -78,7 +78,13 @@ $metadata = [ordered]@{
   target = $Target
   file = $latestName
   sourceArtifact = $artifact.Name
+  builtAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+  commit = "unknown"
 }
+
+try {
+  $metadata.commit = (git rev-parse --short HEAD).Trim()
+} catch {}
 
 $metadata | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $downloadsDir 'w-light-desktop.json') -Encoding utf8
 

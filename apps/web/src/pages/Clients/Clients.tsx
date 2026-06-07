@@ -35,8 +35,9 @@ export default function Clients() {
     {
       title: 'iOS APP',
       platform: 'iPhone / iPad',
-      description: '需要使用 Xcode/TestFlight 或企业签名发布，连接同一云端 API。',
-      note: 'iOS 不能直接下载 APK，需用苹果签名流程生成安装包。',
+      description: '使用 Xcode/TestFlight、企业签名或 Ad Hoc 发布，连接同一云端 API。',
+      href: '/downloads/w-light-ios-latest.ipa',
+      note: 'iOS 安装包必须先在 macOS/Xcode 环境签名导出，未签名 IPA 不能直接安装。',
     },
     {
       title: 'Windows 客户端',
@@ -153,6 +154,10 @@ export default function Clients() {
           <div className={styles.copyBox}>
             <span>Windows/Mac/Linux 桌面端打包</span>
             <strong>scripts/desktop-release.sh 或 scripts/desktop-release.ps1</strong>
+          </div>
+          <div className={styles.copyBox}>
+            <span>iOS 签名归档</span>
+            <strong>scripts/ios-release.sh --publish-web</strong>
           </div>
           <div className={styles.copyBox}>
             <span>服务器下载目录</span>

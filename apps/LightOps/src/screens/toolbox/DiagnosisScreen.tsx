@@ -96,7 +96,7 @@ export function DiagnosisScreen() {
 
   const handleCreateOrder = () => {
     if (!conclusion) return
-    navigation.navigate('Orders', {
+    navigation.getParent()?.navigate('Orders', {
       screen: 'OrderCreate',
       params: {
         category: faultType ?? undefined,

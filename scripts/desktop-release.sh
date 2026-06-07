@@ -78,13 +78,15 @@ fi
 
 mkdir -p deploy/downloads
 
-mapfile -t artifacts < <(find apps/desktop/dist -maxdepth 1 -type f -name "$PATTERN" | sort)
+shopt -s nullglob
+artifacts=(apps/desktop/dist/$PATTERN)
+shopt -u nullglob
 if [[ "${#artifacts[@]}" -eq 0 ]]; then
   echo "No desktop artifact matched $PATTERN in apps/desktop/dist"
   exit 1
 fi
 
-artifact="${artifacts[0]}"
+artifact="$(ls -t "${artifacts[@]}" | head -n 1)"
 cp "$artifact" "deploy/downloads/$LATEST_NAME"
 
 if command -v sha256sum >/dev/null 2>&1; then
@@ -95,7 +97,9 @@ cat > deploy/downloads/w-light-desktop.json <<JSON
 {
   "target": "$TARGET",
   "file": "$LATEST_NAME",
-  "sourceArtifact": "$(basename "$artifact")"
+  "sourceArtifact": "$(basename "$artifact")",
+  "builtAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "commit": "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 }
 JSON
 

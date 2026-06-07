@@ -1,9 +1,9 @@
-import { Module, Controller, Get, Post, Put, Param, Body, UseGuards, Request, Query } from '@nestjs/common'
+import { Module, Controller, Get, Put, Param, UseGuards, Request, Query } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm'
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 
 @Entity('notifications')
@@ -25,13 +25,24 @@ class NotificationsService {
 
   async create(data: Partial<Notification>) { return this.repo.save(this.repo.create(data)) }
 
-  findAll(userId: string, page = 1, pageSize = 20) {
-    return this.repo.findAndCount({
+  async findAll(userId: string, page = 1, pageSize = 20) {
+    const safePage = Math.max(1, Number(page) || 1)
+    const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20))
+    const [items, total] = await this.repo.findAndCount({
       where: { userId },
       order: { createdAt: 'DESC' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: (safePage - 1) * safePageSize,
+      take: safePageSize,
     })
+    const unreadCount = await this.getUnreadCount(userId)
+    return {
+      items,
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: Math.ceil(total / safePageSize),
+      unreadCount,
+    }
   }
 
   getUnreadCount(userId: string) {

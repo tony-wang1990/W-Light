@@ -36,7 +36,8 @@ const TOOLS = [
   { id: 'terms', label: '行业术语', icon: Search },
   { id: 'ltc', label: 'LTC 时码', icon: Clock3 },
   { id: 'fixture', label: '灯库制作', icon: Library },
-  { id: 'theory', label: '灯位理论', icon: Sparkles },
+  { id: 'layout', label: '灯位设计', icon: Sparkles },
+  { id: 'theory', label: '灯光理论', icon: BookOpen },
 ] as const;
 
 type ToolId = typeof TOOLS[number]['id'];
@@ -96,6 +97,13 @@ const PALETTES = [
   { name: '月光白', rgb: [210, 228, 255], cct: 9000 },
 ];
 
+const LAYOUT_PRESETS = [
+  { name: '面光', throwM: 14, trimM: 7, targetM: 1.6, beamAngle: 25, note: '人物正面补光，避免压平层次。' },
+  { name: '侧光', throwM: 10, trimM: 5, targetM: 1.4, beamAngle: 36, note: '强化身体轮廓，适合演艺和巡游点位。' },
+  { name: '逆光', throwM: 12, trimM: 6, targetM: 1.7, beamAngle: 20, note: '拉开主体与背景，注意眩光控制。' },
+  { name: '景观洗墙', throwM: 6, trimM: 3.5, targetM: 1, beamAngle: 50, note: '大面积铺光，关注均匀度和暗区。' },
+];
+
 function clampNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(Math.max(value, min), max);
@@ -143,6 +151,7 @@ export default function Toolbox() {
 
   const [ltc, setLtc] = useState({ hour: 1, minute: 0, second: 0, frame: 0, fps: 25, duration: 60 });
   const [fixture, setFixture] = useState({ brand: 'Custom', model: 'Beam 330W', mode: 'Standard', channels: 16 });
+  const [layout, setLayout] = useState({ throwM: 12, trimM: 6, targetM: 1.6, beamAngle: 25, fixtureCount: 6, coverageWidth: 18 });
 
   useEffect(() => () => {
     if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
@@ -197,6 +206,24 @@ export default function Toolbox() {
   const macroResults = MACRO_REFERENCES.filter(item => `${item.category} ${item.name} ${item.syntax} ${item.desc}`.toLowerCase().includes(macroQuery.toLowerCase())).slice(0, 8);
   const termResults = TERMS.filter(item => item.join(' ').toLowerCase().includes(termQuery.toLowerCase())).slice(0, 8);
   const totalFrames = ((ltc.hour * 3600 + ltc.minute * 60 + ltc.second) * ltc.fps) + ltc.frame;
+  const layoutResult = useMemo(() => {
+    const throwDistance = Math.max(layout.throwM, 0.1);
+    const heightDiff = Math.max(layout.trimM - layout.targetM, 0.1);
+    const tiltAngle = Math.atan(heightDiff / throwDistance) * 180 / Math.PI;
+    const spot = calcSpotSize(throwDistance, clampNumber(layout.beamAngle, 1, 120));
+    const count = Math.max(Math.round(layout.fixtureCount), 1);
+    const coverageWidth = Math.max(layout.coverageWidth, 1);
+    const spacingM = coverageWidth / count;
+    const overlap = spot.diameter > 0 ? Math.round((1 - spacingM / spot.diameter) * 100) : 0;
+
+    return {
+      tiltAngle: Math.round(tiltAngle * 10) / 10,
+      spotDiameter: spot.diameter,
+      spotArea: spot.area,
+      spacingM: Math.round(spacingM * 10) / 10,
+      overlap,
+    };
+  }, [layout]);
   const fixtureExport = JSON.stringify({
     manufacturer: fixture.brand,
     model: fixture.model,
@@ -441,8 +468,53 @@ export default function Toolbox() {
             <textarea className={styles.exportArea} readOnly value={fixtureExport} />
           </section>
         );
+      case 'layout':
+        return (
+          <section className={styles.panel}>
+            <ToolHeader icon={Sparkles} title="灯位设计参考" desc="按投射距离、吊挂高度、覆盖宽度和灯具数量估算布灯角度与覆盖连续性。" />
+            <div className={styles.quickList}>
+              {LAYOUT_PRESETS.map(preset => (
+                <button
+                  key={preset.name}
+                  onClick={() => setLayout(prev => ({
+                    ...prev,
+                    throwM: preset.throwM,
+                    trimM: preset.trimM,
+                    targetM: preset.targetM,
+                    beamAngle: preset.beamAngle,
+                  }))}
+                >
+                  {preset.name} · {preset.beamAngle}°
+                </button>
+              ))}
+            </div>
+            <div className={styles.formGrid}>
+              <Field label="投射距离 m"><input type="number" value={layout.throwM} onChange={event => setLayout(prev => ({ ...prev, throwM: Number(event.target.value) }))} /></Field>
+              <Field label="吊挂高度 m"><input type="number" value={layout.trimM} onChange={event => setLayout(prev => ({ ...prev, trimM: Number(event.target.value) }))} /></Field>
+              <Field label="目标高度 m"><input type="number" value={layout.targetM} onChange={event => setLayout(prev => ({ ...prev, targetM: Number(event.target.value) }))} /></Field>
+              <Field label="光束角 °"><input type="number" min={1} max={120} value={layout.beamAngle} onChange={event => setLayout(prev => ({ ...prev, beamAngle: Number(event.target.value) }))} /></Field>
+              <Field label="灯具数量"><input type="number" min={1} value={layout.fixtureCount} onChange={event => setLayout(prev => ({ ...prev, fixtureCount: Number(event.target.value) }))} /></Field>
+              <Field label="覆盖宽度 m"><input type="number" min={1} value={layout.coverageWidth} onChange={event => setLayout(prev => ({ ...prev, coverageWidth: Number(event.target.value) }))} /></Field>
+            </div>
+            <div className={styles.resultGrid}>
+              <Result label="建议 Tilt" value={`${layoutResult.tiltAngle}°`} />
+              <Result label="单灯光斑" value={`${layoutResult.spotDiameter} m`} />
+              <Result label="布灯间距" value={`${layoutResult.spacingM} m`} />
+              <Result label="横向重叠" value={`${layoutResult.overlap}%`} tone={layoutResult.overlap >= 15 ? 'ok' : 'warn'} />
+            </div>
+            <div className={styles.rowLarge}>
+              <span>覆盖判断</span>
+              <em>
+                当前单灯光斑面积约 {layoutResult.spotArea} m²。
+                {layoutResult.overlap >= 15
+                  ? ' 覆盖较连续，可继续用现场照度和视觉均匀度复核。'
+                  : ' 重叠偏低，建议增加灯具、放大角度或缩小覆盖宽度。'}
+              </em>
+            </div>
+          </section>
+        );
       case 'theory':
-        return <ReferencePanel icon={Sparkles} title="灯位与理论速查" desc="现场布光常用灯位、角度和色彩混合基础。" items={[
+        return <ReferencePanel icon={BookOpen} title="灯光理论速查" desc="现场布光常用灯位、角度和色彩混合基础。" items={[
           { title: '面光 Front Light', body: '常用 30°-45° 入射角，保证主体面部可见并控制阴影。' },
           { title: '侧光 Side Light', body: '强化人物轮廓和动作质感，舞蹈/实景演出常用于身体塑形。' },
           { title: '逆光 Back Light', body: '把主体从背景中分离，雾效环境中能形成层次。' },

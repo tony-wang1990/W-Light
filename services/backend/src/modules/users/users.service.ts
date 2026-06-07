@@ -98,7 +98,7 @@ export class UsersService {
     return this.toPublicUser(await this.repo.save(user))
   }
 
-  async findAll(projectId?: string, includeWorkload = false, requester?: RequestUserScope): Promise<PublicUser[]> {
+  async findAll(projectId?: string, includeWorkload = false, requester?: RequestUserScope, role?: UserRole): Promise<PublicUser[]> {
     const users = await this.repo.find({
       where: { isActive: true },
       order: { name: 'ASC' },
@@ -112,11 +112,14 @@ export class UsersService {
     const visibleUsers = allowedProjectIds
       ? scopedUsers.filter(user => user.projectIds?.some(project => allowedProjectIds.has(project)))
       : scopedUsers
+    const roleFilteredUsers = role
+      ? visibleUsers.filter(user => user.role === role)
+      : visibleUsers
 
-    if (!includeWorkload || !projectId) return visibleUsers.map(user => this.toPublicUser(user))
+    if (!includeWorkload || !projectId) return roleFilteredUsers.map(user => this.toPublicUser(user))
 
-    const workloadByUser = await this.getWorkloadByUser(projectId, visibleUsers.map(user => user.id))
-    return visibleUsers.map(user => this.toPublicUser(user, workloadByUser.get(user.id) || 0))
+    const workloadByUser = await this.getWorkloadByUser(projectId, roleFilteredUsers.map(user => user.id))
+    return roleFilteredUsers.map(user => this.toPublicUser(user, workloadByUser.get(user.id) || 0))
   }
 
   async findOne(id: string): Promise<PublicUser> {

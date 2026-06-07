@@ -25,14 +25,19 @@ export function OrderListScreen() {
   const route = useRoute<RouteProp<OrdersStackParamList, 'OrderList'>>()
   const routeDeviceId = route.params?.deviceId
   const routeTitle = route.params?.title
+  const routeStatus = route.params?.status ?? ''
   const [orders, setOrders] = useState<WorkOrder[]>([])
   const [total, setTotal] = useState(0)
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState(routeStatus)
   const [keyword, setKeyword] = useState('')
   const [offlineCacheHit, setOfflineCacheHit] = useState<OfflineCacheHit | null>(null)
+
+  React.useEffect(() => {
+    setSelectedStatus(routeStatus)
+  }, [routeStatus])
 
   const fetchOrders = useCallback(async (status = '', kw = '', pg = 1, reset = false) => {
     if (loading && !reset) return

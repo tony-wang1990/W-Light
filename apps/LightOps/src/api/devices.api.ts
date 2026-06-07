@@ -56,9 +56,4 @@ export const devicesApi = {
     return client.put<Device>(`/devices/${id}`, data);
   },
 
-  getHistory: async (
-    id: string,
-  ): Promise<{ date: string; score: number }[]> => {
-    return client.get<{ date: string; score: number }[]>(`/devices/${id}/history`);
-  },
 };

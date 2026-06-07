@@ -45,14 +45,16 @@ export class UsersController {
   @ApiOperation({ summary: '获取用户列表' })
   @ApiQuery({ name: 'projectId', required: false })
   @ApiQuery({ name: 'includeWorkload', required: false, type: Boolean })
+  @ApiQuery({ name: 'role', required: false, enum: UserRole })
   findAll(
     @Request() req,
     @Query('projectId') projectId?: string,
     @Query('includeWorkload') includeWorkload?: string,
+    @Query('role') role?: UserRole,
   ) {
     const scopedProjectId = projectId || (req.headers['x-project-id'] as string | undefined)
     assertProjectAccess(req, scopedProjectId)
-    return this.usersService.findAll(scopedProjectId, includeWorkload === 'true' || includeWorkload === '1', req.user)
+    return this.usersService.findAll(scopedProjectId, includeWorkload === 'true' || includeWorkload === '1', req.user, role)
   }
 
   @Get(':id')

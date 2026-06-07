@@ -143,10 +143,6 @@ export function DeviceDetailScreen() {
             <Text style={styles.actionBtnIcon}>📈</Text>
             <Text style={styles.actionBtnText}>维修历史</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Text style={styles.actionBtnIcon}>🗂️</Text>
-            <Text style={styles.actionBtnText}>操作手册</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={{ height: 60 }} />

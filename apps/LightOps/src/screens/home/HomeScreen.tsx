@@ -61,11 +61,18 @@ export function HomeScreen() {
       navigation.navigate('DeviceScan')
     } else {
       if (route === 'OrderCreate') {
-        navigation.getParent()?.navigate('Orders', { screen: 'OrderCreate' });
+        navigation.getParent()?.navigate('Orders', { screen: 'OrderCreate' })
       } else {
-        navigation.getParent()?.navigate(route);
+        navigation.getParent()?.navigate(route)
       }
     }
+  }
+
+  const openOrdersByStatus = (status: string) => {
+    navigation.getParent()?.navigate('Orders', {
+      screen: 'OrderList',
+      params: { status },
+    })
   }
 
   const greeting = () => {
@@ -105,28 +112,28 @@ export function HomeScreen() {
             label="待处理"
             value={summary.pending}
             color={colors.warning}
-            onPress={() => navigation.navigate('Orders', { status: 'pending' })}
+            onPress={() => openOrdersByStatus('pending')}
           />
           <StatCard
             icon="⚙️"
             label="处理中"
             value={summary.processing}
             color={colors.primary}
-            onPress={() => navigation.navigate('Orders', { status: 'processing' })}
+            onPress={() => openOrdersByStatus('processing')}
           />
           <StatCard
             icon="📋"
             label="待验收"
             value={summary.reviewing}
             color="#BC8CFF"
-            onPress={() => navigation.navigate('Orders', { status: 'reviewing' })}
+            onPress={() => openOrdersByStatus('reviewing')}
           />
           <StatCard
             icon="⏸️"
             label="已挂起"
             value={summary.suspended}
             color={colors.textSecondary}
-            onPress={() => navigation.navigate('Orders', { status: 'suspended' })}
+            onPress={() => openOrdersByStatus('suspended')}
           />
         </View>
 
