@@ -96,6 +96,17 @@ bash scripts/server-admin.sh --phone 13800000001 --password 'WLight@2026'
 
 ## 服务器更新
 
+推荐使用带备份、健康检查和失败回滚的升级脚本：
+
+```bash
+cd /root/W-Light
+bash scripts/server-upgrade.sh --branch main --port 3005
+```
+
+如果升级失败，脚本会自动尝试把应用代码切回升级前 commit，并提示升级前备份目录。数据库恢复是破坏性动作，只有确认需要时再手动执行 `scripts/server-backup.sh --restore ... --yes`。
+
+手动更新命令如下，适合排障或临时处理：
+
 ```bash
 cd /root/W-Light
 git pull --ff-only
