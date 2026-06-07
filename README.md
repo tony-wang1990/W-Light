@@ -227,6 +227,13 @@ powershell -ExecutionPolicy Bypass -File scripts/android-release.ps1
 powershell -ExecutionPolicy Bypass -File scripts/android-release.ps1 -PublishWeb
 ```
 
+校验已发布到下载中心的安装包、sha256 和元数据：
+
+```bash
+corepack pnpm downloads:verify
+corepack pnpm downloads:verify -- --strict
+```
+
 发布到服务器后，手机访问：
 
 ```text

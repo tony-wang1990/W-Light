@@ -17,6 +17,7 @@
     "desktop:dist:mac": "bash scripts/desktop-release.sh --mac",
     "desktop:dist:linux": "bash scripts/desktop-release.sh --linux",
     "desktop:release": "bash scripts/desktop-release.sh",
+    "downloads:verify": "node scripts/verify-downloads.mjs",
     "ios": "corepack pnpm --filter LightOps run ios",
     "start:backend": "corepack pnpm --filter backend run start:dev",
     "build:toolbox-core": "corepack pnpm --filter @lightops/toolbox-core run build",

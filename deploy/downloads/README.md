@@ -32,4 +32,11 @@ The current Windows and Android packages can be generated locally and copied her
 - Windows installer: `W-Light-Setup-latest.exe`
 - Android APK: `w-light-latest.apk`
 
+Verify published artifacts before sharing the download URL:
+
+```bash
+corepack pnpm downloads:verify
+corepack pnpm downloads:verify -- --strict
+```
+
 After `git pull` on a server, these large binary artifacts will not appear automatically unless they were separately uploaded or rebuilt on that server.
