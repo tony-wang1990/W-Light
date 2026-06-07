@@ -29,13 +29,20 @@ W-Light 是面向文旅灯光项目的运维闭环和灯光师工具箱系统。
 
 这些不是代码菜单，而是正式交付前必须在真实环境完成的工作：
 
-- Android APK/AAB：需要 JDK 17、Android SDK、签名证书和至少一台真机安装测试。
+- Android APK/AAB：Windows 本机已验证可构建 `app-release.apk`，但生产分发仍需要正式签名证书和至少一台真机安装测试。
 - iOS IPA/TestFlight：必须在 macOS + Xcode + Apple Developer 签名环境完成；未签名 IPA 不能直接装到 iPhone。
 - Windows/Mac/Linux 桌面包：需要在目标平台构建并做安装测试；生产分发建议配置代码签名。
 - 域名与 HTTPS：生产手机端建议使用 `https://your-domain.com/v1`，不要长期使用裸 IP + HTTP。
 - 服务器验收：ARM64 和 AMD64 机器都要跑一次部署脚本、登录、创建工单、上传附件、导出 Excel、备份恢复预检。
 - 运维保障：配置定时备份、日志留存、磁盘告警、容器健康监控和升级回滚流程。
 - 高级工具增强：BPM 手动打拍已可用，音频文件自动 BPM 识别还没有作为生产功能交付。
+
+### 本机已验证的客户端产物
+
+- Windows：已在短路径构建目录成功生成 `deploy/downloads/W-Light-Setup-latest.exe` 和 SHA256。
+- Android：已在 JDK 17 + Android SDK 环境成功生成 `deploy/downloads/w-light-latest.apk` 和 SHA256；当前未配置正式 keystore 时会使用 debug keystore 兜底签名，适合作为内测安装包，不等同于应用商店生产签名包。
+- macOS / iOS：代码和脚本入口已准备，但必须在 macOS + Xcode + Apple Developer 签名环境生成可安装包。
+- `deploy/downloads` 里的大安装包默认不提交到 Git。服务器要提供下载，需要把生成的 EXE/APK/DMG/IPA 上传到服务器仓库同名目录，或在服务器上重新运行打包脚本。
 
 ## 架构
 
@@ -188,8 +195,9 @@ corepack pnpm --filter @lightops/toolbox-core run test
 前置条件：
 
 - JDK 17。
-- Android SDK 和 `ANDROID_HOME`。
+- Android SDK 和 `ANDROID_HOME`，本机验证使用 `platforms;android-34`、`build-tools;34.0.0`、`ndk;26.1.10909125`。
 - Release keystore，或先使用调试/内测签名。
+- Android 最低系统版本为 Android 7.0（API 24），因为扫码相机库要求 `minSdkVersion 24`。
 
 Linux/macOS：
 
@@ -213,6 +221,15 @@ http://服务器IP:3005/downloads/w-light-latest.apk
 
 Android 首次安装如果提示未知来源，需要允许当前浏览器安装应用。
 
+生产签名建议使用环境变量，不要把 keystore 和密码提交到仓库：
+
+```bash
+export W_LIGHT_UPLOAD_STORE_FILE=wlight-upload-key.keystore
+export W_LIGHT_UPLOAD_KEY_ALIAS=wlight-upload
+export W_LIGHT_UPLOAD_STORE_PASSWORD='你的强密码'
+export W_LIGHT_UPLOAD_KEY_PASSWORD='你的强密码'
+```
+
 ## iOS 打包
 
 iOS 只能在 macOS + Xcode 环境打包和签名。
@@ -230,6 +247,15 @@ Windows：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/desktop-release.ps1 -Target win -PublishWeb
+```
+
+如果 Windows 本地仓库路径很长，NSIS 可能报 `allowOnlyOneInstallerInstance.nsh` 找不到。把仓库放到短路径，例如 `C:\WL`，或用短路径 worktree 构建：
+
+```powershell
+git worktree add --detach C:\WL HEAD
+Set-Location C:\WL
+corepack pnpm install --frozen-lockfile
+powershell -ExecutionPolicy Bypass -File scripts\desktop-release.ps1 -Target win -PublishWeb
 ```
 
 macOS：

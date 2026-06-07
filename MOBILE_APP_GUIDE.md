@@ -8,7 +8,8 @@
 ## 当前结论
 
 - Android/iOS 原生工程已在 `apps/LightOps` 下。
-- Android release 已支持正式签名变量，不再只能使用 debug 签名。
+- Android release 已在 Windows + JDK 17 + Android SDK 环境验证通过，可生成 `app-release.apk`。
+- Android release 已支持正式签名变量；未配置正式 keystore 时会使用 debug keystore 兜底，适合内测安装，不等同于生产签名包。
 - Android 打包脚本已提供：
   - Linux/macOS/WSL：`scripts/android-release.sh`
   - Windows PowerShell：`scripts/android-release.ps1`
@@ -54,6 +55,8 @@ corepack pnpm --filter LightOps run ios
 - JDK 17。
 - Android Studio 或 Android SDK。
 - 已配置 `JAVA_HOME`、`ANDROID_HOME`。
+- Android SDK 建议安装 `platforms;android-34`、`build-tools;34.0.0`、`ndk;26.1.10909125`。
+- 最低支持 Android 7.0（API 24），因为扫码相机库要求 `minSdkVersion 24`。
 - Windows 可用 PowerShell；Linux/macOS/WSL 可用 bash。
 
 ### 2. 生成签名文件

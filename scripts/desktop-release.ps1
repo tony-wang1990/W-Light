@@ -50,7 +50,15 @@ $latestName = switch ($Target) {
   default { 'W-Light-latest' }
 }
 
-Invoke-Checked corepack enable
+try {
+  & corepack enable | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "corepack enable failed; continuing because corepack pnpm can still run without global shims."
+  }
+} catch {
+  Write-Warning "corepack enable failed; continuing because corepack pnpm can still run without global shims."
+}
+
 Invoke-Checked corepack pnpm --filter desktop run $scriptName
 
 if (-not $PublishWeb) {

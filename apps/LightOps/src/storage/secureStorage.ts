@@ -1,8 +1,13 @@
 import * as Keychain from 'react-native-keychain'
 import { MMKV } from 'react-native-mmkv'
 
-type MMKVValue = boolean | string | number | ArrayBuffer
+type MMKVValue = boolean | string | number | Uint8Array | ArrayBuffer
 type MMKVListener = (key: string) => void
+type MMKVCompat = MMKV & {
+  size?: number
+  isReadOnly?: boolean
+  trim?: () => void
+}
 
 const secureStorageId = 'lightops.secure'
 const bootstrapStorageId = 'lightops.bootstrap'
@@ -58,6 +63,14 @@ function getStorage() {
   }
 
   return activeStorage
+}
+
+function normalizeValue(value: MMKVValue) {
+  if (value instanceof ArrayBuffer) {
+    return new Uint8Array(value)
+  }
+
+  return value
 }
 
 function randomByteValues(length: number) {
@@ -154,13 +167,15 @@ export function initializeSecureStorageEncryption() {
 
 export const secureStorage = {
   get size() {
-    return getStorage().size
+    const storage = getStorage() as MMKVCompat
+    return typeof storage.size === 'number' ? storage.size : storage.getAllKeys().length
   },
   get isReadOnly() {
-    return getStorage().isReadOnly
+    const storage = getStorage() as MMKVCompat
+    return storage.isReadOnly ?? false
   },
   set(key: string, value: MMKVValue) {
-    getStorage().set(key, value)
+    getStorage().set(key, normalizeValue(value))
   },
   getBoolean(key: string) {
     return getStorage().getBoolean(key)
@@ -190,7 +205,7 @@ export const secureStorage = {
     getStorage().recrypt(key)
   },
   trim() {
-    getStorage().trim()
+    ;(getStorage() as MMKVCompat).trim?.()
   },
   toString() {
     return getStorage().toString()

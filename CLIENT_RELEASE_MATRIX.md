@@ -16,10 +16,10 @@ http://服务器IP:3005/v1
 | 服务器 ARM64 | Docker 服务端 | 已支持 | `scripts/server-deploy.sh --port 3005` | PostgreSQL/MinIO/Redis |
 | 服务器 AMD64 | Docker 服务端 | 已支持 | `scripts/server-deploy.sh --port 3005` | PostgreSQL/MinIO/Redis |
 | Web 浏览器 | Web 管理端 | 已支持 | 打开 `http://服务器IP:3005` | 同源 `/v1` |
-| Windows | Electron 安装包 | 已补齐打包能力 | `scripts/desktop-release.ps1 -Target win` 生成 `.exe` | 登录页配置 API |
+| Windows | Electron 安装包 | 已成功生成内测安装包 | `scripts/desktop-release.ps1 -Target win` 生成 `.exe` | 登录页配置 API |
 | Mac | Electron DMG | 已补齐打包能力 | `scripts/desktop-release.sh --mac` 生成 `.dmg` | 登录页配置 API |
 | Linux | Electron AppImage | 已补齐打包能力 | `scripts/desktop-release.sh --linux` 生成 `.AppImage` | 登录页配置 API |
-| Android | React Native APK/AAB | 打包能力已支持，需打包机实测 | `scripts/android-release.*` 生成 APK/AAB | 登录页配置 API |
+| Android | React Native APK/AAB | 已成功生成内测 APK | `scripts/android-release.*` 生成 APK/AAB | 登录页配置 API |
 | iOS | React Native IPA/TestFlight | 原生工程已支持，需 macOS/Xcode 实测 | Xcode Archive/TestFlight/Ad Hoc | 登录页配置 API |
 
 ## 下载中心
@@ -91,8 +91,8 @@ iOS 需要 macOS、Xcode、Apple Developer 账号和签名配置。没有 iOS �
 
 ## 仍需实机完成的事
 
-- Windows `.exe` 在 Windows 设备上安装、登录、附件下载和重启验证。
+- Windows `.exe` 已生成，仍需在干净 Windows 设备上安装、登录、附件下载和重启验证。
 - macOS `.dmg` 在 Intel/Apple Silicon Mac 上安装、登录和 Gatekeeper 处理验证。
-- Android APK 在真机上安装、扫码、上传、离线队列同步验证。
+- Android APK 已生成，仍需在真机上安装、扫码、上传、离线队列同步验证；生产发布需正式 keystore 签名。
 - iOS Xcode Archive、签名、真机安装或 TestFlight 验证。
 - ARM64/AMD64 服务器各跑一轮部署和数据同步验收。

@@ -5,7 +5,9 @@ Put mobile release artifacts here when publishing an internal test build.
 The Docker web service mounts this directory to `/usr/share/nginx/html/downloads`, so files placed here are served by the deployed Web container, for example:
 
 - `http://SERVER_IP:3005/downloads/w-light-latest.apk`
+- `http://SERVER_IP:3005/downloads/w-light-latest.apk.sha256`
 - `http://SERVER_IP:3005/downloads/W-Light-Setup-latest.exe`
+- `http://SERVER_IP:3005/downloads/W-Light-Setup-latest.exe.sha256`
 - `http://SERVER_IP:3005/downloads/W-Light-latest.dmg`
 - `http://SERVER_IP:3005/downloads/w-light-android.json`
 - `http://SERVER_IP:3005/downloads/w-light-desktop.json`
@@ -24,3 +26,10 @@ On Windows:
 ```
 
 Do not commit real APK/AAB/IPA/EXE/DMG/AppImage files or signing keys to Git.
+
+The current Windows and Android packages can be generated locally and copied here:
+
+- Windows installer: `W-Light-Setup-latest.exe`
+- Android APK: `w-light-latest.apk`
+
+After `git pull` on a server, these large binary artifacts will not appear automatically unless they were separately uploaded or rebuilt on that server.

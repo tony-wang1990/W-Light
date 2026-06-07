@@ -35,6 +35,15 @@ Node 建议使用 20.x，pnpm 由 Corepack 管理。
 .\scripts\desktop-release.ps1 -Target win
 ```
 
+本项目已在 Windows 上验证生成过 `W-Light-Setup-latest.exe`。如果仓库路径很长，NSIS 可能因为 Windows 路径长度限制报 `allowOnlyOneInstallerInstance.nsh` 找不到；建议把仓库放在 `C:\WL` 这类短路径，或创建短路径 worktree 后打包：
+
+```powershell
+git worktree add --detach C:\WL HEAD
+Set-Location C:\WL
+corepack pnpm install --frozen-lockfile
+.\scripts\desktop-release.ps1 -Target win -PublishWeb
+```
+
 产物位置：
 
 ```text
