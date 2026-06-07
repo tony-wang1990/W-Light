@@ -14,17 +14,35 @@ fi
 
 BACKUP_ROOT="${BACKUP_ROOT:-${APP_DIR}/deploy/backups}"
 RESTORE_DIR=""
+VERIFY_DIR=""
+LIST_BACKUPS=false
+PRUNE_BACKUPS=false
+ASSUME_YES=false
+KEEP_BACKUPS="${KEEP_BACKUPS:-14}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/server-backup.sh
-  scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-120000
+  scripts/server-backup.sh [options]
+  scripts/server-backup.sh --list
+  scripts/server-backup.sh --verify /root/W-Light/deploy/backups/20260603-120000
+  scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-120000 --yes
+  scripts/server-backup.sh --prune --keep 14 --yes
 
 Backs up or restores the production Docker deployment:
   - PostgreSQL dump
   - MinIO data volume
   - .env snapshot
+
+Options:
+  --app-dir DIR       App directory, default /root/W-Light for root
+  --backup-root DIR   Backup root, default APP_DIR/deploy/backups
+  --list              List available backups
+  --verify DIR        Verify required files, checksum manifest and MinIO archive
+  --restore DIR       Restore a backup directory
+  --prune             Remove older backup directories, keeping the newest N
+  --keep N            Backup directories to keep when pruning, default 14
+  --yes               Confirm destructive restore/prune operations
 
 Run from the server that hosts W-Light.
 USAGE
@@ -44,6 +62,26 @@ while [[ $# -gt 0 ]]; do
       RESTORE_DIR="$2"
       shift 2
       ;;
+    --verify)
+      VERIFY_DIR="$2"
+      shift 2
+      ;;
+    --list)
+      LIST_BACKUPS=true
+      shift
+      ;;
+    --prune)
+      PRUNE_BACKUPS=true
+      shift
+      ;;
+    --keep)
+      KEEP_BACKUPS="$2"
+      shift 2
+      ;;
+    -y|--yes)
+      ASSUME_YES=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -55,6 +93,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if ! [[ "$KEEP_BACKUPS" =~ ^[0-9]+$ ]] || (( KEEP_BACKUPS < 1 )); then
+  echo "Invalid --keep value: $KEEP_BACKUPS" >&2
+  exit 1
+fi
 
 cd "$APP_DIR"
 
@@ -74,6 +117,109 @@ docker_run() {
   fi
 }
 
+backup_dirs() {
+  if [[ ! -d "$BACKUP_ROOT" ]]; then
+    return 0
+  fi
+  find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d | sort
+}
+
+backup_size() {
+  du -sh "$1" 2>/dev/null | awk '{ print $1 }'
+}
+
+list_backups() {
+  local found=false
+  echo "Backup root: ${BACKUP_ROOT}"
+  while IFS= read -r backup_dir; do
+    found=true
+    local name
+    local size
+    local status="OK"
+    name="$(basename "$backup_dir")"
+    size="$(backup_size "$backup_dir")"
+    if [[ ! -s "${backup_dir}/postgres.sql" || ! -s "${backup_dir}/minio-data.tar.gz" ]]; then
+      status="INCOMPLETE"
+    fi
+    printf '%-20s %-8s %s\n' "$name" "${size:-unknown}" "$status"
+  done < <(backup_dirs)
+
+  if [[ "$found" == "false" ]]; then
+    echo "No backups found."
+  fi
+}
+
+write_manifest() {
+  local target="$1"
+  local commit="unknown"
+  commit="$(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
+  cat > "${target}/MANIFEST.txt" <<EOF
+created_at=$(date -Iseconds)
+app_dir=${APP_DIR}
+git_commit=${commit}
+backup_root=${BACKUP_ROOT}
+EOF
+
+  (
+    cd "$target"
+    : > SHA256SUMS
+    for file in postgres.sql minio-data.tar.gz env.snapshot MANIFEST.txt; do
+      if [[ -f "$file" ]]; then
+        sha256sum "$file" >> SHA256SUMS
+      fi
+    done
+  )
+}
+
+verify_backup() {
+  local source="$1"
+  if [[ ! -d "$source" ]]; then
+    echo "Backup directory does not exist: ${source}" >&2
+    exit 1
+  fi
+  if [[ ! -s "${source}/postgres.sql" ]]; then
+    echo "Missing or empty PostgreSQL dump: ${source}/postgres.sql" >&2
+    exit 1
+  fi
+  if [[ ! -s "${source}/minio-data.tar.gz" ]]; then
+    echo "Missing or empty MinIO archive: ${source}/minio-data.tar.gz" >&2
+    exit 1
+  fi
+  tar -tzf "${source}/minio-data.tar.gz" >/dev/null
+
+  if [[ -f "${source}/SHA256SUMS" ]]; then
+    (cd "$source" && sha256sum -c SHA256SUMS >/dev/null)
+  else
+    echo "Warning: SHA256SUMS not found, skipped checksum verification." >&2
+  fi
+
+  echo "Backup verified: ${source}"
+}
+
+confirm_destructive() {
+  local token="$1"
+  local action="$2"
+
+  if [[ "$ASSUME_YES" == "true" || "${W_LIGHT_ASSUME_YES:-}" == "1" ]]; then
+    return
+  fi
+
+  if [[ ! -t 0 ]]; then
+    echo "${action} requires confirmation. Re-run with --yes in non-interactive shells." >&2
+    exit 1
+  fi
+
+  echo "${action}"
+  echo "Type ${token} to continue:"
+  local answer
+  read -r answer
+  if [[ "$answer" != "$token" ]]; then
+    echo "Cancelled."
+    exit 1
+  fi
+}
+
 backup() {
   local stamp
   local target
@@ -90,6 +236,9 @@ backup() {
     cp .env "${target}/env.snapshot"
   fi
 
+  write_manifest "$target"
+  verify_backup "$target"
+
   cat > "${target}/README.txt" <<EOF
 W-Light server backup created at ${stamp}
 
@@ -100,7 +249,7 @@ Files:
 
 Restore:
 cd ${APP_DIR}
-bash scripts/server-backup.sh --restore ${target}
+bash scripts/server-backup.sh --restore ${target} --yes
 EOF
 
   echo "Backup completed: ${target}"
@@ -108,26 +257,54 @@ EOF
 
 restore() {
   local source="$1"
-  if [[ ! -f "${source}/postgres.sql" || ! -f "${source}/minio-data.tar.gz" ]]; then
-    echo "Invalid backup directory: ${source}" >&2
-    exit 1
-  fi
+  verify_backup "$source"
 
   echo "Restoring backup from ${source}"
   echo "This will overwrite current PostgreSQL and MinIO data."
+  confirm_destructive "RESTORE" "Restore will overwrite current PostgreSQL and MinIO data."
   compose ps >/dev/null
 
-  compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"' < "${source}/postgres.sql"
+  compose stop api web >/dev/null || true
+  compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB"' < "${source}/postgres.sql"
   compose stop minio
   docker_run --rm --volumes-from lightops-minio -v "${source}:/backup" alpine:3.20 \
-    sh -c 'rm -rf /data/* && tar -xzf /backup/minio-data.tar.gz -C /data'
+    sh -c 'find /data -mindepth 1 -maxdepth 1 -exec rm -rf {} + && tar -xzf /backup/minio-data.tar.gz -C /data'
   compose up -d minio
 
   echo "Restore completed. Restarting API and Web..."
   compose up -d api web
+  compose ps
 }
 
-if [[ -n "$RESTORE_DIR" ]]; then
+prune_backups() {
+  mapfile -t backups < <(backup_dirs)
+  local total="${#backups[@]}"
+  local remove_count=$(( total - KEEP_BACKUPS ))
+
+  if (( remove_count <= 0 )); then
+    echo "No backups to prune. Found ${total}, keep ${KEEP_BACKUPS}."
+    return
+  fi
+
+  echo "Will remove ${remove_count} old backup(s), keeping newest ${KEEP_BACKUPS}:"
+  for (( i = 0; i < remove_count; i++ )); do
+    echo "- ${backups[$i]}"
+  done
+  confirm_destructive "PRUNE" "Backup pruning will permanently delete old backup directories."
+
+  for (( i = 0; i < remove_count; i++ )); do
+    rm -rf -- "${backups[$i]}"
+  done
+  echo "Prune completed."
+}
+
+if [[ "$LIST_BACKUPS" == "true" ]]; then
+  list_backups
+elif [[ -n "$VERIFY_DIR" ]]; then
+  verify_backup "$VERIFY_DIR"
+elif [[ "$PRUNE_BACKUPS" == "true" ]]; then
+  prune_backups
+elif [[ -n "$RESTORE_DIR" ]]; then
   restore "$RESTORE_DIR"
 else
   backup

@@ -124,18 +124,33 @@ curl -i http://127.0.0.1:3005/v1/health
 
 ## 备份与恢复
 
-整机生产备份脚本会备份 PostgreSQL、MinIO 附件和 `.env` 快照。
+整机生产备份脚本会备份 PostgreSQL、MinIO 附件和 `.env` 快照，并生成 SHA256 校验清单。备份完成后脚本会自动校验 SQL dump、MinIO 压缩包和校验文件。
 
 ```bash
 cd /root/W-Light
 bash scripts/server-backup.sh
 ```
 
-恢复：
+查看和校验备份：
 
 ```bash
 cd /root/W-Light
-bash scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-120000
+bash scripts/server-backup.sh --list
+bash scripts/server-backup.sh --verify /root/W-Light/deploy/backups/20260603-120000
+```
+
+恢复会覆盖当前 PostgreSQL 和 MinIO 数据。交互执行时需要手动输入确认；自动化脚本中必须显式加 `--yes`：
+
+```bash
+cd /root/W-Light
+bash scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-120000 --yes
+```
+
+清理旧备份，例如保留最近 14 个备份目录：
+
+```bash
+cd /root/W-Light
+bash scripts/server-backup.sh --prune --keep 14 --yes
 ```
 
 Web 报表页还提供项目 JSON 备份和恢复预检，适合业务数据迁移；服务器脚本适合整套生产环境灾备。
