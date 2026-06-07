@@ -19,6 +19,10 @@ LIST_BACKUPS=false
 PRUNE_BACKUPS=false
 ASSUME_YES=false
 KEEP_BACKUPS="${KEEP_BACKUPS:-14}"
+INSTALL_CRON=false
+REMOVE_CRON=false
+CRON_SCHEDULE="${CRON_SCHEDULE:-15 3 * * *}"
+CRON_LOG="${CRON_LOG:-${APP_DIR}/deploy/backups/backup.log}"
 
 usage() {
   cat <<'USAGE'
@@ -28,6 +32,8 @@ Usage:
   scripts/server-backup.sh --verify /root/W-Light/deploy/backups/20260603-120000
   scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-120000 --yes
   scripts/server-backup.sh --prune --keep 14 --yes
+  scripts/server-backup.sh --install-cron --cron "15 3 * * *" --keep 14
+  scripts/server-backup.sh --remove-cron
 
 Backs up or restores the production Docker deployment:
   - PostgreSQL dump
@@ -42,6 +48,10 @@ Options:
   --restore DIR       Restore a backup directory
   --prune             Remove older backup directories, keeping the newest N
   --keep N            Backup directories to keep when pruning, default 14
+  --install-cron      Install or update a daily cron backup job
+  --remove-cron       Remove the W-Light cron backup job
+  --cron SCHEDULE     Cron schedule for --install-cron, default "15 3 * * *"
+  --cron-log FILE     Cron log file, default APP_DIR/deploy/backups/backup.log
   --yes               Confirm destructive restore/prune operations
 
 Run from the server that hosts W-Light.
@@ -78,6 +88,22 @@ while [[ $# -gt 0 ]]; do
       KEEP_BACKUPS="$2"
       shift 2
       ;;
+    --install-cron)
+      INSTALL_CRON=true
+      shift
+      ;;
+    --remove-cron)
+      REMOVE_CRON=true
+      shift
+      ;;
+    --cron)
+      CRON_SCHEDULE="$2"
+      shift 2
+      ;;
+    --cron-log)
+      CRON_LOG="$2"
+      shift 2
+      ;;
     -y|--yes)
       ASSUME_YES=true
       shift
@@ -96,6 +122,11 @@ done
 
 if ! [[ "$KEEP_BACKUPS" =~ ^[0-9]+$ ]] || (( KEEP_BACKUPS < 1 )); then
   echo "Invalid --keep value: $KEEP_BACKUPS" >&2
+  exit 1
+fi
+
+if [[ "$INSTALL_CRON" == "true" && "$REMOVE_CRON" == "true" ]]; then
+  echo "Choose only one of --install-cron or --remove-cron." >&2
   exit 1
 fi
 
@@ -298,12 +329,72 @@ prune_backups() {
   echo "Prune completed."
 }
 
+shell_quote() {
+  printf '%q' "$1"
+}
+
+without_existing_cron() {
+  awk '
+    /^# W-Light backup job$/ {
+      skip = 2
+    }
+    skip > 0 {
+      skip--
+      next
+    }
+    {
+      print
+    }
+  '
+}
+
+install_cron() {
+  if ! command -v crontab >/dev/null 2>&1; then
+    echo "crontab command not found. Install cron first." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$CRON_LOG")"
+
+  local app_dir_q
+  local backup_root_q
+  local cron_log_q
+  local command_line
+  app_dir_q="$(shell_quote "$APP_DIR")"
+  backup_root_q="$(shell_quote "$BACKUP_ROOT")"
+  cron_log_q="$(shell_quote "$CRON_LOG")"
+  command_line="cd ${app_dir_q} && APP_DIR=${app_dir_q} BACKUP_ROOT=${backup_root_q} bash scripts/server-backup.sh >> ${cron_log_q} 2>&1 && APP_DIR=${app_dir_q} BACKUP_ROOT=${backup_root_q} bash scripts/server-backup.sh --prune --keep ${KEEP_BACKUPS} --yes >> ${cron_log_q} 2>&1"
+
+  {
+    crontab -l 2>/dev/null | without_existing_cron || true
+    echo "# W-Light backup job"
+    echo "${CRON_SCHEDULE} ${command_line}"
+  } | crontab -
+
+  echo "Cron backup job installed:"
+  echo "${CRON_SCHEDULE} ${command_line}"
+}
+
+remove_cron() {
+  if ! command -v crontab >/dev/null 2>&1; then
+    echo "crontab command not found. Nothing removed." >&2
+    exit 1
+  fi
+
+  { crontab -l 2>/dev/null || true; } | without_existing_cron | crontab -
+  echo "W-Light cron backup job removed."
+}
+
 if [[ "$LIST_BACKUPS" == "true" ]]; then
   list_backups
 elif [[ -n "$VERIFY_DIR" ]]; then
   verify_backup "$VERIFY_DIR"
 elif [[ "$PRUNE_BACKUPS" == "true" ]]; then
   prune_backups
+elif [[ "$INSTALL_CRON" == "true" ]]; then
+  install_cron
+elif [[ "$REMOVE_CRON" == "true" ]]; then
+  remove_cron
 elif [[ -n "$RESTORE_DIR" ]]; then
   restore "$RESTORE_DIR"
 else

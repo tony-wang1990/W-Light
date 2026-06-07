@@ -114,6 +114,7 @@ git rev-parse --short HEAD
 
 ```bash
 cd /root/W-Light
+bash scripts/server-health.sh
 docker compose ps
 docker compose logs --tail=120 api
 docker compose logs --tail=120 web
@@ -151,6 +152,21 @@ bash scripts/server-backup.sh --restore /root/W-Light/deploy/backups/20260603-12
 ```bash
 cd /root/W-Light
 bash scripts/server-backup.sh --prune --keep 14 --yes
+```
+
+安装每日凌晨 3:15 自动备份，并在每次备份后保留最近 14 个备份目录：
+
+```bash
+cd /root/W-Light
+bash scripts/server-backup.sh --install-cron --cron "15 3 * * *" --keep 14
+```
+
+查看或移除定时备份：
+
+```bash
+crontab -l
+cd /root/W-Light
+bash scripts/server-backup.sh --remove-cron
 ```
 
 Web 报表页还提供项目 JSON 备份和恢复预检，适合业务数据迁移；服务器脚本适合整套生产环境灾备。
