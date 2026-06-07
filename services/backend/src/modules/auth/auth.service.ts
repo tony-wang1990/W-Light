@@ -34,8 +34,7 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload, { expiresIn: '7d' })
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' })
 
-    const { passwordHash, fcmToken, ...userInfo } = user
-    return { accessToken, refreshToken, user: userInfo }
+    return { accessToken, refreshToken, user: this.sanitizeUser(user) }
   }
 
   async refreshTokens(refreshToken: string) {
@@ -56,7 +55,13 @@ export class AuthService {
   async getMe(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } })
     if (!user) throw new UnauthorizedException()
-    const { passwordHash, fcmToken, ...userInfo } = user
+    return this.sanitizeUser(user)
+  }
+
+  private sanitizeUser(user: User) {
+    const userInfo: Partial<User> = { ...user }
+    delete userInfo.passwordHash
+    delete userInfo.fcmToken
     return userInfo
   }
 }

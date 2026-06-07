@@ -63,7 +63,9 @@ export class DevicesService {
 
   async update(id: string, dto: Partial<Device>, projectId?: string): Promise<Device> {
     const d = await this.findOne(id, projectId)
-    const { projectId: _ignoredProjectId, id: _ignoredId, ...safeDto } = dto as Partial<Device> & { id?: string }
+    const safeDto = { ...dto } as Partial<Device> & { id?: string }
+    delete safeDto.projectId
+    delete safeDto.id
     return this.repo.save(Object.assign(d, safeDto))
   }
 

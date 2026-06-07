@@ -56,7 +56,19 @@ export class UsersService {
   ) {}
 
   private toPublicUser(user: User, workload?: number): PublicUser {
-    const { passwordHash, fcmToken, ...safeUser } = user
+    const safeUser: PublicUser = {
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      projectIds: user.projectIds || [],
+      skillTags: user.skillTags || [],
+      avatarUrl: user.avatarUrl,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }
+
     if (workload === undefined) return safeUser
 
     return {

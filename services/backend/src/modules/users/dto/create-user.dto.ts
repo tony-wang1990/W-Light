@@ -6,8 +6,6 @@ import {
   IsOptional,
   IsArray,
   MinLength,
-  IsPhoneNumber,
-  Matches,
 } from 'class-validator';
 import { UserRole } from '../entities/user.entity';
 

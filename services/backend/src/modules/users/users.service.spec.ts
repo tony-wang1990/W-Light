@@ -1,4 +1,3 @@
-import { WorkOrder } from '../orders/entities/order.entity'
 import { User, UserRole } from './entities/user.entity'
 import { UsersService } from './users.service'
 
