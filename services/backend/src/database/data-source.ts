@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { DataSource } from 'typeorm'
+import { DataSource, DataSourceOptions } from 'typeorm'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -30,18 +30,31 @@ const entities = [
   path.join(__dirname, '../modules/**/*.entity{.ts,.js}'),
   path.join(__dirname, '../modules/**/*.module{.ts,.js}'),
 ]
-const migrations = [path.join(__dirname, 'migrations/*{.ts,.js}')]
+const migrations = [path.join(__dirname, 'migrations/[0-9]*-*{.ts,.js}')]
 
-const AppDataSource = new DataSource(dbType === 'sqlite'
-  ? {
-    type: 'sqlite',
-    database: process.env.DB_DATABASE || 'lightops.sqlite',
-    entities,
-    migrations,
-    synchronize: false,
-    logging: process.env.DB_LOGGING === 'true',
+function createDataSourceOptions(): DataSourceOptions {
+  if (dbType === 'sqlite') {
+    return {
+      type: 'sqlite',
+      database: process.env.DB_DATABASE || 'lightops.sqlite',
+      entities,
+      migrations,
+      synchronize: false,
+      logging: process.env.DB_LOGGING === 'true',
+    }
   }
-  : {
+
+  if (dbType === 'sqljs') {
+    return {
+      type: 'sqljs',
+      entities,
+      migrations,
+      synchronize: false,
+      logging: process.env.DB_LOGGING === 'true',
+    }
+  }
+
+  return {
     type: 'postgres',
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT || 5432),
@@ -53,6 +66,9 @@ const AppDataSource = new DataSource(dbType === 'sqlite'
     synchronize: false,
     logging: process.env.DB_LOGGING === 'true',
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  })
+  }
+}
+
+const AppDataSource = new DataSource(createDataSourceOptions())
 
 export default AppDataSource

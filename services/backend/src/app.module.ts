@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { BullModule } from '@nestjs/bull'
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module'
@@ -31,7 +30,7 @@ import { HealthModule } from './modules/health/health.module'
         const dbType = config.get<string>('DB_TYPE', 'postgres')
         const isDevelopment = config.get<string>('NODE_ENV') === 'development'
         const entities = [__dirname + '/modules/**/*.entity{.ts,.js}']
-        const migrations = [__dirname + '/database/migrations/*{.ts,.js}']
+        const migrations = [__dirname + '/database/migrations/[0-9]*-*{.ts,.js}']
         const synchronize = config.get<string>(
           'DB_SYNCHRONIZE',
           dbType === 'sqlite' ? 'true' : 'false',
@@ -42,6 +41,16 @@ import { HealthModule } from './modules/health/health.module'
           return {
             type: 'sqlite',
             database: config.get<string>('DB_DATABASE', 'lightops.sqlite'),
+            entities,
+            migrations,
+            synchronize,
+            logging,
+          }
+        }
+
+        if (dbType === 'sqljs') {
+          return {
+            type: 'sqljs',
             entities,
             migrations,
             synchronize,
