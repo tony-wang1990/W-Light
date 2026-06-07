@@ -37,18 +37,27 @@ const axiosClient = axios.create({
   timeout: 10000,
 });
 
+export function getAuthRequestHeaders() {
+  const state = useAuthStore.getState();
+  const headers: Record<string, string> = {};
+  if (state.token) {
+    headers.Authorization = `Bearer ${state.token}`;
+  }
+
+  const projectId = getCurrentProjectId(state.user, state.currentProjectId);
+  if (projectId) {
+    headers['X-Project-Id'] = projectId;
+  }
+
+  return headers;
+}
+
 axiosClient.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
   config.headers = config.headers || {};
-  const state = useAuthStore.getState();
-  const token = state.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  
-  const projectId = getCurrentProjectId(state.user, state.currentProjectId);
-  if (projectId) {
-    config.headers['X-Project-Id'] = projectId;
+  const authHeaders = getAuthRequestHeaders();
+  for (const [key, value] of Object.entries(authHeaders)) {
+    config.headers[key] = value;
   }
   
   return config;
