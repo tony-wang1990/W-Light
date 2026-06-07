@@ -2,7 +2,7 @@
 
 W-Light 是面向文旅灯光项目的运维闭环和灯光师工具箱平台。系统包含云端后端、Web 管理端、React Native 手机 APP、Electron 桌面客户端和共享灯光工具核心库。
 
-当前阶段：**内测验收与生产加固阶段**。服务器部署、Web 登录、核心菜单和客户端打包入口已经具备，下一步重点是按验收清单把业务流程、权限、安全、备份、客户端真机安装全部跑稳。
+当前版本：`0.9.0-internal.0`。当前阶段：**内测验收与生产加固阶段**。服务器部署、Web 登录、核心菜单和客户端打包入口已经具备，下一步重点是按验收清单把业务流程、权限、安全、备份、客户端真机安装全部跑稳。
 
 ## 当前进度
 
@@ -15,7 +15,7 @@ W-Light 是面向文旅灯光项目的运维闭环和灯光师工具箱平台。
 | Windows/Mac/Linux 桌面端 | 打包入口已具备 | Windows 可本机生成安装包；Mac/Linux 需要对应平台构建和签名/公证 |
 | 生产运维 | 进行中 | 已有部署、管理员、备份脚本；仍需定时备份、HTTPS、监控、正式验收 |
 
-详细验收和剩余工作见 [PRODUCTION_ACCEPTANCE.md](PRODUCTION_ACCEPTANCE.md)。
+详细验收和剩余工作见 [PRODUCTION_ACCEPTANCE.md](PRODUCTION_ACCEPTANCE.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)，发布流程见 [RELEASE.md](RELEASE.md)。
 
 ## 功能范围
 

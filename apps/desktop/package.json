@@ -1,6 +1,6 @@
 {
   "name": "desktop",
-  "version": "1.0.0",
+  "version": "0.9.0-internal.0",
   "private": true,
   "description": "W-Light desktop client for Windows and macOS",
   "author": "W-Light",

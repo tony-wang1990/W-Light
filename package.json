@@ -1,6 +1,6 @@
 {
   "name": "lightops",
-  "version": "1.0.0",
+  "version": "0.9.0-internal.0",
   "description": "文旅灯光运维一体化 APP - Monorepo",
   "private": true,
   "packageManager": "pnpm@9.15.9",
