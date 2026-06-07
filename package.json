@@ -27,6 +27,7 @@
     "build": "corepack pnpm run build:toolbox-core && corepack pnpm run build:backend && corepack pnpm run build:web",
     "start:prod": "corepack pnpm --filter backend run start",
     "test": "corepack pnpm -r run test",
+    "test:backend:postgres-e2e": "bash scripts/backend-postgres-e2e.sh",
     "lint": "corepack pnpm -r run lint",
     "format": "corepack pnpm -r run format",
     "db:migrate": "corepack pnpm --filter backend run migration:run",

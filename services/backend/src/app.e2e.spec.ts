@@ -15,6 +15,21 @@ const ENGINEER_ID = '44444444-4444-4444-8444-444444444444'
 const VIEWER_ID = '55555555-5555-4555-8555-555555555555'
 const PASSWORD = 'WLight@2026'
 
+function configureE2eEnvironment() {
+  const dbType = process.env.E2E_DB_TYPE || 'sqljs'
+
+  process.env.NODE_ENV = 'test'
+  process.env.DB_TYPE = dbType
+  process.env.DB_SYNCHRONIZE = process.env.DB_SYNCHRONIZE || 'true'
+  process.env.DB_MIGRATIONS_RUN = process.env.DB_MIGRATIONS_RUN || 'false'
+  process.env.DB_LOGGING = process.env.DB_LOGGING || 'false'
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_lightops_e2e_at_least_32_chars'
+
+  if (dbType === 'sqljs') {
+    delete process.env.DB_DATABASE
+  }
+}
+
 describe('App HTTP e2e flow', () => {
   let app: INestApplication
   let dataSource: DataSource
@@ -25,12 +40,7 @@ describe('App HTTP e2e flow', () => {
   let viewerToken: string
 
   beforeAll(async () => {
-    process.env.NODE_ENV = 'test'
-    process.env.DB_TYPE = 'sqljs'
-    delete process.env.DB_DATABASE
-    process.env.DB_SYNCHRONIZE = 'true'
-    process.env.DB_LOGGING = 'false'
-    process.env.JWT_SECRET = 'test_jwt_secret_for_lightops_e2e_at_least_32_chars'
+    configureE2eEnvironment()
 
     const { AppModule } = await import('./app.module')
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile()
@@ -46,6 +56,9 @@ describe('App HTTP e2e flow', () => {
     await app.init()
 
     dataSource = app.get(DataSource)
+    await dataSource.dropDatabase()
+    await dataSource.synchronize()
+
     userRepo = dataSource.getRepository(User)
     projectRepo = dataSource.getRepository(Project)
 

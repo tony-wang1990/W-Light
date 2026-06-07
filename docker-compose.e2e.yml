@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lightops-postgres-e2e
+    ports:
+      - '${POSTGRES_E2E_BIND:-127.0.0.1}:${POSTGRES_E2E_PORT:-55432}:5432'
+    environment:
+      POSTGRES_DB: ${DB_NAME:-lightops_e2e}
+      POSTGRES_USER: ${DB_USER:-lightops_e2e}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-lightops_e2e_pwd}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - postgres_e2e_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_e2e_data:
