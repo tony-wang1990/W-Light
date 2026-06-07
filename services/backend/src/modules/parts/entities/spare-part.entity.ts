@@ -5,7 +5,7 @@ import {
 @Entity('spare_parts')
 export class SparePart {
   @PrimaryGeneratedColumn('uuid') id: string
-  @Column() projectId: string
+  @Column({ type: 'uuid' }) projectId: string
   @Column({ length: 100 }) name: string
   @Column({ length: 100, nullable: true }) model?: string
   @Column({ length: 20, default: '个' }) unit: string

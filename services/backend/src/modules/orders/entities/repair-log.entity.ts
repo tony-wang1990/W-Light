@@ -10,14 +10,14 @@ export class RepairLog {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column()
+  @Column({ type: 'uuid' })
   orderId: string
 
   @ManyToOne(() => WorkOrder, { eager: false })
   @JoinColumn({ name: 'orderId' })
   order: WorkOrder
 
-  @Column()
+  @Column({ type: 'uuid' })
   engineerId: string
 
   @ManyToOne(() => User, { eager: false })

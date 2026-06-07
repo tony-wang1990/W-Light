@@ -27,7 +27,7 @@ export class Device {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column()
+  @Column({ type: 'uuid' })
   projectId: string
 
   @ManyToOne(() => Project, { eager: false })

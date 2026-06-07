@@ -40,28 +40,28 @@ export class WorkOrder {
   @Column({ length: 30 })
   orderNo: string
 
-  @Column()
+  @Column({ type: 'uuid' })
   projectId: string
 
   @ManyToOne(() => Project, { eager: false })
   @JoinColumn({ name: 'projectId' })
   project: Project
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   deviceId?: string
 
   @ManyToOne(() => Device, { nullable: true, eager: false })
   @JoinColumn({ name: 'deviceId' })
   device?: Device
 
-  @Column()
+  @Column({ type: 'uuid' })
   reporterId: string
 
   @ManyToOne(() => User, { eager: false })
   @JoinColumn({ name: 'reporterId' })
   reporter: User
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   assigneeId?: string
 
   @ManyToOne(() => User, { nullable: true, eager: false })

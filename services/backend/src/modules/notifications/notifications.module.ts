@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn('uuid') id: string
-  @Column() userId: string
+  @Column({ type: 'uuid' }) userId: string
   @Column({ length: 50 }) type: string
   @Column({ length: 100 }) title: string
   @Column({ type: 'text' }) content: string

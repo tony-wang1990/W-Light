@@ -9,11 +9,11 @@ export enum InspectionStatus {
 @Entity('inspection_records')
 export class InspectionRecord {
   @PrimaryGeneratedColumn('uuid') id: string
-  @Column() planId: string
-  @Column() inspectorId: string
+  @Column({ type: 'uuid' }) planId: string
+  @Column({ type: 'uuid' }) inspectorId: string
   @Column({ default: InspectionStatus.NORMAL }) status: string
   @Column({ type: 'text', nullable: true }) resultDesc: string
   @Column({ type: 'simple-json', default: '[]' }) photoUrls: string[]
-  @Column({ nullable: true }) orderId: string
+  @Column({ type: 'uuid', nullable: true }) orderId: string
   @CreateDateColumn() inspectedAt: Date
 }

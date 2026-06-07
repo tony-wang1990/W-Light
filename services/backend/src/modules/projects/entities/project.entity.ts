@@ -24,7 +24,7 @@ export class Project {
   @Column({ type: 'text', nullable: true })
   address?: string
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   managerId?: string
 
   @ManyToOne(() => User, { nullable: true, eager: false })
