@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   ForbiddenException,
@@ -20,11 +21,22 @@ import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { UsersService } from './users.service'
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 function assertProjectAccess(req: any, projectId?: string) {
   if (!projectId || req.user.role === UserRole.ADMIN) return
   if (!Array.isArray(req.user.projectIds) || !req.user.projectIds.includes(projectId)) {
     throw new ForbiddenException('No access to this project')
   }
+}
+
+function normalizeProjectId(value: unknown): string | undefined {
+  if (Array.isArray(value)) return normalizeProjectId(value[0])
+  if (typeof value !== 'string') return undefined
+  const projectId = value.trim()
+  if (!projectId) return undefined
+  if (!UUID_PATTERN.test(projectId)) throw new BadRequestException('Invalid project id')
+  return projectId
 }
 
 @ApiTags('用户管理')
@@ -52,7 +64,7 @@ export class UsersController {
     @Query('includeWorkload') includeWorkload?: string,
     @Query('role') role?: UserRole,
   ) {
-    const scopedProjectId = projectId || (req.headers['x-project-id'] as string | undefined)
+    const scopedProjectId = normalizeProjectId(projectId || req.headers['x-project-id'])
     assertProjectAccess(req, scopedProjectId)
     return this.usersService.findAll(scopedProjectId, includeWorkload === 'true' || includeWorkload === '1', req.user, role)
   }
