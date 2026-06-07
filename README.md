@@ -200,6 +200,7 @@ corepack pnpm --filter backend run build
 corepack pnpm --filter backend run test
 corepack pnpm --filter web run build
 corepack pnpm --filter web run test
+corepack pnpm --filter web run test:e2e
 corepack pnpm --filter LightOps exec tsc --noEmit
 corepack pnpm --filter @lightops/toolbox-core run test
 ```
