@@ -7,6 +7,23 @@ import {
   Logger,
 } from '@nestjs/common';
 
+interface HttpRequestInfo {
+  method?: string
+  url?: string
+}
+
+interface JsonResponse {
+  status(code: number): { json(body: unknown): void }
+}
+
+interface HttpExceptionPayload {
+  message?: string | string[]
+  error?: string
+}
+
+function isHttpExceptionPayload(value: unknown): value is HttpExceptionPayload {
+  return Boolean(value && typeof value === 'object')
+}
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -14,8 +31,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<any>();
-    const request = ctx.getRequest<any>();
+    const response = ctx.getResponse<JsonResponse>();
+    const request = ctx.getRequest<HttpRequestInfo>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -27,13 +44,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
-      } else if (typeof exceptionResponse === 'object') {
-        const resp = exceptionResponse as any;
-        message = resp.message
-          ? Array.isArray(resp.message)
-            ? resp.message.join('; ')
-            : resp.message
-          : resp.error || message;
+      } else if (isHttpExceptionPayload(exceptionResponse)) {
+        message = exceptionResponse.message
+          ? Array.isArray(exceptionResponse.message)
+            ? exceptionResponse.message.join('; ')
+            : exceptionResponse.message
+          : exceptionResponse.error || message;
       }
     } else if (exception instanceof Error) {
       message = exception.message;

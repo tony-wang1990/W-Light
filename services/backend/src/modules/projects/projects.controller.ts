@@ -7,7 +7,14 @@ import { UserRole } from '../users/entities/user.entity'
 import { ProjectsService } from './projects.service'
 import { CreateProjectDto, UpdateProjectDto } from './dto/create-project.dto'
 
-function assertProjectAccess(req: any, projectId: string) {
+interface AuthenticatedRequest {
+  user: {
+    role: UserRole
+    projectIds?: string[]
+  }
+}
+
+function assertProjectAccess(req: AuthenticatedRequest, projectId: string) {
   if (req.user.role === UserRole.ADMIN) return
   if (!Array.isArray(req.user.projectIds) || !req.user.projectIds.includes(projectId)) {
     throw new ForbiddenException('No access to this project')
@@ -30,13 +37,13 @@ export class ProjectsController {
 
   @Get()
   @ApiOperation({ summary: '获取项目列表' })
-  findAll(@Request() req) {
+  findAll(@Request() req: AuthenticatedRequest) {
     return this.svc.findAll(req.user.role === UserRole.ADMIN ? undefined : req.user.projectIds)
   }
 
   @Get(':id')
   @ApiOperation({ summary: '获取项目详情' })
-  findOne(@Param('id') id: string, @Request() req) {
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     assertProjectAccess(req, id)
     return this.svc.findOne(id)
   }

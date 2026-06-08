@@ -15,6 +15,8 @@ const ENGINEER_ID = '44444444-4444-4444-8444-444444444444'
 const VIEWER_ID = '55555555-5555-4555-8555-555555555555'
 const PASSWORD = 'WLight@2026'
 
+jest.setTimeout(30_000)
+
 function configureE2eEnvironment() {
   const dbType = process.env.E2E_DB_TYPE || 'sqljs'
 

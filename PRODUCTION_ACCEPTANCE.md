@@ -184,3 +184,4 @@
 - 2026-06-07：清理后端低风险 lint 噪音，移除未使用 import、改造用户脱敏白名单和受保护字段更新写法，lint warning 从 64 降到 48。
 - 2026-06-07：新增 `docker-compose.e2e.yml` 和 `scripts/backend-postgres-e2e.sh`，可一键启动一次性 PostgreSQL 容器并运行后端 App HTTP e2e；本机未安装 Docker，已完成脚本语法检查和默认 sql.js e2e 验证。
 - 2026-06-08：新增 GitHub Actions CI，自动执行后端 lint/test/build、Web test/build/Playwright、手机端 TypeScript 检查、工具箱测试构建和 PostgreSQL service e2e；同时修复 Vitest 误加载 Playwright e2e 规格文件的问题。
+- 2026-06-08：收紧后端异常过滤器、项目控制器、用户控制器和 HTTP 冒烟测试的请求类型，入口层 `any` warning 清理完成，lint warning 从 48 降到 42。

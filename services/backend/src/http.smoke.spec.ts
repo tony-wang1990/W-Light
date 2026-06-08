@@ -16,6 +16,10 @@ import { UserRole } from './modules/users/entities/user.entity'
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 const OTHER_PROJECT_ID = '22222222-2222-4222-8222-222222222222'
 
+interface GuardedProjectRequest {
+  projectId: string
+}
+
 class HeaderUserGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest()
@@ -38,7 +42,7 @@ class HeaderUserGuard implements CanActivate {
 @UseGuards(HeaderUserGuard, ProjectAccessGuard)
 class GuardedProjectController {
   @Get()
-  find(@Req() req: any) {
+  find(@Req() req: GuardedProjectRequest) {
     return { projectId: req.projectId }
   }
 }

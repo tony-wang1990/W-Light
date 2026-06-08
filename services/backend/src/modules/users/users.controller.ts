@@ -23,7 +23,16 @@ import { UsersService } from './users.service'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-function assertProjectAccess(req: any, projectId?: string) {
+interface AuthenticatedRequest {
+  user: {
+    id?: string
+    role: UserRole
+    projectIds?: string[]
+  }
+  headers: Record<string, unknown>
+}
+
+function assertProjectAccess(req: AuthenticatedRequest, projectId?: string) {
   if (!projectId || req.user.role === UserRole.ADMIN) return
   if (!Array.isArray(req.user.projectIds) || !req.user.projectIds.includes(projectId)) {
     throw new ForbiddenException('No access to this project')
@@ -59,7 +68,7 @@ export class UsersController {
   @ApiQuery({ name: 'includeWorkload', required: false, type: Boolean })
   @ApiQuery({ name: 'role', required: false, enum: UserRole })
   findAll(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Query('projectId') projectId?: string,
     @Query('includeWorkload') includeWorkload?: string,
     @Query('role') role?: UserRole,
@@ -71,7 +80,7 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: '获取用户详情' })
-  findOne(@Param('id') id: string, @Request() req) {
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     if (req.user.role !== UserRole.ADMIN && req.user.id !== id) {
       throw new ForbiddenException('No access to this user')
     }
