@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
-import { DataSource, In } from 'typeorm'
+import { DataSource, EntityTarget, In } from 'typeorm'
 import { Device } from '../devices/entities/device.entity'
 import { WorkOrder } from '../orders/entities/order.entity'
 import { RepairLog } from '../orders/entities/repair-log.entity'
@@ -11,7 +11,7 @@ import { InspectionRecord } from '../inspections/entities/inspection-record.enti
 import { Project } from '../projects/entities/project.entity'
 import { User } from '../users/entities/user.entity'
 
-type BackupRow = Record<string, any>
+type BackupRow = Record<string, unknown>
 type BackupTables = Record<string, BackupRow[] | undefined>
 
 interface BackupPayload {
@@ -135,11 +135,12 @@ export class ReportsBackupService {
     const addedUserIds = new Set<string>()
 
     for (const row of rows) {
+      const rowId = String(row.id || '').trim()
       const phone = String(row.phone || '').trim()
       const existing = phone ? existingByPhone.get(phone) : null
 
-      if (existing && existing.id !== row.id) {
-        userIdMap.set(row.id, existing.id)
+      if (existing && existing.id !== rowId) {
+        userIdMap.set(rowId, existing.id)
         const projectIds = parseJsonArray(existing.projectIds)
           .map(item => String(item))
           .filter(Boolean)
@@ -152,9 +153,9 @@ export class ReportsBackupService {
         continue
       }
 
-      if (!addedUserIds.has(row.id)) {
+      if (!addedUserIds.has(rowId)) {
         users.push(row)
-        addedUserIds.add(row.id)
+        addedUserIds.add(rowId)
       }
     }
 
@@ -165,7 +166,7 @@ export class ReportsBackupService {
     const deviceRepo = this.ds.getRepository(Device)
     const existingDevices = await deviceRepo.find({
       where: { projectId: targetProjectId },
-      select: ['id', 'deviceNo', 'qrCode'] as any,
+      select: ['id', 'deviceNo', 'qrCode'],
     })
     const existingByNo = new Map(existingDevices.map(device => [device.deviceNo, device]))
     const existingByQr = new Map(existingDevices.map(device => [device.qrCode, device]))
@@ -201,15 +202,15 @@ export class ReportsBackupService {
     })
   }
 
-  private mapUserId(value: unknown, userIdMap: Map<string, string>): any {
+  private mapUserId(value: unknown, userIdMap: Map<string, string>): unknown {
     if (typeof value !== 'string') return value
     return userIdMap.get(value) || value
   }
 
-  private async idsForProject(entity: any, projectId: string): Promise<string[]> {
+  private async idsForProject(entity: EntityTarget<{ id: string; projectId: string }>, projectId: string): Promise<string[]> {
     const rows = await this.ds.getRepository(entity).find({
       where: { projectId },
-      select: ['id'] as any,
+      select: ['id'],
     })
     return rows.map(row => row.id).filter(Boolean)
   }
@@ -271,10 +272,10 @@ export class ReportsBackupService {
     ] = await Promise.all([
       this.ds.getRepository(Project).findOne({ where: { id: projectId } }),
       userRepo.find().then(items => items.filter(user => parseJsonArray(user.projectIds).includes(projectId))),
-      deviceRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
-      orderRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
-      partRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
-      inspectionPlanRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } as any }),
+      deviceRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } }),
+      orderRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } }),
+      partRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } }),
+      inspectionPlanRepo.find({ where: { projectId }, order: { createdAt: 'DESC' } }),
     ])
 
     const orderIds = orders.map(order => order.id).filter(Boolean)
@@ -287,13 +288,13 @@ export class ReportsBackupService {
       inspectionRecords,
     ] = await Promise.all([
       orderIds.length
-        ? repairLogRepo.find({ where: { orderId: In(orderIds) }, order: { loggedAt: 'DESC' } as any })
+        ? repairLogRepo.find({ where: { orderId: In(orderIds) }, order: { loggedAt: 'DESC' } })
         : Promise.resolve([]),
       partIds.length
-        ? partLogRepo.find({ where: { partId: In(partIds) }, order: { createdAt: 'DESC' } as any })
+        ? partLogRepo.find({ where: { partId: In(partIds) }, order: { createdAt: 'DESC' } })
         : Promise.resolve([]),
       planIds.length
-        ? inspectionRecordRepo.find({ where: { planId: In(planIds) }, order: { inspectedAt: 'DESC' } as any })
+        ? inspectionRecordRepo.find({ where: { planId: In(planIds) }, order: { inspectedAt: 'DESC' } })
         : Promise.resolve([]),
     ])
 

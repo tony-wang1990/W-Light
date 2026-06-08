@@ -11,7 +11,7 @@ export class ReportsExportService {
     return this.ds.options.type === 'postgres'
   }
 
-  private query<T = any>(
+  private query<T = Record<string, unknown>>(
     sqliteSql: string,
     postgresSql: string,
     sqliteParams: unknown[] = [],
