@@ -294,13 +294,13 @@ export default function Users() {
       </div>
 
       {showModal && (
-        <div className={styles.overlay} onClick={() => setShowModal(false)}>
-          <div className={styles.modal} onClick={event => event.stopPropagation()}>
+        <div className={styles.overlay} onPointerDown={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div className={styles.modal}>
             <h2 className={styles.modalTitle}>{editUser ? '编辑用户' : '新建用户'}</h2>
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>姓名 *</label>
-                <input className={styles.input} value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="真实姓名" />
+                <input autoFocus className={styles.input} value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="真实姓名" />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>手机号 *</label>

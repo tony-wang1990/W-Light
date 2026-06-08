@@ -93,7 +93,7 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>备件名称 *</label>
-              <input name="name" value={formData.name} onChange={handleChange} required placeholder="例如：光束灯灯泡" />
+              <input autoFocus name="name" value={formData.name} onChange={handleChange} required placeholder="例如：光束灯灯泡" />
             </div>
             <div className={styles.formGroup}>
               <label>型号规格</label>
