@@ -5,8 +5,11 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vitejs.dev/config/
+// Electron 打包时由 prepare:web 脚本注入 ELECTRON=true，使资源路径使用相对路径
+// 避免 file:// 协议下绝对路径 /assets/xxx.js 无法加载导致白屏
 export default defineConfig({
   plugins: [react()],
+  base: process.env.ELECTRON === 'true' ? './' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
