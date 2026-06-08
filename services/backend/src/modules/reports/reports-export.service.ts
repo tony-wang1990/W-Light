@@ -176,18 +176,22 @@ export class ReportsExportService {
 
   async exportPartsConsumptionWorkbook(projectId: string, startDate: string, endDate: string) {
     const rows = await this.query(`
-      SELECT o.orderNo, o.createdAt, p.partNo, p.name as partName, u.quantity, u.unitPrice, (u.quantity * u.unitPrice) as totalCost, c.name as engineerName
+      SELECT o.orderNo, o.createdAt, p.partNo, p.name as partName, u.quantity, u.unitPrice, (u.quantity * u.unitPrice) as totalCost, c.name as engineerName,
+             d.name as deviceName, COALESCE(d.location, o.locationDesc) as location, o.faultType, o.faultDesc
       FROM order_parts_usage u
       JOIN work_orders o ON o.id = u.orderId
       JOIN spare_parts p ON p.id = u.partId
+      LEFT JOIN devices d ON d.id = o.deviceId
       LEFT JOIN users c ON c.id = o.assigneeId
       WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
       ORDER BY o.createdAt DESC
     `, `
-      SELECT o."orderNo" as "orderNo", o."createdAt" as "createdAt", p."partNo" as "partNo", p.name as "partName", u.quantity, u."unitPrice" as "unitPrice", (u.quantity * u."unitPrice") as "totalCost", c.name as "engineerName"
+      SELECT o."orderNo" as "orderNo", o."createdAt" as "createdAt", p."partNo" as "partNo", p.name as "partName", u.quantity, u."unitPrice" as "unitPrice", (u.quantity * u."unitPrice") as "totalCost", c.name as "engineerName",
+             d.name as "deviceName", COALESCE(d.location, o."locationDesc") as location, o."faultType" as "faultType", o."faultDesc" as "faultDesc"
       FROM order_parts_usage u
       JOIN work_orders o ON o.id::text = u."orderId"::text
       JOIN spare_parts p ON p.id::text = u."partId"::text
+      LEFT JOIN devices d ON d.id::text = o."deviceId"::text
       LEFT JOIN users c ON c.id::text = o."assigneeId"::text
       WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
       ORDER BY o."createdAt" DESC
@@ -196,14 +200,18 @@ export class ReportsExportService {
     const workbook = new ExcelJS.Workbook()
     const sheet = workbook.addWorksheet('备件消耗明细')
     sheet.columns = [
+      { header: '消耗日期', key: 'createdAt', width: 20 },
       { header: '关联工单', key: 'orderNo', width: 18 },
-      { header: '工单日期', key: 'createdAt', width: 20 },
+      { header: '关联设备', key: 'deviceName', width: 22 },
+      { header: '所在位置', key: 'location', width: 24 },
+      { header: '故障类型', key: 'faultType', width: 16 },
+      { header: '故障描述', key: 'faultDesc', width: 30 },
       { header: '备件编号', key: 'partNo', width: 18 },
       { header: '备件名称', key: 'partName', width: 22 },
       { header: '消耗数量', key: 'quantity', width: 12 },
       { header: '出库单价', key: 'unitPrice', width: 12 },
-      { header: '总成本', key: 'totalCost', width: 14 },
-      { header: '维修人', key: 'engineerName', width: 14 },
+      { header: '总物料成本', key: 'totalCost', width: 16 },
+      { header: '操作人/维修人', key: 'engineerName', width: 16 },
     ]
     rows.forEach(row => sheet.addRow(row))
     sheet.getRow(1).font = { bold: true }
@@ -218,6 +226,7 @@ export class ReportsExportService {
         COUNT(o.id) as totalAssigned,
         SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as totalClosed,
         SUM(CASE WHEN o.isOvertime = 1 THEN 1 ELSE 0 END) as overtimeCount,
+        SUM(o.repairCost) as totalRepairCost,
         AVG(CASE WHEN o.status = 'closed' AND o.closedAt IS NOT NULL AND o.startedAt IS NOT NULL 
             THEN (julianday(o.closedAt) - julianday(o.startedAt)) * 24 ELSE NULL END) as avgRepairHours
       FROM users u
@@ -230,6 +239,7 @@ export class ReportsExportService {
         COUNT(o.id) as "totalAssigned",
         SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as "totalClosed",
         SUM(CASE WHEN o."isOvertime" = 1 OR o."isOvertime" = true THEN 1 ELSE 0 END) as "overtimeCount",
+        SUM(o."repairCost") as "totalRepairCost",
         AVG(CASE WHEN o.status = 'closed' AND o."closedAt" IS NOT NULL AND o."startedAt" IS NOT NULL 
             THEN EXTRACT(EPOCH FROM (o."closedAt" - o."startedAt")) / 3600 ELSE NULL END) as "avgRepairHours"
       FROM users u
@@ -246,12 +256,20 @@ export class ReportsExportService {
       { header: '角色', key: 'role', width: 14 },
       { header: '派单总数', key: 'totalAssigned', width: 12 },
       { header: '完成总数', key: 'totalClosed', width: 12 },
+      { header: '按期完工率', key: 'onTimeRate', width: 14 },
       { header: '超时单数', key: 'overtimeCount', width: 12 },
       { header: '平均修复时长(小时)', key: 'avgRepairHours', width: 20 },
+      { header: '累计产生维修成本', key: 'totalRepairCost', width: 20 },
     ]
     rows.forEach(row => {
+      const closed = Number(row.totalClosed) || 0;
+      const assigned = Number(row.totalAssigned) || 0;
+      const overtime = Number(row.overtimeCount) || 0;
+      const onTimeRate = closed > 0 ? (((closed - overtime) / closed) * 100).toFixed(1) + '%' : '-';
+      
       sheet.addRow({
         ...row,
+        onTimeRate,
         avgRepairHours: row.avgRepairHours != null ? Number(row.avgRepairHours).toFixed(2) : '-',
         role: row.role === 'admin' ? '管理员' : '维修工程师',
       })
