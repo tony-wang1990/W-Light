@@ -93,6 +93,7 @@ function statusText(status: string) {
 }
 
 export default function Orders() {
+  const { user } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -171,7 +172,7 @@ export default function Orders() {
   }, [orders]);
 
   const renderAction = (order: Order) => {
-    if (useAuthStore().user?.role === 'viewer') {
+    if (user?.role === 'viewer') {
       return (
         <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
           查看
@@ -302,7 +303,7 @@ export default function Orders() {
             <RefreshCw size={16} className={loading ? styles.spin : ''} />
             刷新
           </button>
-          {useAuthStore().user?.role !== 'viewer' && (
+          {user?.role !== 'viewer' && (
             <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
               <Plus size={16} /> 新增报修
             </button>

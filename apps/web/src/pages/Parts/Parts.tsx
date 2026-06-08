@@ -58,6 +58,7 @@ function downloadCsv(parts: Part[]) {
 }
 
 export default function Parts() {
+  const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +131,7 @@ export default function Parts() {
           <button className={styles.exportBtn} onClick={() => downloadCsv(parts)} disabled={parts.length === 0}>
             <Download size={18} /> 导出明细
           </button>
-          {useAuthStore().user?.role === 'admin' && (
+          {user?.role === 'admin' && (
             <button className={styles.addBtn} onClick={handleAddPart}>
               <Plus size={18} /> 新增备件
             </button>

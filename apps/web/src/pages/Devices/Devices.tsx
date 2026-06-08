@@ -75,6 +75,7 @@ function statusText(status: string) {
 }
 
 export default function Devices() {
+  const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
@@ -264,7 +265,7 @@ export default function Devices() {
           <p className={styles.pageSubtitle}>管理现场设备、二维码标签、安装位置、健康度和运行状态。</p>
         </div>
         <div className={styles.headerActions}>
-          {useAuthStore().user?.role === 'admin' && (
+          {user?.role === 'admin' && (
             <>
               <input ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportExcel} />
               <button className={styles.exportBtn} onClick={() => importInputRef.current?.click()} title="支持列：设备编号、设备名称、类型、安装位置、品牌厂商、型号">
