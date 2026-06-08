@@ -146,3 +146,5 @@ Mac：
 - 未签名 Windows 安装包可能触发 SmartScreen 提醒，生产对外分发建议购买代码签名证书。
 - 未公证 macOS DMG 会触发 Gatekeeper 提醒，生产对外分发建议配置 Apple Developer ID。
 - 桌面客户端只是客户端壳，真正数据以服务器为准；服务器必须先部署成功，并保证 `3005` 端口可访问。
+
+完整发布验收清单见 [DESKTOP_RELEASE_CHECKLIST.md](DESKTOP_RELEASE_CHECKLIST.md)。

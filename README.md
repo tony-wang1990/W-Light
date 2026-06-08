@@ -16,7 +16,7 @@ W-Light 是面向文旅灯光项目的运维闭环和灯光师工具箱平台。
 | 生产运维 | 进行中 | 已有部署、管理员、备份脚本；仍需定时备份、HTTPS、监控、正式验收 |
 | 自动化测试与发布质量 | 进行中 | 后端 11 个测试套件、42 个用例；已覆盖核心业务、HTTP 冒烟、路由映射、数据库迁移 SQL 和完整 App HTTP e2e；Web Playwright 已覆盖关键菜单渲染和工单派单/接单/维修记录/验收归档 UI 闭环；GitHub Actions CI 已接入常规质量检查和 PostgreSQL e2e；后端、Web、手机端 lint 已清到 0 warning，仍需真机和真实服务器验收 |
 
-详细验收和剩余工作见 [PRODUCTION_ACCEPTANCE.md](PRODUCTION_ACCEPTANCE.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)，发布流程见 [RELEASE.md](RELEASE.md)。
+详细验收和剩余工作见 [PRODUCTION_ACCEPTANCE.md](PRODUCTION_ACCEPTANCE.md)，移动端验收见 [MOBILE_RELEASE_CHECKLIST.md](MOBILE_RELEASE_CHECKLIST.md)，桌面端验收见 [DESKTOP_RELEASE_CHECKLIST.md](DESKTOP_RELEASE_CHECKLIST.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)，发布流程见 [RELEASE.md](RELEASE.md)。
 
 ## 功能范围
 

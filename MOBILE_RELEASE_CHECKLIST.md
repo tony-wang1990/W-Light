@@ -7,9 +7,9 @@
 - 当前主移动端目录是 `apps/LightOps`。
 - 该目录已包含基于 React Native 0.74.5 模板生成的 `android/`、`ios/` 原生工程目录。
 - 当前已同步原生 module name `WLight`、显示名 `W-Light`、Android applicationId `com.wlight.lightops` 和 iOS Bundle Identifier `com.wlight.lightops`。
-- Android release 已支持从 `gradle.properties` 或环境变量读取正式签名；APK/AAB 仍需要在具备 Android SDK 的打包机上完成实际构建和真机验证。
+- Android release 已支持从 `gradle.properties` 或环境变量读取正式签名；当前仓库下载目录已有内测 APK 产物并通过 `downloads:verify -- --strict` 校验。
 - iOS IPA 仍需要在具备 Xcode/CocoaPods 的 macOS 打包机上完成签名、归档和真机验证。
-- 当前 Windows 工作机未配置 `JAVA_HOME`，因此 Android Gradle 尚未完成本机验证。
+- Android APK 仍需要在真实手机上完成安装、登录、扫码、拍照上传、离线同步和弱网验收；未配置正式 keystore 时只能作为内部测试包。
 - 本地敏感数据使用 MMKV 加密，MMKV 密钥通过 `react-native-keychain` 写入 iOS Keychain / Android Keystore，并保留旧 MVP 固定密钥迁移路径。
 - 扫码查验已接入 `react-native-camera-kit` 与 `react-native-permissions`，真机包需验证相机权限和二维码识别。
 
@@ -125,6 +125,15 @@ open LightOps.xcworkspace
 - 临时 IP 内测地址：`http://服务器IP:3005/v1`
 - APK 内测下载地址：`http://服务器IP:3005/downloads/w-light-latest.apk`
 - 后端数据链路：NestJS API -> PostgreSQL -> MinIO/对象存储。
+
+服务器升级或首次部署后，建议先执行：
+
+```bash
+cd /root/W-Light
+bash scripts/server-smoke.sh --base-url http://服务器IP:3005 --phone 13800000001 --password '你的管理员密码'
+```
+
+脚本通过后，再让手机端连接同一个 `http://服务器IP:3005/v1` 做真机验收。
 
 甲骨文云 ARM 部署步骤见 [ORACLE_ARM_DEPLOY.md](ORACLE_ARM_DEPLOY.md)。
 

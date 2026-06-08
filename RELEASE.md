@@ -29,6 +29,7 @@ bash scripts/server-upgrade.sh --branch main --port 3005
 ```bash
 cd /root/W-Light
 bash scripts/server-health.sh --port 3005
+bash scripts/server-smoke.sh --base-url http://服务器IP:3005 --phone 13800000001 --password '你的管理员密码'
 bash scripts/server-backup.sh --list
 ```
 
