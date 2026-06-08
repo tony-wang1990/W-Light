@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@lightops/toolbox-core": "workspace:*",
+    "@react-leaflet/core": "2.1.0",
     "axios": "^1.7.2",
     "date-fns": "^3.6.0",
     "leaflet": "^1.9.4",
@@ -20,7 +21,7 @@
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-leaflet": "^5.0.0",
+    "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.24.1",
     "recharts": "^3.8.1",
     "xlsx": "^0.18.5",
