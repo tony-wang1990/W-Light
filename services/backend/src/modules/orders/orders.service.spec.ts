@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Tests use lightweight TypeORM repository mocks. */
+
 import { ForbiddenException } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { PartsService } from '../parts/parts.service'

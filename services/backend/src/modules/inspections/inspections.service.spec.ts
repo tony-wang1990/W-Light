@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Tests use lightweight TypeORM repository mocks. */
+
 import { DataSource } from 'typeorm'
 import { OrderCategory, OrderPriority } from '../orders/entities/order.entity'
 import { OrdersService } from '../orders/orders.service'

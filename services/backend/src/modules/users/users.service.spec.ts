@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Tests use lightweight TypeORM repository mocks. */
+
 import { User, UserRole } from './entities/user.entity'
 import { UsersService } from './users.service'
 

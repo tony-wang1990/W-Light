@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Tests use minimal workbook and repository fixtures. */
+
 import { DataSource } from 'typeorm'
 import * as ExcelJS from 'exceljs'
 import { ReportsExportService } from './reports-export.service'

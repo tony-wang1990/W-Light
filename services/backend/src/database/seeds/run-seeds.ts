@@ -1,3 +1,5 @@
+/* eslint-disable no-console -- Seed scripts report progress and credentials in the terminal. */
+
 import { randomBytes } from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'

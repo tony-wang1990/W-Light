@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Tests use lightweight TypeORM repository mocks. */
+
 import { BadRequestException } from '@nestjs/common'
 import { EntityManager } from 'typeorm'
 import { SparePart } from './entities/spare-part.entity'
