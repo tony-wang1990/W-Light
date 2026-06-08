@@ -196,3 +196,4 @@
 - 2026-06-08：新增 `scripts/server-smoke.sh` 部署后业务自检脚本，支持检查 Web root、客户端下载页、API health、管理员登录、项目解析和工单/设备/备件/巡检/报表/用户关键接口。
 - 2026-06-08：优化客户端下载静态页，Android/Windows 已发布文件继续可下载，Mac/Linux/iOS 等未发布安装包会自动显示“暂未发布”，避免用户点击到 404。
 - 2026-06-08：纠正移动端发布清单当前状态，新增桌面端发布验收清单，并在 README、桌面指南和发布流程中挂载对应入口。
+- 2026-06-08：为手机端新增显式 `typecheck` 脚本，CI 改为运行 `pnpm --filter LightOps run typecheck`，避免把 TypeScript 检查伪装成测试命令。

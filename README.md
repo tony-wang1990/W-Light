@@ -206,7 +206,7 @@ corepack pnpm run test:backend:postgres-e2e
 corepack pnpm --filter web run build
 corepack pnpm --filter web run test
 corepack pnpm --filter web run test:e2e
-corepack pnpm --filter LightOps run test
+corepack pnpm --filter LightOps run typecheck
 corepack pnpm --filter @lightops/toolbox-core run test
 ```
 
