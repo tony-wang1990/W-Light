@@ -67,11 +67,7 @@ export default function Clients() {
           <h1 className={styles.pageTitle}>客户端下载中心</h1>
           <p className={styles.pageSubtitle}>Android、iOS、Windows、Mac、Linux 和 Web/PWA 都连接同一套云端 API，数据统一同步。</p>
         </div>
-        <div className={styles.actions}>
-          <a className={styles.secondaryBtn} href="/downloads/" target="_blank" rel="noreferrer">
-            <ExternalLink size={16} /> 打开下载目录
-          </a>
-        </div>
+
       </div>
 
       <div className={styles.card}>
