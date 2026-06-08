@@ -199,3 +199,4 @@
 - 2026-06-08：为手机端新增显式 `typecheck` 脚本，CI 改为运行 `pnpm --filter LightOps run typecheck`，避免把 TypeScript 检查伪装成测试命令。
 - 2026-06-08：复核上传与附件安全，确认 MinIO 不对公网暴露，附件走后端 JWT + 项目权限校验，上传接口已有大小和 MIME 白名单限制。
 - 2026-06-08：移除被 Git 跟踪的后端 `.env.development`，改为 `.env.development.example` 模板，并更新 `.gitignore` 与本地开发说明，避免真实环境变量文件进入仓库。
+- 2026-06-08：新增 Windows 客户端一键打包脚本 `scripts/build-windows-client.bat`，可双击生成 `deploy/downloads/W-Light-Setup-latest.exe` 并自动校验下载产物。

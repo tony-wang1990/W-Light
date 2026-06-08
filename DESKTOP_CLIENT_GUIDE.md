@@ -29,6 +29,18 @@ Node 建议使用 20.x，pnpm 由 Corepack 管理。
 
 ## 2. Windows 打包
 
+最简单方式：双击运行：
+
+```text
+scripts\build-windows-client.bat
+```
+
+它会自动安装依赖、生成 Windows 安装包、复制到下载中心目录，并执行校验。完成后产物在：
+
+```text
+deploy\downloads\W-Light-Setup-latest.exe
+```
+
 在 Windows PowerShell 里执行：
 
 ```powershell
@@ -107,6 +119,7 @@ apps/desktop/dist/W-Light-1.0.0-arm64.AppImage
 ```powershell
 scp deploy\downloads\W-Light-Setup-latest.exe root@服务器IP:/root/W-Light/deploy/downloads/
 scp deploy\downloads\W-Light-Setup-latest.exe.sha256 root@服务器IP:/root/W-Light/deploy/downloads/
+scp deploy\downloads\w-light-desktop.json root@服务器IP:/root/W-Light/deploy/downloads/
 ssh root@服务器IP "cd /root/W-Light && docker compose restart web"
 ```
 

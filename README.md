@@ -244,6 +244,20 @@ open LightOps.xcworkspace
 
 ### Windows 桌面端打包
 
+不会命令行的话，直接在 Windows 上双击：
+
+```text
+scripts\build-windows-client.bat
+```
+
+生成物会放到：
+
+```text
+deploy\downloads\W-Light-Setup-latest.exe
+```
+
+会命令行的话也可以执行：
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/desktop-release.ps1 -Target win -PublishWeb
 ```
