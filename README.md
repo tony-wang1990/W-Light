@@ -192,6 +192,9 @@ Web 报表页还提供项目 JSON 备份和恢复预检，适合业务数据迁�
 corepack enable
 corepack pnpm install --frozen-lockfile
 
+# 可选：本地零配置 SQLite 开发环境
+cp services/backend/.env.development.example services/backend/.env.development
+
 corepack pnpm run build
 corepack pnpm -r run test
 corepack pnpm -r run lint
@@ -208,6 +211,12 @@ corepack pnpm --filter web run test
 corepack pnpm --filter web run test:e2e
 corepack pnpm --filter LightOps run typecheck
 corepack pnpm --filter @lightops/toolbox-core run test
+```
+
+Windows PowerShell 复制本地后端开发环境示例：
+
+```powershell
+Copy-Item services/backend/.env.development.example services/backend/.env.development
 ```
 
 ## GitHub Actions CI

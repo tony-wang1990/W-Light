@@ -12,10 +12,14 @@ apps/desktop/web/
 
 # Environment files
 .env
+.env.*
 .env.local
 .env.production
 .env.staging
 *.env
+!.env.example
+!*.env.example
+!.env.*.example
 
 # Logs
 logs/

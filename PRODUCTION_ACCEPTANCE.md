@@ -36,7 +36,7 @@
 - [ ] 配置 HTTPS 后，将所有客户端 API 地址统一切换为 `https://域名/v1`。
 - [x] MinIO 仅在 Docker 内网暴露，附件访问通过后端 `/v1/files/...`，并受 JWT 与项目权限守卫保护。
 - [x] 上传文件大小和类型限制已配置：图片 10MB 且限定 jpeg/png/webp/heic/heif，视频 100MB 且限定 mp4/mov/webm。
-- [ ] 检查 `.env` 不进入 Git，不在截图或日志中泄漏。
+- [x] 真实 `.env` / `.env.*` 不进入 Git；后端仅保留 `.env.development.example` 作为本地开发模板。
 - [ ] 根据真实组织结构复核管理员、工程师、巡检员、查看员权限矩阵。
 
 ## 3. Web 管理端验收
@@ -198,3 +198,4 @@
 - 2026-06-08：纠正移动端发布清单当前状态，新增桌面端发布验收清单，并在 README、桌面指南和发布流程中挂载对应入口。
 - 2026-06-08：为手机端新增显式 `typecheck` 脚本，CI 改为运行 `pnpm --filter LightOps run typecheck`，避免把 TypeScript 检查伪装成测试命令。
 - 2026-06-08：复核上传与附件安全，确认 MinIO 不对公网暴露，附件走后端 JWT + 项目权限校验，上传接口已有大小和 MIME 白名单限制。
+- 2026-06-08：移除被 Git 跟踪的后端 `.env.development`，改为 `.env.development.example` 模板，并更新 `.gitignore` 与本地开发说明，避免真实环境变量文件进入仓库。
