@@ -17,6 +17,7 @@
     "appId": "com.wlight.desktop",
     "productName": "W-Light",
     "asar": true,
+    "publish": null,
     "directories": {
       "output": "dist"
     },
