@@ -14,7 +14,7 @@ W-Light 是面向文旅灯光项目的运维闭环和灯光师工具箱平台。
 | 手机 APP | 内测打包入口已具备 | Android 可打 APK；iOS 需要 macOS + Xcode + Apple Developer 签名环境 |
 | Windows/Mac/Linux 桌面端 | 打包入口已具备 | Windows 可本机生成安装包；Mac/Linux 需要对应平台构建和签名/公证 |
 | 生产运维 | 进行中 | 已有部署、管理员、备份脚本；仍需定时备份、HTTPS、监控、正式验收 |
-| 自动化测试与发布质量 | 进行中 | 后端 11 个测试套件、42 个用例；已覆盖核心业务、HTTP 冒烟、路由映射、数据库迁移 SQL 和完整 App HTTP e2e；已提供 PostgreSQL 容器级 e2e 脚本，lint 剩余 48 个 warning，仍需 Docker 环境执行验收与真机验收 |
+| 自动化测试与发布质量 | 进行中 | 后端 11 个测试套件、42 个用例；已覆盖核心业务、HTTP 冒烟、路由映射、数据库迁移 SQL 和完整 App HTTP e2e；GitHub Actions CI 已接入常规质量检查和 PostgreSQL e2e，lint 剩余 48 个 warning，仍需真机验收 |
 
 详细验收和剩余工作见 [PRODUCTION_ACCEPTANCE.md](PRODUCTION_ACCEPTANCE.md)，版本记录见 [CHANGELOG.md](CHANGELOG.md)，发布流程见 [RELEASE.md](RELEASE.md)。
 
@@ -203,9 +203,21 @@ corepack pnpm run test:backend:postgres-e2e
 corepack pnpm --filter web run build
 corepack pnpm --filter web run test
 corepack pnpm --filter web run test:e2e
-corepack pnpm --filter LightOps exec tsc --noEmit
+corepack pnpm --filter LightOps run test
 corepack pnpm --filter @lightops/toolbox-core run test
 ```
+
+## GitHub Actions CI
+
+仓库已提供 `.github/workflows/ci.yml`。推送到 `main` 或提交 Pull Request 时会自动执行：
+
+- 后端 lint、单元/HTTP/e2e 测试和构建。
+- Web Vitest、Vite 构建和 Playwright 冒烟测试。
+- 手机 APP TypeScript 检查。
+- 工具箱核心库测试和类型构建。
+- PostgreSQL service 上的后端 App HTTP e2e。
+
+CI 不替代 Android/iOS 真机安装、Windows/macOS 安装包签名、公证和生产服务器备份恢复演练。
 
 ## Android 打包
 

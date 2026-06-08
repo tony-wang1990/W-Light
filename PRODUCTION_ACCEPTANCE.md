@@ -151,6 +151,7 @@
 - [~] 增加数据库迁移测试：已覆盖迁移顺序、初始 schema 关键表和索引、工单号序列表、设备项目级唯一索引、uuid 外键迁移 SQL；仍需在真实 PostgreSQL 旧库上做一次升级演练。
 - [~] 增加客户端打包后的安装包校验脚本和说明；仍需对 Android、Windows、macOS、Linux、iOS 正式签名包逐一验收。
 - [x] 建立发布版本号、变更日志和发布流程文档，当前内部验收版本为 `0.9.0-internal.0`。
+- [~] GitHub Actions CI 已接入后端、Web、工具箱、手机端类型检查和 PostgreSQL e2e；仍需观察 GitHub 首次运行结果并按失败日志补齐环境差异。
 
 ## 7. 下一步执行顺序
 
@@ -182,3 +183,4 @@
 - 2026-06-07：新增完整 App HTTP e2e 测试，覆盖登录、项目权限、设备、备件、工单派单/接单/维修记录/扣件/提交验收/验收归档闭环；同时收紧 TypeORM migration glob，避免测试文件被误加载为迁移，后端回归扩展到 11 个测试套件、42 个用例。
 - 2026-06-07：清理后端低风险 lint 噪音，移除未使用 import、改造用户脱敏白名单和受保护字段更新写法，lint warning 从 64 降到 48。
 - 2026-06-07：新增 `docker-compose.e2e.yml` 和 `scripts/backend-postgres-e2e.sh`，可一键启动一次性 PostgreSQL 容器并运行后端 App HTTP e2e；本机未安装 Docker，已完成脚本语法检查和默认 sql.js e2e 验证。
+- 2026-06-08：新增 GitHub Actions CI，自动执行后端 lint/test/build、Web test/build/Playwright、手机端 TypeScript 检查、工具箱测试构建和 PostgreSQL service e2e；同时修复 Vitest 误加载 Playwright e2e 规格文件的问题。
