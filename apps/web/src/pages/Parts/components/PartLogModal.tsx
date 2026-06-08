@@ -4,11 +4,19 @@ import { apiClient } from '../../../api/client';
 import { getErrorMessage } from '../../../utils/errors';
 import styles from './PartModal.module.css';
 
+interface PartStock {
+  id: string;
+  name: string;
+  model?: string;
+  unit?: string;
+  stock?: number | string;
+}
+
 interface PartLogModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  part: any;
+  part?: PartStock;
   type: 'in' | 'out';
 }
 

@@ -78,16 +78,16 @@ axiosClient.interceptors.response.use(
 );
 
 export const apiClient = {
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+  get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     axiosClient.get(url, config),
 
-  post: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
     axiosClient.post(url, data, config),
 
-  put: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
     axiosClient.put(url, data, config),
 
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     axiosClient.delete(url, config),
 
   download: async (url: string, filename: string) => {

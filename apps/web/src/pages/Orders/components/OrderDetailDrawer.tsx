@@ -17,10 +17,10 @@ import { getErrorMessage } from '../../../utils/errors';
 import styles from './OrderDetailDrawer.module.css';
 
 interface OrderDetailDrawerProps {
-  order: any;
+  order: WorkOrderDetail;
   initialAssignOpen?: boolean;
   onClose: () => void;
-  onUpdated: (order?: any) => void | Promise<void>;
+  onUpdated: (order?: WorkOrderDetail) => void | Promise<void>;
 }
 
 interface UserOption {
@@ -37,6 +37,59 @@ interface PartOption {
   model?: string;
   unit?: string;
   stock?: number;
+}
+
+interface WorkOrderDevice {
+  id?: string;
+  deviceNo?: string;
+  name?: string;
+  location?: string;
+}
+
+interface WorkOrderDetail {
+  id: string;
+  orderNo?: string;
+  faultDesc?: string;
+  status?: string;
+  priority?: string;
+  category?: string;
+  faultType?: string;
+  locationDesc?: string;
+  device?: WorkOrderDevice | null;
+  assignee?: UserOption | null;
+  assigneeName?: string;
+  reporter?: UserOption | null;
+  reporterName?: string;
+  createdAt?: string | Date | null;
+  assignedAt?: string | Date | null;
+  startedAt?: string | Date | null;
+  submittedAt?: string | Date | null;
+  closedAt?: string | Date | null;
+  slaDeadline?: string | Date | null;
+  rejectReason?: string | null;
+  acceptanceNote?: string | null;
+  isOvertime?: boolean;
+}
+
+interface RepairPartUsage {
+  partId?: string;
+  name?: string;
+  quantity?: number | string;
+  unit?: string;
+}
+
+interface RepairLog {
+  id?: string;
+  stepType?: string;
+  stepDesc?: string;
+  description?: string;
+  partUsages?: RepairPartUsage[];
+  outsourceVendor?: string;
+  outsourceCost?: number | string;
+  loggedAt?: string | Date | null;
+  engineer?: {
+    name?: string;
+  } | null;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -83,8 +136,8 @@ export default function OrderDetailDrawer({
   onClose,
   onUpdated,
 }: OrderDetailDrawerProps) {
-  const [currentOrder, setCurrentOrder] = useState<any>(order);
-  const [repairLogs, setRepairLogs] = useState<any[]>([]);
+  const [currentOrder, setCurrentOrder] = useState<WorkOrderDetail>(order);
+  const [repairLogs, setRepairLogs] = useState<RepairLog[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [parts, setParts] = useState<PartOption[]>([]);
   const [logForm, setLogForm] = useState({
@@ -108,14 +161,15 @@ export default function OrderDetailDrawer({
   }, [initialAssignOpen, order]);
 
   const orderId = currentOrder.id;
-  const status = currentOrder.status?.toLowerCase();
-  const statusInfo = STATUS_MAP[status] || { label: currentOrder.status, color: '#6B7280', bg: '#F3F4F6' };
-  const priorityInfo = PRIORITY_MAP[currentOrder.priority?.toUpperCase()] || { label: currentOrder.priority, color: '#6B7280' };
+  const status = currentOrder.status?.toLowerCase() || '';
+  const priority = currentOrder.priority?.toUpperCase() || '';
+  const statusInfo = STATUS_MAP[status] || { label: currentOrder.status || '未知', color: '#6B7280', bg: '#F3F4F6' };
+  const priorityInfo = PRIORITY_MAP[priority] || { label: currentOrder.priority || '未分级', color: '#6B7280' };
   const canAddLog = ['processing', 'reviewing'].includes(status);
 
   const fetchRepairLogs = useCallback(async () => {
     try {
-      const res = await apiClient.get<any[] | { items?: any[] }>(`/orders/${orderId}/repair-logs`);
+      const res = await apiClient.get<RepairLog[] | { items?: RepairLog[] }>(`/orders/${orderId}/repair-logs`);
       setRepairLogs(normalizeList(res));
     } catch {
       setRepairLogs([]);
@@ -123,7 +177,7 @@ export default function OrderDetailDrawer({
   }, [orderId]);
 
   const refreshCurrentOrder = useCallback(async () => {
-    const detail = await apiClient.get(`/orders/${orderId}`);
+    const detail = await apiClient.get<WorkOrderDetail>(`/orders/${orderId}`);
     setCurrentOrder(detail);
     await onUpdated(detail);
     return detail;
@@ -454,7 +508,7 @@ export default function OrderDetailDrawer({
 
             {repairLogs.length > 0 ? (
               <div className={styles.logList}>
-                {repairLogs.map((log: any, idx: number) => (
+                {repairLogs.map((log, idx) => (
                   <div key={log.id || idx} className={styles.logItem}>
                     <div className={styles.logDot} />
                     <div className={styles.logContent}>
@@ -462,7 +516,7 @@ export default function OrderDetailDrawer({
                       <div className={styles.logDesc}>{log.stepDesc || log.description}</div>
                       {Array.isArray(log.partUsages) && log.partUsages.length > 0 && (
                         <div className={styles.partsUsed}>
-                          {log.partUsages.map((part: any, partIdx: number) => (
+                          {log.partUsages.map((part, partIdx) => (
                             <span key={`${part.partId || part.name}-${partIdx}`}>
                               {part.name || part.partId} × {part.quantity}{part.unit || ''}
                             </span>

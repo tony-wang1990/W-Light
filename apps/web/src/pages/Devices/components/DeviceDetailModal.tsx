@@ -3,8 +3,23 @@ import QRCode from 'qrcode';
 import { Activity, Building, Cpu, MapPin, QrCode, Tag, X } from 'lucide-react';
 import styles from './DeviceDetailModal.module.css';
 
+interface DeviceDetail {
+  id: string;
+  deviceNo?: string;
+  name?: string;
+  category?: string;
+  location?: string;
+  status?: string;
+  healthScore?: number | string;
+  lastMaintainAt?: string | Date | null;
+  model?: string;
+  manufacturer?: string;
+  qrCode?: string;
+  createdAt?: string | Date | null;
+}
+
 interface DeviceDetailModalProps {
-  device: any;
+  device: DeviceDetail;
   onClose: () => void;
 }
 
@@ -16,7 +31,8 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 };
 
 export default function DeviceDetailModal({ device, onClose }: DeviceDetailModalProps) {
-  const statusInfo = STATUS_MAP[device.status?.toLowerCase()] || { label: '未知', color: '#9CA3AF' };
+  const status = device.status?.toLowerCase() || 'unknown';
+  const statusInfo = STATUS_MAP[status] || { label: '未知', color: '#9CA3AF' };
   const healthScore = Number(device.healthScore || 0);
   const healthColor = healthScore > 80 ? '#10B981' : healthScore > 60 ? '#F59E0B' : '#EF4444';
   const qrValue = device.qrCode || device.deviceNo || device.id;

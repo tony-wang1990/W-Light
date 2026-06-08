@@ -205,7 +205,8 @@ export const secureStorage = {
     getStorage().recrypt(key)
   },
   trim() {
-    ;(getStorage() as MMKVCompat).trim?.()
+    const storage = getStorage() as MMKVCompat
+    storage.trim?.()
   },
   toString() {
     return getStorage().toString()

@@ -130,7 +130,7 @@ export default function Orders() {
     return detail;
   }, []);
 
-  const handleOrderUpdated = useCallback(async (updated?: Order) => {
+  const handleOrderUpdated = useCallback(async (updated?: { id?: string }) => {
     await fetchOrders();
     const currentId = updated?.id || selectedOrder?.id;
     if (!currentId) return;

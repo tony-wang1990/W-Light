@@ -2,7 +2,13 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, getApiBaseUrl, setApiBaseUrl } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import { getErrorMessage } from '../../utils/errors';
 import styles from './Login.module.css';
+
+interface LoginResponse {
+  accessToken: string;
+  user: Parameters<ReturnType<typeof useAuthStore.getState>['setAuth']>[1];
+}
 
 export default function Login() {
   const [phone, setPhone] = useState('');
@@ -20,13 +26,13 @@ export default function Login() {
     setErrorMsg('');
     try {
       setApiBaseUrl(apiUrl);
-      const res = await apiClient.post('/auth/login', { phone, password });
+      const res = await apiClient.post<LoginResponse>('/auth/login', { phone, password });
       useAuthStore.getState().setAuth(res.accessToken, res.user);
       setLoading(false);
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      setErrorMsg(error.response?.data?.message || error.message || '登录失败，请检查账号、密码和服务器地址');
+      setErrorMsg(getErrorMessage(error, '登录失败，请检查账号、密码和服务器地址'));
       setLoading(false);
     }
   };

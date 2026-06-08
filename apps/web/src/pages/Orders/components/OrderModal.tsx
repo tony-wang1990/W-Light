@@ -1,12 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { apiClient } from '../../../api/client';
+import { getErrorMessage } from '../../../utils/errors';
 import styles from './OrderModal.module.css';
 
 interface OrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+interface DeviceOption {
+  id: string;
+  deviceNo?: string;
+  name?: string;
+}
+
+type DeviceListResponse = DeviceOption[] | { items?: DeviceOption[] };
+
+function normalizeDevices(res: DeviceListResponse) {
+  return Array.isArray(res) ? res : res.items || [];
 }
 
 export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalProps) {
@@ -19,7 +32,7 @@ export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalPro
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [devices, setDevices] = useState<any[]>([]);
+  const [devices, setDevices] = useState<DeviceOption[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,8 +47,8 @@ export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalPro
       // Fetch devices for the dropdown
       const fetchDevices = async () => {
         try {
-          const res = await apiClient.get('/devices');
-          setDevices(res.items || res || []);
+          const res = await apiClient.get<DeviceListResponse>('/devices');
+          setDevices(normalizeDevices(res));
         } catch (e) {
           console.error(e);
         }
@@ -62,8 +75,8 @@ export default function OrderModal({ isOpen, onClose, onSuccess }: OrderModalPro
       });
       onSuccess();
       onClose();
-    } catch (error: any) {
-      setErrorMsg(error.message || '操作失败');
+    } catch (error) {
+      setErrorMsg(getErrorMessage(error, '操作失败'));
     } finally {
       setLoading(false);
     }

@@ -4,11 +4,21 @@ import { apiClient } from '../../../api/client';
 import { getErrorMessage } from '../../../utils/errors';
 import styles from './PartModal.module.css';
 
+interface PartFormSource {
+  id?: string;
+  name?: string;
+  model?: string;
+  unit?: string;
+  minStock?: number | string;
+  supplier?: string;
+  supplierPhone?: string;
+}
+
 interface PartModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  part?: any;
+  part?: PartFormSource;
 }
 
 const emptyForm = {
@@ -31,7 +41,7 @@ export default function PartModal({ isOpen, onClose, onSuccess, part }: PartModa
       name: part.name || '',
       model: part.model || '',
       unit: part.unit || '件',
-      minStock: part.minStock ?? 5,
+      minStock: Number(part.minStock ?? 5),
       supplier: part.supplier || '',
       supplierPhone: part.supplierPhone || '',
     } : emptyForm);

@@ -4,11 +4,23 @@ import { apiClient } from '../../../api/client';
 import { getErrorMessage } from '../../../utils/errors';
 import styles from './DeviceModal.module.css';
 
+interface DeviceFormSource {
+  id?: string;
+  deviceNo?: string;
+  name?: string;
+  category?: string;
+  manufacturer?: string;
+  model?: string;
+  location?: string;
+  status?: string;
+  qrCode?: string;
+}
+
 interface DeviceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  device?: any;
+  device?: DeviceFormSource;
 }
 
 const emptyForm = {
