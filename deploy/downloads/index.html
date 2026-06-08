@@ -70,6 +70,13 @@
         color: #e5e7eb;
         background: rgba(148, 163, 184, 0.18);
       }
+      .card a.disabled,
+      .card a[aria-disabled="true"] {
+        pointer-events: none;
+        cursor: not-allowed;
+        color: #94a3b8;
+        background: rgba(148, 163, 184, 0.1);
+      }
       code {
         color: #fde68a;
         word-break: break-all;
@@ -102,35 +109,35 @@
         <article class="card">
           <h2>Windows 客户端</h2>
           <p>下载真正的 Windows 安装程序，安装后从桌面或开始菜单启动 W-Light。</p>
-          <a href="./W-Light-Setup-latest.exe">下载 Windows 安装包</a>
-          <a class="secondary" href="./W-Light-Setup-latest.exe.sha256">校验 SHA256</a>
+          <a data-artifact href="./W-Light-Setup-latest.exe">下载 Windows 安装包</a>
+          <a data-artifact class="secondary" href="./W-Light-Setup-latest.exe.sha256">校验 SHA256</a>
         </article>
 
         <article class="card">
           <h2>Mac 客户端</h2>
           <p>下载 DMG 后拖入 Applications。未签名内测包首次打开可能需要右键选择“打开”。</p>
-          <a href="./W-Light-latest.dmg">下载 Mac DMG</a>
+          <a data-artifact href="./W-Light-latest.dmg">下载 Mac DMG</a>
           <a class="secondary" href="/">使用 Web/PWA</a>
         </article>
 
         <article class="card">
           <h2>Linux 客户端</h2>
           <p>下载 AppImage 后添加执行权限即可运行，适合 Ubuntu/Debian 运维工作站。</p>
-          <a href="./W-Light-latest.AppImage">下载 Linux AppImage</a>
+          <a data-artifact href="./W-Light-latest.AppImage">下载 Linux AppImage</a>
           <a class="secondary" href="/">使用 Web/PWA</a>
         </article>
 
         <article class="card">
           <h2>Android 手机</h2>
           <p>下载 APK 后安装。首次安装如提示未知来源，请允许当前浏览器安装应用；内测包可能使用调试签名。</p>
-          <a href="./w-light-latest.apk">下载 Android APK</a>
-          <a class="secondary" href="./w-light-latest.apk.sha256">校验 SHA256</a>
+          <a data-artifact href="./w-light-latest.apk">下载 Android APK</a>
+          <a data-artifact class="secondary" href="./w-light-latest.apk.sha256">校验 SHA256</a>
         </article>
 
         <article class="card">
           <h2>iPhone / iPad</h2>
           <p>正式 iOS 包需要 TestFlight、企业签名或 Ad Hoc。签名导出的 IPA 可作为内测交付物下载。</p>
-          <a href="./w-light-ios-latest.ipa">下载签名 IPA</a>
+          <a data-artifact href="./w-light-ios-latest.ipa">下载签名 IPA</a>
           <a class="secondary" href="/">打开 Web/PWA</a>
         </article>
       </section>
@@ -145,6 +152,17 @@
     </main>
     <script>
       document.getElementById('apiUrl').textContent = location.origin + '/v1';
+      document.querySelectorAll('a[data-artifact]').forEach(async (link) => {
+        try {
+          const response = await fetch(link.getAttribute('href'), { method: 'HEAD', cache: 'no-store' });
+          if (response.ok) return;
+        } catch {}
+
+        link.removeAttribute('href');
+        link.setAttribute('aria-disabled', 'true');
+        link.classList.add('disabled');
+        link.textContent = '暂未发布';
+      });
     </script>
   </body>
 </html>
