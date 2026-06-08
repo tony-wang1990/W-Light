@@ -40,18 +40,7 @@ export default function Clients() {
       primary: true,
       note: '通过 GitHub Releases 自动构建并提供下载。',
     },
-    {
-      title: 'Mac 客户端',
-      platform: 'macOS Intel/Apple Silicon',
-      description: 'Electron DMG 安装包，功能与 Web 管理端同步。',
-      note: '暂未在自动化流水线配置 macOS 打包。',
-    },
-    {
-      title: 'Linux 客户端',
-      platform: 'Ubuntu/Debian 桌面',
-      description: 'AppImage 形式交付，适合运维工作站。',
-      note: '暂未在自动化流水线配置 Linux 打包。',
-    },
+
     {
       title: 'Web / PWA',
       platform: '浏览器安装',
@@ -135,27 +124,7 @@ export default function Clients() {
         ))}
       </div>
 
-      <div className={styles.card}>
-        <h2 className={styles.cardTitle}>打包与上传提示</h2>
-        <div className={styles.list} style={{ marginTop: 12 }}>
-          <div className={styles.copyBox}>
-            <span>Android 打包</span>
-            <strong>scripts/android-release.sh 或 scripts/android-release.ps1</strong>
-          </div>
-          <div className={styles.copyBox}>
-            <span>Windows/Mac/Linux 桌面端打包</span>
-            <strong>scripts/desktop-release.sh 或 scripts/desktop-release.ps1</strong>
-          </div>
-          <div className={styles.copyBox}>
-            <span>iOS 签名归档</span>
-            <strong>scripts/ios-release.sh --publish-web</strong>
-          </div>
-          <div className={styles.copyBox}>
-            <span>服务器下载目录</span>
-            <strong>/root/W-Light/deploy/downloads</strong>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }
