@@ -12,6 +12,7 @@ import Projects from './pages/Projects/Projects';
 import Maintenance from './pages/Maintenance/Maintenance';
 import Reports from './pages/Reports/Reports';
 import Clients from './pages/Clients/Clients';
+import ScanPage from './pages/Scan/ScanPage';
 
 function App() {
   const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
@@ -20,6 +21,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* 公开扫码页（无需登录） */}
+        <Route path="/scan/:qrCode" element={<ScanPage />} />
         <Route element={<AdminLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/projects" element={<Projects />} />

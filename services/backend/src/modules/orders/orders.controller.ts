@@ -56,6 +56,13 @@ export class OrdersController {
     return this.ordersService.getStatusSummary(projectId)
   }
 
+  @Get('overdue')
+  @ApiOperation({ summary: '获取超时未处理工单列表（48h内未闭环或已过SLA）' })
+  getOverdue(@Request() req) {
+    const projectId = req.projectId as string
+    return this.ordersService.findOverdue(projectId)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '获取工单详情' })
   findOne(@Param('id') id: string, @Request() req) {

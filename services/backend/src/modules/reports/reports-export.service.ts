@@ -113,4 +113,78 @@ export class ReportsExportService {
 
     return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
   }
+
+  async exportMonthlyPdfReport(projectId: string, year: number, month: number) {
+    const PDFDocument = (await import('pdfkit')).default
+    const path = await import('path')
+    
+    // 计算本月起止时间
+    const startDate = new Date(year, month - 1, 1).toISOString()
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999).toISOString()
+    const prevMonthStartDate = new Date(year, month - 2, 1).toISOString()
+    const prevMonthEndDate = new Date(year, month - 1, 0, 23, 59, 59, 999).toISOString()
+
+    // 查询当月数据
+    const [currentOrders] = await this.query(
+      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId" = ? AND "createdAt" BETWEEN ? AND ?`,
+      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3`,
+      [projectId, startDate, endDate]
+    )
+
+    // 查询上月数据用于环比
+    const [prevOrders] = await this.query(
+      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId" = ? AND "createdAt" BETWEEN ? AND ?`,
+      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3`,
+      [projectId, prevMonthStartDate, prevMonthEndDate]
+    )
+
+    return new Promise<Buffer>((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50 })
+        const buffers: Buffer[] = []
+        doc.on('data', buffers.push.bind(buffers))
+        doc.on('end', () => resolve(Buffer.concat(buffers)))
+
+        const fontPath = path.join(__dirname, '../../assets/fonts/simhei.ttf')
+        try { doc.font(fontPath) } catch { /* ignore font load error */ }
+
+        doc.fontSize(24).fillColor('#111827').text(`W-Light 项目月度运维报告`, { align: 'center' })
+        doc.moveDown()
+        doc.fontSize(14).fillColor('#666666').text(`报告期间：${year} 年 ${month} 月`, { align: 'center' })
+        doc.moveDown(2)
+
+        const curTotal = Number(currentOrders.total || 0)
+        const curClosed = Number(currentOrders.closed || 0)
+        const curCost = Number(currentOrders.cost || 0)
+        const prevTotal = Number(prevOrders.total || 0)
+        
+        const rate = curTotal > 0 ? ((curClosed / curTotal) * 100).toFixed(1) : '100'
+        const increase = curTotal - prevTotal
+
+        doc.fontSize(18).fillColor('#111827').text('一、 工单核心指标')
+        doc.moveDown(0.5)
+        doc.fontSize(12).fillColor('#374151')
+        doc.text(`本月新增工单：${curTotal} 单（较上月 ${increase > 0 ? '+' : ''}${increase}）`)
+        doc.text(`本月完成工单：${curClosed} 单`)
+        doc.text(`本月工单闭环率：${rate}%`)
+        doc.text(`本月维修总支出：¥${curCost.toFixed(2)}`)
+        doc.moveDown(2)
+
+        doc.fontSize(18).fillColor('#111827').text('二、 系统评估')
+        doc.moveDown(0.5)
+        doc.fontSize(12).fillColor('#374151')
+        if (curTotal === 0) {
+          doc.text('本月无新发故障，系统运行极为平稳。')
+        } else if (Number(rate) >= 95) {
+          doc.text('本月运维响应迅速，大部分故障已及时处理，系统运行健康。')
+        } else {
+          doc.text('本月有部分工单未完成闭环，建议加强现场巡检和备件储备。')
+        }
+
+        doc.end()
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
 }

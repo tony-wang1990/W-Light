@@ -161,3 +161,7 @@ networks:
   lightops-net:
     driver: bridge
 
+# 使用说明：
+# 自动备份服务（backup）默认随主服务一起启动
+# 每天凌晨 2 点执行 pg_dump，上传到 MinIO 的 backups/ 目录
+# 保留最近 30 天的备份文件，旧文件自动删除

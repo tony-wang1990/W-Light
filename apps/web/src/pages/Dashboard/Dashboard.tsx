@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, AlertTriangle, DatabaseBackup, Download, Lightbulb, RefreshCw, Upload, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Activity, AlertTriangle, DatabaseBackup, Download, Lightbulb, Package, RefreshCw, Upload, Users } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -127,19 +128,24 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState('');
   const [restoringBackup, setRestoringBackup] = useState(false);
+  const [overdueOrders, setOverdueOrders] = useState<Array<{ id: string; orderNo: string; status: string; faultDesc: string }>>([]);
+  const [lowStockParts, setLowStockParts] = useState<Array<{ id: string; name: string; stock: number; minStock: number; unit: string }>>([]);
   const restoreInputRef = useRef<HTMLInputElement | null>(null);
+  const navigate = useNavigate();
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [summary, trend, deviceStatus, partsRank, users, inspectionStats] = await Promise.all([
+      const [summary, trend, deviceStatus, partsRank, users, inspectionStats, overdueRes, lowStockRes] = await Promise.all([
         apiClient.get<OperationsSummary>(`/reports/operations-summary?startDate=${daysAgo(30)}&endDate=${today()}`),
         apiClient.get<WeeklyTrendRow[]>('/reports/weekly-trend'),
         apiClient.get<DeviceStatusRow[]>('/reports/device-status'),
         apiClient.get<PartRankRow[]>('/reports/parts-rank'),
         apiClient.get<{ items?: Array<{ id: string }> } | Array<{ id: string }>>('/users?role=engineer&pageSize=200'),
         apiClient.get<{ totalPlans?: number; todayRecords?: number }>('/inspections/stats'),
+        apiClient.get<{ items: Array<{ id: string; orderNo: string; status: string; faultDesc: string }> }>('/orders/overdue').catch(() => ({ items: [] })),
+        apiClient.get<Array<{ id: string; name: string; stock: number; minStock: number; unit: string }>>('/parts/low-stock-alerts').catch(() => []),
       ]);
 
       setOperations(summary);
@@ -148,6 +154,8 @@ export default function Dashboard() {
       setPartsData(normalizePartsRank(Array.isArray(partsRank) ? partsRank : []));
       setEngineerCount(Array.isArray(users) ? users.length : users.items?.length || 0);
       setTodayInspections(toNumber(inspectionStats.todayRecords));
+      setOverdueOrders(overdueRes.items || []);
+      setLowStockParts(Array.isArray(lowStockRes) ? lowStockRes : []);
       setLastUpdated(new Date());
     } catch (err) {
       setError(getErrorMessage(err, '控制台数据加载失败，请确认已登录、已选择项目并且后端服务正常'));
@@ -164,6 +172,14 @@ export default function Dashboard() {
     apiClient.download(
       `/reports/export/orders.xlsx?startDate=${daysAgo(30)}&endDate=${today()}`,
       `lightops-orders-${today()}.xlsx`,
+    );
+  };
+
+  const exportMonthlyPdf = () => {
+    const d = new Date();
+    apiClient.download(
+      `/reports/export/monthly-report.pdf?year=${d.getFullYear()}&month=${d.getMonth() + 1}`,
+      `lightops-report-${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}.pdf`
     );
   };
 
@@ -234,6 +250,9 @@ export default function Dashboard() {
           <button className={styles.refreshBtn} onClick={exportOrders}>
             <Download size={14} /> 工单 Excel
           </button>
+          <button className={styles.refreshBtn} onClick={exportMonthlyPdf}>
+            <Download size={14} /> 月度报表 PDF
+          </button>
           <button className={styles.refreshBtn} onClick={downloadBackup}>
             <DatabaseBackup size={14} /> 备份
           </button>
@@ -248,6 +267,26 @@ export default function Dashboard() {
       </div>
 
       {error && <div className={styles.errorBox}>{error}</div>}
+
+      {/* 超时工单预警横幅 */}
+      {overdueOrders.length > 0 && (
+        <div className={styles.alertBanner} style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#EF4444' }}>
+          <AlertTriangle size={18} color="#EF4444" />
+          <span style={{ fontWeight: 600, color: '#EF4444' }}>⚠️ {overdueOrders.length} 张工单超时未处理！</span>
+          <span style={{ color: '#6B7280', fontSize: 13 }}>这些工单超过 48 小时或已过 SLA 截止时间，请尽快处理。</span>
+          <button className={styles.alertBtn} onClick={() => navigate('/orders')}>立即查看</button>
+        </div>
+      )}
+
+      {/* 低库存预警横幅 */}
+      {lowStockParts.length > 0 && (
+        <div className={styles.alertBanner} style={{ background: 'rgba(245,158,11,0.08)', borderColor: '#F59E0B' }}>
+          <Package size={18} color="#F59E0B" />
+          <span style={{ fontWeight: 600, color: '#F59E0B' }}>库存预警：{lowStockParts.length} 种备件低于安全库存</span>
+          <span style={{ color: '#6B7280', fontSize: 13 }}>{lowStockParts.map(p => `${p.name}（剩余${p.stock}${p.unit}）`).join('、')}</span>
+          <button className={styles.alertBtn} style={{ borderColor: '#F59E0B', color: '#F59E0B' }} onClick={() => navigate('/parts')}>去补货</button>
+        </div>
+      )}
 
       <div className={styles.statsGrid}>
         {statCards.map(stat => (

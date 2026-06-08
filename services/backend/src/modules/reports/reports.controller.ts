@@ -82,6 +82,23 @@ export class ReportsController {
     res.send(buffer)
   }
 
+  @Get('export/monthly-report.pdf')
+  async exportMonthlyPdf(
+    @Request() req,
+    @Res() res,
+    @Query('year') year: string,
+    @Query('month') month: string,
+  ) {
+    const d = new Date()
+    const targetYear = year ? Number(year) : d.getFullYear()
+    const targetMonth = month ? Number(month) : d.getMonth() + 1
+    const buffer = await this.svc.exportMonthlyPdfReport(req.projectId, targetYear, targetMonth)
+    const filename = `lightops-report-${targetYear}-${targetMonth.toString().padStart(2, '0')}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
   @Get('backup.json')
   @Roles(UserRole.ADMIN)
   async backup(@Request() req, @Res() res) {

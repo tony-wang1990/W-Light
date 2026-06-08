@@ -251,6 +251,27 @@ export class OrdersService {
     return summary
   }
 
+  async findOverdue(projectId: string) {
+    const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
+    const now = new Date()
+    const activeStatuses = [OrderStatus.PENDING, OrderStatus.ASSIGNED, OrderStatus.PROCESSING, OrderStatus.SUSPENDED]
+
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoinAndMapOne('o.device', Device, 'device', this.columnEqualsColumn('device.id', 'o."deviceId"'))
+      .leftJoinAndMapOne('o.assignee', User, 'assignee', this.columnEqualsColumn('assignee.id', 'o."assigneeId"'))
+      .where(this.columnEqualsParam('o."projectId"', 'projectId'), { projectId })
+      .andWhere('o.status IN (:...activeStatuses)', { activeStatuses })
+      .andWhere(
+        '(o."slaDeadline" < :now OR (o."slaDeadline" IS NULL AND o."createdAt" < :cutoff))',
+        { now, cutoff: cutoff48h },
+      )
+      .orderBy('o.createdAt', 'ASC')
+
+    const items = await qb.getMany()
+    return { items, total: items.length }
+  }
+
   private async generateOrderNo(manager: EntityManager): Promise<string> {
     const dateKey = this.formatOrderDateKey()
     const seq = await this.nextOrderSequence(manager, dateKey)

@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Edit3, Plus, RefreshCw, Save } from 'lucide-react';
+import { Building2, Edit3, Map, List, Plus, RefreshCw, Save } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 import { apiClient } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import styles from '../CommonAdmin.module.css';
+
+// Fix leaflet icon issue in React
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl,
+  iconUrl,
+  shadowUrl,
+});
 
 interface Project {
   id: string;
@@ -12,6 +26,8 @@ interface Project {
   address?: string;
   managerId?: string;
   status?: string;
+  latitude?: number;
+  longitude?: number;
   createdAt?: string;
 }
 
@@ -28,6 +44,8 @@ const emptyForm = {
   venue: '',
   address: '',
   status: 'active',
+  latitude: '',
+  longitude: '',
 };
 
 function normalizeProjects(res: ProjectResponse) {
@@ -42,6 +60,7 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   const isAdmin = user?.role === 'admin';
 
@@ -77,6 +96,8 @@ export default function Projects() {
         venue: selectedProject.venue || '',
         address: selectedProject.address || '',
         status: selectedProject.status || 'active',
+        latitude: selectedProject.latitude ? String(selectedProject.latitude) : '',
+        longitude: selectedProject.longitude ? String(selectedProject.longitude) : '',
       });
     } else {
       setForm(emptyForm);
@@ -102,6 +123,8 @@ export default function Projects() {
         venue: form.venue.trim() || undefined,
         address: form.address.trim() || undefined,
         status: form.status,
+        latitude: form.latitude ? parseFloat(form.latitude) : undefined,
+        longitude: form.longitude ? parseFloat(form.longitude) : undefined,
       };
 
       const saved = selectedProject
@@ -128,6 +151,20 @@ export default function Projects() {
           <p className={styles.pageSubtitle}>维护文旅项目、场馆位置和运行状态；所有工单、设备、巡检与备件数据都会按项目隔离。</p>
         </div>
         <div className={styles.actions}>
+          <div style={{ display: 'flex', background: '#F3F4F6', padding: 4, borderRadius: 8, marginRight: 8 }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: 'none', background: viewMode === 'list' ? 'white' : 'transparent', borderRadius: 6, cursor: 'pointer', boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontWeight: viewMode === 'list' ? 600 : 400 }}
+            >
+              <List size={16} /> 列表
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: 'none', background: viewMode === 'map' ? 'white' : 'transparent', borderRadius: 6, cursor: 'pointer', boxShadow: viewMode === 'map' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontWeight: viewMode === 'map' ? 600 : 400 }}
+            >
+              <Map size={16} /> 地图
+            </button>
+          </div>
           <button className={styles.secondaryBtn} onClick={fetchProjects} disabled={loading}>
             <RefreshCw size={16} /> 刷新
           </button>
@@ -152,6 +189,28 @@ export default function Projects() {
             <div className={styles.empty}>加载中...</div>
           ) : projects.length === 0 ? (
             <div className={styles.empty}>暂无项目，请先创建一个项目用于现场运维。</div>
+          ) : viewMode === 'map' ? (
+            <div style={{ height: '600px', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+              <MapContainer center={[30.2741, 120.1551]} zoom={5} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {projects.filter(p => p.latitude && p.longitude).map(project => (
+                  <Marker
+                    key={project.id}
+                    position={[project.latitude!, project.longitude!]}
+                    eventHandlers={{ click: () => { setSelectedId(project.id); setCurrentProject(project.id); } }}
+                  >
+                    <Popup>
+                      <strong>{project.name}</strong><br />
+                      {project.address}<br />
+                      状态: {STATUS_LABELS[project.status || 'active'] || project.status}
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            </div>
           ) : (
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
@@ -172,7 +231,7 @@ export default function Projects() {
                         setSelectedId(project.id);
                         setCurrentProject(project.id);
                       }}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', background: selectedId === project.id ? '#EFF6FF' : '' }}
                     >
                       <td><strong>{project.name}</strong></td>
                       <td>{project.venue || '-'}</td>
@@ -242,6 +301,30 @@ export default function Projects() {
                 value={form.address}
                 onChange={event => setForm(prev => ({ ...prev, address: event.target.value }))}
                 placeholder="项目详细地址"
+                disabled={!isAdmin}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>经度 (Longitude)</label>
+              <input
+                className={styles.input}
+                type="number"
+                step="0.000001"
+                value={form.longitude}
+                onChange={event => setForm(prev => ({ ...prev, longitude: event.target.value }))}
+                placeholder="例如：120.1551"
+                disabled={!isAdmin}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>纬度 (Latitude)</label>
+              <input
+                className={styles.input}
+                type="number"
+                step="0.000001"
+                value={form.latitude}
+                onChange={event => setForm(prev => ({ ...prev, latitude: event.target.value }))}
+                placeholder="例如：30.2741"
                 disabled={!isAdmin}
               />
             </div>

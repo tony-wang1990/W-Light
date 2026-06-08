@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import {
   Edit,
@@ -9,6 +9,7 @@ import {
   QrCode as QrCodeIcon,
   Search,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
@@ -86,6 +87,8 @@ export default function Devices() {
   const [editingDevice, setEditingDevice] = useState<Device | undefined>();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; errors: string[] } | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchDevices = useCallback(async () => {
     setLoading(true);
@@ -141,6 +144,34 @@ export default function Devices() {
     const target = event.target as HTMLElement;
     if (target.closest('button')) return;
     setSelectedDevice(device);
+  };
+
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const XLSX = await import('xlsx');
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws) as Record<string, any>[];
+      if (rows.length === 0) { window.alert('Excel 文件没有数据，请检查格式'); return; }
+      const devices = rows.map(row => ({
+        deviceNo: row['设备编号'] || row['deviceNo'] || '',
+        name: row['设备名称'] || row['name'] || '',
+        category: row['类型'] || row['category'] || '其他',
+        location: row['安装位置'] || row['location'] || '',
+        manufacturer: row['品牌厂商'] || row['manufacturer'] || '',
+        model: row['型号'] || row['model'] || '',
+      }));
+      const result = await apiClient.post<{ imported: number; errors: string[] }>('/devices/batch-import', { devices });
+      setImportResult(result);
+      fetchDevices();
+    } catch (err) {
+      window.alert(getErrorMessage(err, '导入失败，请检查 Excel 格式'));
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
   };
 
   const getStatusStyle = (deviceStatus: string) => {
@@ -232,6 +263,10 @@ export default function Devices() {
           <p className={styles.pageSubtitle}>管理现场设备、二维码标签、安装位置、健康度和运行状态。</p>
         </div>
         <div className={styles.headerActions}>
+          <input ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportExcel} />
+          <button className={styles.exportBtn} onClick={() => importInputRef.current?.click()} title="支持列：设备编号、设备名称、类型、安装位置、品牌厂商、型号">
+            <Upload size={18} /> Excel导入
+          </button>
           <button className={styles.exportBtn} onClick={handleGenerateQrLabels} disabled={isGeneratingQr || devices.length === 0}>
             <QrCodeIcon size={18} /> {isGeneratingQr ? '生成中...' : '批量二维码'}
           </button>
@@ -240,6 +275,13 @@ export default function Devices() {
           </button>
         </div>
       </div>
+
+      {importResult && (
+        <div style={{ padding: '12px 16px', borderRadius: 8, background: importResult.errors.length ? '#FEF3C7' : '#ECFDF5', border: `1px solid ${importResult.errors.length ? '#F59E0B' : '#10B981'}`, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>✅ 成功导入 <strong>{importResult.imported}</strong> 台设备{importResult.errors.length > 0 ? `，${importResult.errors.length} 条失败` : ''}</span>
+          <button onClick={() => setImportResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}>✕</button>
+        </div>
+      )}
 
       {error && <div style={{ padding: 12, borderRadius: 8, background: '#FEF2F2', color: '#B91C1C', fontSize: 13 }}>{error}</div>}
 

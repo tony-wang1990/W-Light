@@ -47,6 +47,10 @@ export class ReportsService {
     return this.exportService.exportOrdersWorkbook(projectId, startDate, endDate)
   }
 
+  exportMonthlyPdfReport(projectId: string, year: number, month: number) {
+    return this.exportService.exportMonthlyPdfReport(projectId, year, month)
+  }
+
   backupProjectData(projectId: string) {
     return this.backupService.backupProjectData(projectId)
   }

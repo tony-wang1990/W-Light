@@ -24,6 +24,12 @@ export class Project {
   @Column({ type: 'text', nullable: true })
   address?: string
 
+  @Column({ type: 'double precision', nullable: true })
+  latitude?: number
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude?: number
+
   @Column({ type: 'uuid', nullable: true })
   managerId?: string
 
