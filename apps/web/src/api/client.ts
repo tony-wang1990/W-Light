@@ -96,6 +96,19 @@ export const apiClient = {
 
   download: async (url: string, filename: string) => {
     const blob = await axiosClient.get(url, { responseType: 'blob' }) as unknown as Blob;
+    
+    if (blob.type && blob.type.includes('application/json')) {
+      const text = await blob.text();
+      let errorMsg = '下载失败';
+      try {
+        const json = JSON.parse(text);
+        errorMsg = json.message || json.error || text;
+      } catch (e) {
+        errorMsg = text;
+      }
+      throw new Error(errorMsg);
+    }
+
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = objectUrl;

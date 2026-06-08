@@ -13,6 +13,7 @@ import Maintenance from './pages/Maintenance/Maintenance';
 import Reports from './pages/Reports/Reports';
 import Clients from './pages/Clients/Clients';
 import ScanPage from './pages/Scan/ScanPage';
+import Downloads from './pages/Downloads/Downloads';
 
 function App() {
   const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
@@ -32,6 +33,7 @@ function App() {
           <Route path="/parts" element={<Parts />} />
           <Route path="/inspections" element={<Inspections />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/downloads" element={<Downloads />} />
           <Route path="/users" element={<Users />} />
           <Route path="/toolbox" element={<Toolbox />} />
           <Route path="/clients" element={<Clients />} />

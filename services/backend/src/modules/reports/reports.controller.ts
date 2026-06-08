@@ -82,6 +82,69 @@ export class ReportsController {
     res.send(buffer)
   }
 
+  @Get('export/devices.xlsx')
+  async exportDevices(@Request() req, @Res() res) {
+    const buffer = await this.svc.exportDeviceInventoryWorkbook(req.projectId)
+    const filename = `lightops-devices-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/parts-inventory.xlsx')
+  async exportPartsInventory(@Request() req, @Res() res) {
+    const buffer = await this.svc.exportPartsInventoryWorkbook(req.projectId)
+    const filename = `lightops-parts-inventory-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/parts-consumption.xlsx')
+  async exportPartsConsumption(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportPartsConsumptionWorkbook(req.projectId, range.start, range.end)
+    const filename = `lightops-parts-consumption-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/performance.xlsx')
+  async exportPerformance(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportPerformanceWorkbook(req.projectId, range.start, range.end)
+    const filename = `lightops-performance-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/fault-stats.xlsx')
+  async exportFaultStats(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportFaultStatsWorkbook(req.projectId, range.start, range.end)
+    const filename = `lightops-fault-stats-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
   @Get('export/monthly-report.pdf')
   async exportMonthlyPdf(
     @Request() req,

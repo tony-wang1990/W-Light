@@ -241,31 +241,12 @@ export default function Dashboard() {
           <h1 className={styles.pageTitle}>控制台概览</h1>
           <p className={styles.pageSubtitle}>汇总最近 30 天的工单、设备、巡检、备件和维修绩效数据。</p>
         </div>
-        <div className={styles.titleActions}>
-          <input
-            ref={restoreInputRef}
-            className={styles.hiddenFileInput}
-            type="file"
-            accept="application/json,.json"
-            onChange={handleRestoreBackup}
-          />
-          <button className={styles.refreshBtn} onClick={exportOrders}>
-            <Download size={14} /> 工单 Excel
-          </button>
-          <button className={styles.refreshBtn} onClick={exportMonthlyPdf}>
-            <Download size={14} /> 月度报表 PDF
-          </button>
-          {user?.role === 'admin' && (
-            <button className={styles.refreshBtn} onClick={downloadBackup}>
-              <DatabaseBackup size={14} /> 备份
-            </button>
-          )}
-          <button className={styles.refreshBtn} onClick={openRestorePicker} disabled={restoringBackup}>
-            <Upload size={14} /> {restoringBackup ? '恢复中...' : '恢复'}
-          </button>
+        <div className={styles.headerActions}>
           <button className={styles.refreshBtn} onClick={loadDashboard} disabled={loading}>
-            <RefreshCw size={14} className={loading ? styles.spin : ''} />
-            {lastUpdated ? `刷新 · ${lastUpdated.toLocaleTimeString('zh-CN', { hour12: false })}` : '刷新'}
+            <RefreshCw size={14} className={loading ? styles.spin : ''} /> 刷新
+          </button>
+          <button className={styles.refreshBtn} onClick={() => window.location.hash = '#/admin/downloads'}>
+            <Download size={14} /> 数据下载中心
           </button>
         </div>
       </div>

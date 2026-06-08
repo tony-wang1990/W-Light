@@ -47,6 +47,26 @@ export class ReportsService {
     return this.exportService.exportOrdersWorkbook(projectId, startDate, endDate)
   }
 
+  exportDeviceInventoryWorkbook(projectId: string) {
+    return this.exportService.exportDeviceInventoryWorkbook(projectId)
+  }
+
+  exportPartsInventoryWorkbook(projectId: string) {
+    return this.exportService.exportPartsInventoryWorkbook(projectId)
+  }
+
+  exportPartsConsumptionWorkbook(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportPartsConsumptionWorkbook(projectId, startDate, endDate)
+  }
+
+  exportPerformanceWorkbook(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportPerformanceWorkbook(projectId, startDate, endDate)
+  }
+
+  exportFaultStatsWorkbook(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportFaultStatsWorkbook(projectId, startDate, endDate)
+  }
+
   exportMonthlyPdfReport(projectId: string, year: number, month: number) {
     return this.exportService.exportMonthlyPdfReport(projectId, year, month)
   }
