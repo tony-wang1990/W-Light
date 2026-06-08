@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Copy, Download, ExternalLink, MonitorDown, Smartphone, TabletSmartphone } from 'lucide-react';
+import { Check, Copy, Download, ExternalLink, Monitor, Smartphone, TabletSmartphone } from 'lucide-react';
 import { getApiBaseUrl } from '../../api/client';
 import styles from '../CommonAdmin.module.css';
 
@@ -28,38 +28,29 @@ export default function Clients() {
       title: 'Android APP',
       platform: 'Android 手机/平板',
       description: '现场维修人员优先使用，支持扫码、离线队列、工单和工具箱。',
-      href: '/downloads/w-light-latest.apk',
+      href: 'https://github.com/tony-wang1990/W-Light/releases/latest/download/w-light-latest.apk',
       primary: true,
-      note: '服务器构建或上传 APK 后，此链接可直接下载。',
-    },
-    {
-      title: 'iOS APP',
-      platform: 'iPhone / iPad',
-      description: '使用 Xcode/TestFlight、企业签名或 Ad Hoc 发布，连接同一云端 API。',
-      href: '/downloads/w-light-ios-latest.ipa',
-      note: 'iOS 安装包必须先在 macOS/Xcode 环境签名导出，未签名 IPA 不能直接安装。',
+      note: '通过 GitHub Releases 自动构建并提供下载。',
     },
     {
       title: 'Windows 客户端',
       platform: 'Windows 10/11',
       description: 'Electron 桌面安装包，适合调度室和项目管理电脑长期使用。',
-      href: '/downloads/W-Light-Setup-latest.exe',
+      href: 'https://github.com/tony-wang1990/W-Light/releases/latest/download/W-Light-Setup-latest.exe',
       primary: true,
-      note: '运行桌面打包脚本并上传后可下载。',
+      note: '通过 GitHub Releases 自动构建并提供下载。',
     },
     {
       title: 'Mac 客户端',
       platform: 'macOS Intel/Apple Silicon',
       description: 'Electron DMG 安装包，功能与 Web 管理端同步。',
-      href: '/downloads/W-Light-latest.dmg',
-      note: '需在 macOS 打包机生成并上传 DMG。',
+      note: '暂未在自动化流水线配置 macOS 打包。',
     },
     {
       title: 'Linux 客户端',
       platform: 'Ubuntu/Debian 桌面',
       description: 'AppImage 形式交付，适合运维工作站。',
-      href: '/downloads/W-Light-latest.AppImage',
-      note: '需运行桌面打包脚本生成 Linux 包。',
+      note: '暂未在自动化流水线配置 Linux 打包。',
     },
     {
       title: 'Web / PWA',
@@ -124,7 +115,7 @@ export default function Clients() {
               ) : item.title.includes('Web') ? (
                 <TabletSmartphone size={24} color="#2563EB" />
               ) : (
-                <MonitorDown size={24} color="#7C3AED" />
+                <Monitor size={24} color="#7C3AED" />
               )}
             </div>
             <p className={styles.pageSubtitle}>{item.description}</p>

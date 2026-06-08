@@ -1,0 +1,128 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Android Release
+        run: |
+          cd apps/LightOps/android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease
+
+      - name: Rename APK
+        run: |
+          mv apps/LightOps/android/app/build/outputs/apk/release/app-release.apk w-light-latest.apk
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: w-light-latest.apk
+
+  build-windows:
+    name: Build Windows Client
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows Executable
+        run: pnpm --filter desktop run dist:win
+
+      - name: Locate and Rename EXE
+        shell: bash
+        run: |
+          EXE_PATH=$(find apps/desktop/dist -name "*.exe" | grep -v "unpacked" | head -n 1)
+          echo "Found exe at $EXE_PATH"
+          mv "$EXE_PATH" W-Light-Setup-latest.exe
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: W-Light-Setup-latest.exe
+
+  release:
+    name: Create GitHub Release
+    needs: [build-android, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+
+      - name: Determine Release Name
+        id: release_name
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=v$(date +'%Y.%m.%d')-${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          files: |
+            w-light-latest.apk
+            W-Light-Setup-latest.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true
