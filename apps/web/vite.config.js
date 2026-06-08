@@ -22,6 +22,28 @@ export default defineConfig({
     build: {
         target: 'es2015',
         minify: 'esbuild',
+        rollupOptions: {
+            output: {
+                manualChunks: function (id) {
+                    var moduleId = id.replace(/\\/g, '/');
+                    if (!moduleId.includes('node_modules'))
+                        return undefined;
+                    if (moduleId.includes('lucide-react'))
+                        return 'vendor-icons';
+                    if (moduleId.includes('recharts') || moduleId.includes('d3-') || moduleId.includes('victory-vendor')) {
+                        return 'vendor-charts';
+                    }
+                    if (moduleId.includes('react-router') || moduleId.includes('@remix-run'))
+                        return 'vendor-router';
+                    if (moduleId.includes('/react/') || moduleId.includes('/react-dom/') || moduleId.includes('/scheduler/')) {
+                        return 'vendor-react';
+                    }
+                    if (moduleId.includes('/zustand/'))
+                        return 'vendor-state';
+                    return undefined;
+                },
+            },
+        },
     },
     test: {
         environment: 'jsdom',

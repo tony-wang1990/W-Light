@@ -9,7 +9,7 @@ W-Light 是面向文旅灯光项目的运维闭环和灯光师工具箱平台。
 | 模块 | 状态 | 说明 |
 | --- | --- | --- |
 | 服务器部署 | 已完成基础版 | 支持 Ubuntu/Debian、ARM64/AMD64、1C1G 小机器、默认 3005 端口、Docker Compose 部署 |
-| Web 管理端 | 已进入内测 | 项目、工单、维修台账、设备、备件、巡检、报表、用户、工具箱、客户端下载中心已接入 |
+| Web 管理端 | 已进入内测 | 项目、工单、维修台账、设备、备件、巡检、报表、用户、工具箱、客户端下载中心已接入；生产构建已拆分 vendor chunk，避免单包过大警告 |
 | 后端 API | 已进入内测 | NestJS + PostgreSQL + Redis + MinIO，已修复工单号并发、库存事务、uuid 字段迁移、分页排序 500 |
 | 手机 APP | 内测打包入口已具备 | Android 可打 APK；iOS 需要 macOS + Xcode + Apple Developer 签名环境 |
 | Windows/Mac/Linux 桌面端 | 打包入口已具备 | Windows 可本机生成安装包；Mac/Linux 需要对应平台构建和签名/公证 |
