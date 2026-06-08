@@ -127,11 +127,14 @@ git rev-parse --short HEAD
 ```bash
 cd /root/W-Light
 bash scripts/server-health.sh
+bash scripts/server-smoke.sh --base-url http://服务器IP:3005 --phone 13800000001 --password '你的管理员密码'
 docker compose ps
 docker compose logs --tail=120 api
 docker compose logs --tail=120 web
 curl -i http://127.0.0.1:3005/v1/health
 ```
+
+`server-health.sh` 侧重容器、资源、日志和备份状态；`server-smoke.sh` 会真实登录并请求工单、设备、备件、巡检、报表、用户等关键菜单 API，更适合部署完成后确认“页面能打开且业务接口能用”。
 
 云服务器还需要在安全组/防火墙放行 TCP `3005`。绑定域名和 HTTPS 后，建议统一使用 `https://域名/v1` 作为所有客户端 API 地址。
 
