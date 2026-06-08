@@ -18,7 +18,7 @@ import { getErrorMessage } from '../../utils/error'
 const storage = secureStorage
 
 export function LoginScreen() {
-  const [phone, setPhone] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [serverUrl, setServerUrl] = useState(
     () => storage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL,
@@ -27,8 +27,8 @@ export function LoginScreen() {
   const { login, isLoading } = useAuthStore()
 
   const handleLogin = async () => {
-    if (!phone.trim() || phone.length < 11) {
-      Alert.alert('提示', '请输入正确的手机号')
+    if (!username.trim() || username.length < 3) {
+      Alert.alert('提示', '请输入正确的账号')
       return
     }
     if (!password || password.length < 6) {
@@ -45,9 +45,9 @@ export function LoginScreen() {
     try {
       storage.set(API_BASE_URL_STORAGE_KEY, normalizedServerUrl)
       setServerUrl(normalizedServerUrl)
-      await login({ phone: phone.trim(), password })
+      await login({ phone: username.trim(), password })
     } catch (err: unknown) {
-      Alert.alert('登录失败', getErrorMessage(err, '手机号或密码错误'))
+      Alert.alert('登录失败', getErrorMessage(err, '账号或密码错误'))
     }
   }
 
@@ -70,20 +70,20 @@ export function LoginScreen() {
         <View style={styles.formSection}>
           <Text style={styles.formTitle}>登录账号</Text>
 
-          {/* Phone Input */}
+          {/* Username Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>手机号</Text>
+            <Text style={styles.inputLabel}>账号</Text>
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputPrefix}>🇨🇳 +86</Text>
               <TextInput
                 style={styles.input}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="请输入手机号"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="请输入账号"
                 placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-                maxLength={11}
-                autoComplete="tel"
+                keyboardType="default"
+                maxLength={32}
+                autoCapitalize="none"
+                autoComplete="username"
               />
             </View>
           </View>
