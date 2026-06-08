@@ -22,13 +22,13 @@ import styles from './AdminLayout.module.css';
 
 const MENU_ITEMS = [
   { path: '/dashboard', label: '控制台概览', icon: LayoutDashboard },
-  { path: '/projects', label: '项目管理', icon: Building2 },
   { path: '/orders', label: '工单调度中心', icon: Briefcase },
   { path: '/maintenance', label: '维修记录台账', icon: FileText },
+  { path: '/inspections', label: '巡检管理', icon: ClipboardList },
   { path: '/devices', label: '设备台账管理', icon: Settings2 },
   { path: '/parts', label: '备件库存管理', icon: Package },
-  { path: '/inspections', label: '巡检管理', icon: ClipboardList },
   { path: '/reports', label: '报表与数据', icon: BarChart3 },
+  { path: '/projects', label: '项目管理', icon: Building2 },
   { path: '/users', label: '用户权限管理', icon: UsersIcon },
   { path: '/toolbox', label: '专业工具箱', icon: Wrench },
   { path: '/clients', label: '客户端下载中心', icon: DownloadCloud },
