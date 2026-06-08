@@ -103,7 +103,21 @@ export class UsersService {
 
   async create(dto: CreateUserDto): Promise<PublicUser> {
     const exists = await this.repo.findOne({ where: { phone: dto.phone } })
-    if (exists) throw new ConflictException('该手机号已注册')
+    if (exists) {
+      if (exists.isActive) {
+        throw new ConflictException('该手机号已注册且正在使用中')
+      } else {
+        // 如果账号已被停用，直接覆盖并恢复该账号（释放手机号）
+        const passwordHash = await bcrypt.hash(dto.password, 10)
+        exists.name = dto.name
+        exists.role = dto.role || UserRole.ENGINEER
+        exists.passwordHash = passwordHash
+        exists.projectIds = dto.projectIds || []
+        exists.skillTags = dto.skillTags || []
+        exists.isActive = true
+        return this.toPublicUser(await this.repo.save(exists))
+      }
+    }
 
     const passwordHash = await bcrypt.hash(dto.password, 10)
     const user = this.repo.create({ ...dto, passwordHash })
