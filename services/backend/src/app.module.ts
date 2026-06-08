@@ -33,7 +33,7 @@ import { HealthModule } from './modules/health/health.module'
         const migrations = [__dirname + '/database/migrations/[0-9]*-*{.ts,.js}']
         const synchronize = config.get<string>(
           'DB_SYNCHRONIZE',
-          dbType === 'sqlite' ? 'true' : 'false',
+          dbType === 'sqlite' && isDevelopment ? 'true' : 'false',
         ) === 'true'
         const logging = config.get<string>('DB_LOGGING', isDevelopment ? 'true' : 'false') === 'true'
         

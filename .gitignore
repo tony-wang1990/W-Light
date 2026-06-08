@@ -76,3 +76,8 @@ apps/LightOps/android/app/*.jks
 # Temporary
 tmp/
 temp/
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db

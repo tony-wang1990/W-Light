@@ -46,8 +46,8 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false })
 
-  app.useBodyParser('json', { limit: '25mb' })
-  app.useBodyParser('urlencoded', { extended: true, limit: '25mb' })
+  app.useBodyParser('json', { limit: '1mb' })
+  app.useBodyParser('urlencoded', { extended: true, limit: '1mb' })
   app.setGlobalPrefix('v1')
 
   app.useGlobalPipes(

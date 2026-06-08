@@ -10,8 +10,6 @@
     "android": "corepack pnpm --filter LightOps run android",
     "android:release": "bash scripts/android-release.sh",
     "android:release:publish": "bash scripts/android-release.sh --publish-web",
-    "ios:release": "bash scripts/ios-release.sh",
-    "ios:release:publish": "bash scripts/ios-release.sh --publish-web",
     "desktop:dist": "corepack pnpm --filter desktop run prepare:web",
     "desktop:dist:win": "powershell -ExecutionPolicy Bypass -File scripts/desktop-release.ps1 -Target win",
     "desktop:dist:mac": "bash scripts/desktop-release.sh --mac",

@@ -52,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       REPO_URL="$2"
       shift 2
       ;;
+    --origins)
+      APP_ORIGINS_ARG="$2"
+      shift 2
+      ;;
     --swap-size)
       SWAP_SIZE="$2"
       shift 2
@@ -192,6 +196,14 @@ set_env_default() {
 ensure_env() {
   cd "$APP_DIR"
 
+  local public_ip
+  public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "127.0.0.1")
+  local default_origins="http://${public_ip},http://${public_ip}:${WEB_PORT}"
+  
+  if [[ -n "${APP_ORIGINS_ARG:-}" ]]; then
+    default_origins="${APP_ORIGINS_ARG}"
+  fi
+
   set_env WEB_PORT "$WEB_PORT"
   set_env_default TZ "Asia/Shanghai"
   set_env_default ORDER_NO_TIME_ZONE "Asia/Shanghai"
@@ -204,7 +216,7 @@ ensure_env() {
   set_env_default REDIS_PASSWORD "$(random_hex 24)"
   set_env_default JWT_SECRET "$(random_hex 48)"
   set_env_default JWT_EXPIRES_IN "7d"
-  set_env_default APP_ORIGINS ""
+  set_env_default APP_ORIGINS "$default_origins"
   set_env_default ENABLE_SWAGGER "false"
   set_env_default MINIO_USER "lightopsadmin"
   set_env_default MINIO_PASSWORD "$(random_hex 24)"
@@ -243,11 +255,22 @@ deploy_stack() {
   COMPOSE_PARALLEL_LIMIT=1 compose up -d --remove-orphans
   compose ps
 
+  local current_origins
+  current_origins="$(env_value "APP_ORIGINS")"
+  
   echo
-  echo "W-Light deployed."
+  echo "=============================================="
+  echo "W-Light deployed successfully."
   echo "Web:  http://SERVER_IP:${WEB_PORT}"
   echo "API:  http://SERVER_IP:${WEB_PORT}/v1"
-  echo "APK:  http://SERVER_IP:${WEB_PORT}/downloads/w-light-latest.apk (after publishing an APK)"
+  echo "APK:  http://SERVER_IP:${WEB_PORT}/downloads/w-light-latest.apk"
+  echo "=============================================="
+  echo -e "\033[0;31m⚠️ CRITICAL SECURITY NOTICE\033[0m"
+  echo "Strong random passwords have been automatically generated and saved to the .env file in ${APP_DIR}."
+  echo "Please DO NOT commit the .env file to Git."
+  echo "=============================================="
+  echo "CORS Origins allowed: ${current_origins}"
+  echo "If your domain is not listed here, edit the .env file and restart the API container."
   echo
   echo "If the page is still unreachable, also allow TCP ${WEB_PORT} in the cloud security list / NSG."
 }
