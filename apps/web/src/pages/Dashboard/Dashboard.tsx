@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { apiClient } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
+import { useAuthStore } from '../../store/authStore';
 import styles from './Dashboard.module.css';
 
 interface OperationsSummary {
@@ -118,6 +119,7 @@ function normalizePartsRank(rows: PartRankRow[]) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuthStore();
   const [operations, setOperations] = useState<OperationsSummary | null>(null);
   const [trendData, setTrendData] = useState<Array<{ name: string; newOrders: number; solved: number }>>([]);
   const [deviceStatusData, setDeviceStatusData] = useState<Array<{ name: string; value: number; color: string }>>([]);
@@ -253,9 +255,11 @@ export default function Dashboard() {
           <button className={styles.refreshBtn} onClick={exportMonthlyPdf}>
             <Download size={14} /> 月度报表 PDF
           </button>
-          <button className={styles.refreshBtn} onClick={downloadBackup}>
-            <DatabaseBackup size={14} /> 备份
-          </button>
+          {user?.role === 'admin' && (
+            <button className={styles.refreshBtn} onClick={downloadBackup}>
+              <DatabaseBackup size={14} /> 备份
+            </button>
+          )}
           <button className={styles.refreshBtn} onClick={openRestorePicker} disabled={restoringBackup}>
             <Upload size={14} /> {restoringBackup ? '恢复中...' : '恢复'}
           </button>

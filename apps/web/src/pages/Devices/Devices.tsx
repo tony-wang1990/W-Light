@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
+import { useAuthStore } from '../../store/authStore';
 import DeviceModal from './components/DeviceModal';
 import DeviceDetailModal from './components/DeviceDetailModal';
 import styles from './Devices.module.css';
@@ -263,16 +264,20 @@ export default function Devices() {
           <p className={styles.pageSubtitle}>管理现场设备、二维码标签、安装位置、健康度和运行状态。</p>
         </div>
         <div className={styles.headerActions}>
-          <input ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportExcel} />
-          <button className={styles.exportBtn} onClick={() => importInputRef.current?.click()} title="支持列：设备编号、设备名称、类型、安装位置、品牌厂商、型号">
-            <Upload size={18} /> Excel导入
-          </button>
-          <button className={styles.exportBtn} onClick={handleGenerateQrLabels} disabled={isGeneratingQr || devices.length === 0}>
-            <QrCodeIcon size={18} /> {isGeneratingQr ? '生成中...' : '批量二维码'}
-          </button>
-          <button className={styles.addBtn} onClick={handleAddDevice}>
-            <Plus size={18} /> 新增设备
-          </button>
+          {useAuthStore().user?.role === 'admin' && (
+            <>
+              <input ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportExcel} />
+              <button className={styles.exportBtn} onClick={() => importInputRef.current?.click()} title="支持列：设备编号、设备名称、类型、安装位置、品牌厂商、型号">
+                <Upload size={18} /> Excel导入
+              </button>
+              <button className={styles.exportBtn} onClick={handleGenerateQrLabels} disabled={isGeneratingQr || devices.length === 0}>
+                <QrCodeIcon size={18} /> {isGeneratingQr ? '生成中...' : '批量二维码'}
+              </button>
+              <button className={styles.addBtn} onClick={handleAddDevice}>
+                <Plus size={18} /> 新增设备
+              </button>
+            </>
+          )}
         </div>
       </div>
 

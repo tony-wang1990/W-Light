@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
+import { useAuthStore } from '../../store/authStore';
 import PartModal from './components/PartModal';
 import PartLogModal from './components/PartLogModal';
 import styles from './Parts.module.css';
@@ -129,9 +130,11 @@ export default function Parts() {
           <button className={styles.exportBtn} onClick={() => downloadCsv(parts)} disabled={parts.length === 0}>
             <Download size={18} /> 导出明细
           </button>
-          <button className={styles.addBtn} onClick={handleAddPart}>
-            <Plus size={18} /> 新增备件
-          </button>
+          {useAuthStore().user?.role === 'admin' && (
+            <button className={styles.addBtn} onClick={handleAddPart}>
+              <Plus size={18} /> 新增备件
+            </button>
+          )}
         </div>
       </div>
 

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
+import { useAuthStore } from '../../store/authStore';
 import OrderModal from './components/OrderModal';
 import OrderDetailDrawer from './components/OrderDetailDrawer';
 import styles from './Orders.module.css';
@@ -170,6 +171,13 @@ export default function Orders() {
   }, [orders]);
 
   const renderAction = (order: Order) => {
+    if (useAuthStore().user?.role === 'viewer') {
+      return (
+        <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
+          查看
+        </button>
+      );
+    }
     switch (order.status) {
       case 'pending':
         return (
@@ -294,9 +302,11 @@ export default function Orders() {
             <RefreshCw size={16} className={loading ? styles.spin : ''} />
             刷新
           </button>
-          <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
-            <Plus size={16} /> 新增报修
-          </button>
+          {useAuthStore().user?.role !== 'viewer' && (
+            <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
+              <Plus size={16} /> 新增报修
+            </button>
+          )}
         </div>
       </div>
 
