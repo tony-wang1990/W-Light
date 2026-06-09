@@ -1,155 +1,142 @@
 import React, { useState } from 'react';
-import { DownloadCloud, FileText, Database, Settings, RefreshCw, BarChart2, Briefcase, FileSpreadsheet } from 'lucide-react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import { Download, FileText, Package, Wrench, Users, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { useAuthStore } from '../../store/authStore';
-import styles from './Downloads.module.css';
+import styles from '../CommonAdmin.module.css';
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgo(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
 
 export default function Downloads() {
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
-  
-  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1), // First day of current month
-    new Date(),
-  ]);
-  const [startDate, endDate] = dateRange;
+  const [startDate, setStartDate] = useState(daysAgo(30));
+  const [endDate, setEndDate] = useState(today());
+  const [month, setMonth] = useState(today().slice(0, 7));
 
-  const handleDownload = async (url: string, prefix: string) => {
-    try {
-      let finalUrl = url;
-      if (startDate && endDate) {
-        const startStr = startDate.toISOString();
-        const endStr = endDate.toISOString();
-        finalUrl += url.includes('?') ? `&startDate=${startStr}&endDate=${endStr}` : `?startDate=${startStr}&endDate=${endStr}`;
-      }
-      
-      const filename = `${prefix}-${new Date().toISOString().slice(0,10)}${url.endsWith('.pdf') ? '.pdf' : url.endsWith('.json') ? '.json' : '.xlsx'}`;
-      await apiClient.download(finalUrl, filename);
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert('下载失败：' + (error instanceof Error ? error.message : String(error)));
-    }
+  const getQueryString = () => {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    return params.toString();
   };
 
-  const handlePdfDownload = async () => {
-    try {
-      const targetDate = startDate || new Date();
-      const year = targetDate.getFullYear();
-      const month = targetDate.getMonth() + 1;
-      const filename = `lightops-report-${year}-${month.toString().padStart(2, '0')}.pdf`;
-      await apiClient.download(`/reports/export/monthly-report.pdf?year=${year}&month=${month}`, filename);
-    } catch (error) {
-      console.error('PDF Download failed:', error);
-      alert('下载月度报表 PDF 失败：' + (error instanceof Error ? error.message : String(error)));
-    }
+  const handleDownload = (path: string, prefix: string) => {
+    const qs = getQueryString();
+    apiClient.download(`/reports/export/${path}?${qs}`, `w-light-${prefix}-${startDate}-${endDate}.xlsx`);
   };
+
+  const handleDownloadPdf = () => {
+    const [y, m] = month.split('-');
+    apiClient.download(`/reports/export/monthly-report.pdf?year=${y}&month=${m}`, `w-light-monthly-report-${month}.pdf`);
+  };
+
+  const downloadTypes = [
+    {
+      title: '月度工单明细表',
+      desc: '包含所有工单的详细字段，如报修时间、处理人、故障描述等。',
+      icon: <FileSpreadsheet size={24} className={styles.textPrimary} />,
+      action: () => handleDownload('orders.xlsx', 'orders'),
+    },
+    {
+      title: '月度统计故障表',
+      desc: '按故障类型、设备进行汇总的统计数据，用于分析高频故障。',
+      icon: <AlertTriangle size={24} className={styles.textDanger} />,
+      action: () => handleDownload('fault-stats.xlsx', 'fault-stats'),
+    },
+    {
+      title: '人员绩效考核表',
+      desc: '统计每位工程师的接单量、完工率、平均维修时长等 KPI 指标。',
+      icon: <Users size={24} className={styles.textSuccess} />,
+      action: () => handleDownload('performance.xlsx', 'performance'),
+    },
+    {
+      title: '备件库存总表',
+      desc: '当前所有备件的实时库存数量，不限时间跨度。',
+      icon: <Package size={24} className={styles.textWarning} />,
+      action: () => {
+        apiClient.download(`/reports/export/parts-inventory.xlsx`, `w-light-parts-inventory-${today()}.xlsx`);
+      },
+    },
+    {
+      title: '备件消耗明细表',
+      desc: '选定时间范围内的所有备件出库/消耗记录明细。',
+      icon: <Wrench size={24} className={styles.textPrimary} />,
+      action: () => handleDownload('parts-consumption.xlsx', 'parts-consumption'),
+    },
+    {
+      title: '设备台账总表',
+      desc: '所有登记设备的台账信息，包括状态、位置、资产编号。',
+      icon: <FileText size={24} className={styles.textSecondary} />,
+      action: () => {
+        apiClient.download(`/reports/export/devices.xlsx`, `w-light-devices-${today()}.xlsx`);
+      },
+    },
+  ];
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>数据下载中心</h1>
-          <p className={styles.subtitle}>集中管理和导出各类系统数据与分析报表</p>
+          <h1 className={styles.pageTitle}>数据下载中心</h1>
+          <p className={styles.pageSubtitle}>一站式统一导出各种报表模板，月底汇总提效神器。</p>
         </div>
       </div>
 
-      <div className={styles.filterCard}>
-        <div className={styles.filterGroup}>
-          <label>报表数据时间范围</label>
-          <DatePicker
-            selectsRange={true}
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(update: any) => setDateRange(update)}
-            className={styles.datePicker}
-            dateFormat="yyyy/MM/dd"
-            placeholderText="选择时间段（默认本月）"
-          />
-          <span className={styles.hint}>* 提示：月度综合报告 (PDF) 将基于所选起始日期的月份生成。</span>
+      <div className={styles.card} style={{ marginBottom: 24 }}>
+        <h2 className={styles.cardTitle} style={{ marginBottom: 16 }}>全局时间范围设定</h2>
+        <div className={styles.toolbar}>
+          <div className={styles.formGroup} style={{ width: 200 }}>
+            <label>开始日期</label>
+            <input className={styles.input} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          </div>
+          <div className={styles.formGroup} style={{ width: 200 }}>
+            <label>结束日期</label>
+            <input className={styles.input} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          </div>
+          <p className={styles.muted} style={{ alignSelf: 'flex-end', paddingBottom: 10 }}>
+            注：时间范围仅对工单、消耗、绩效等时间敏感的报表生效。
+          </p>
         </div>
       </div>
 
       <div className={styles.grid}>
-        {/* 资产类报表 */}
-        <div className={styles.categoryCard}>
-          <div className={styles.categoryHeader}>
-            <Database className={styles.categoryIcon} size={20} />
-            <h2 className={styles.categoryTitle}>资产与备件报表</h2>
-          </div>
-          <div className={styles.cardContent}>
-            <p className={styles.desc}>导出设备台账、备件库存现状，以及维修过程中产生的备件消耗记录。</p>
-            <div className={styles.actionList}>
-              <button className={styles.downloadBtn} onClick={() => handleDownload('/reports/export/devices.xlsx', 'lightops-devices')}>
-                <FileSpreadsheet size={16} /> 设备台账明细表
-              </button>
-              <button className={styles.downloadBtn} onClick={() => handleDownload('/reports/export/parts-inventory.xlsx', 'lightops-parts-inventory')}>
-                <FileSpreadsheet size={16} /> 备品库存台账表
-              </button>
-              <button className={styles.downloadBtn} onClick={() => handleDownload('/reports/export/parts-consumption.xlsx', 'lightops-parts-consumption')}>
-                <FileSpreadsheet size={16} /> 备件消耗明细表
-              </button>
+        {downloadTypes.map((dt, idx) => (
+          <div className={styles.card} key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {dt.icon}
+              <h2 className={styles.cardTitle} style={{ margin: 0 }}>{dt.title}</h2>
             </div>
+            <p className={styles.muted} style={{ flex: 1 }}>{dt.desc}</p>
+            <button className={styles.primaryBtn} onClick={dt.action} style={{ width: '100%', justifyContent: 'center' }}>
+              <Download size={16} /> 下载 Excel 表格
+            </button>
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* 运维类报表 */}
-        <div className={styles.categoryCard}>
-          <div className={styles.categoryHeader}>
-            <Settings className={styles.categoryIcon} size={20} />
-            <h2 className={styles.categoryTitle}>工单与故障报表</h2>
-          </div>
-          <div className={styles.cardContent}>
-            <p className={styles.desc}>按时间段导出维修工单的完整跟进记录以及系统故障类型统计分析。</p>
-            <div className={styles.actionList}>
-              <button className={styles.downloadBtn} onClick={() => handleDownload('/reports/export/orders.xlsx', 'lightops-orders')}>
-                <FileSpreadsheet size={16} /> 工单处理汇总表
-              </button>
-              <button className={styles.downloadBtn} onClick={() => handleDownload('/reports/export/fault-stats.xlsx', 'lightops-fault-stats')}>
-                <FileSpreadsheet size={16} /> 故障统计分析表
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 人员类报表 */}
-        <div className={styles.categoryCard}>
-          <div className={styles.categoryHeader}>
-            <Briefcase className={styles.categoryIcon} size={20} />
-            <h2 className={styles.categoryTitle}>人员绩效报表</h2>
-          </div>
-          <div className={styles.cardContent}>
-            <p className={styles.desc}>统计工程师在选定时间段内的接单量、完成情况以及平均维修耗时。</p>
-            <div className={styles.actionList}>
-              <button className={styles.downloadBtn} onClick={() => handleDownload('/reports/export/performance.xlsx', 'lightops-performance')}>
-                <FileSpreadsheet size={16} /> 工程师绩效考核表
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 综合管理报表 */}
-        <div className={styles.categoryCard}>
-          <div className={styles.categoryHeader}>
-            <BarChart2 className={styles.categoryIcon} size={20} />
-            <h2 className={styles.categoryTitle}>综合报告与系统备份</h2>
-          </div>
-          <div className={styles.cardContent}>
-            <p className={styles.desc}>生成精美的月度整体运维 PDF 报告，或导出系统底层的全量 JSON 数据。</p>
-            <div className={styles.actionList}>
-              <button className={styles.downloadPdfBtn} onClick={handlePdfDownload}>
-                <FileText size={16} /> 月度运维综合报告 (PDF)
-              </button>
-              {isAdmin && (
-                <button className={styles.downloadJsonBtn} onClick={() => handleDownload('/reports/backup.json', 'lightops-backup')}>
-                  <RefreshCw size={16} /> 系统全量数据备份 (JSON)
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
+      {/* PDF Report Section */}
+      <div className={styles.card} style={{ marginTop: 24 }}>
+         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <FileText size={24} className={styles.textPrimary} />
+            <h2 className={styles.cardTitle} style={{ margin: 0 }}>月度综合总结报告 (PDF)</h2>
+         </div>
+         <p className={styles.muted} style={{ marginBottom: 16 }}>
+           自动生成包含本月运维概况、高频故障分析、人员工作量总结的排版精美的 PDF 月报，可直接用于汇报。
+         </p>
+         <div className={styles.toolbar}>
+           <div className={styles.formGroup} style={{ width: 200 }}>
+             <label>选择月份</label>
+             <input className={styles.input} type="month" value={month} onChange={e => setMonth(e.target.value)} />
+           </div>
+           <div className={styles.actions} style={{ alignSelf: 'flex-end' }}>
+             <button className={styles.primaryBtn} onClick={handleDownloadPdf}>
+               <Download size={16} /> 下载 PDF 报告
+             </button>
+           </div>
+         </div>
       </div>
     </div>
   );

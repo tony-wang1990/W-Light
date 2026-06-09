@@ -9,11 +9,11 @@ import Toolbox from './pages/Toolbox/Toolbox';
 import Inspections from './pages/Inspections/Inspections';
 import Users from './pages/Users/Users';
 import Projects from './pages/Projects/Projects';
+import Downloads from './pages/Downloads/Downloads';
 import Maintenance from './pages/Maintenance/Maintenance';
 import Reports from './pages/Reports/Reports';
 import Clients from './pages/Clients/Clients';
 import ScanPage from './pages/Scan/ScanPage';
-import Downloads from './pages/Downloads/Downloads';
 
 function App() {
   const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
