@@ -21,3 +21,15 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
+
+class MockEventSource {
+  onmessage: ((event: any) => void) | null = null;
+  onerror: ((event: any) => void) | null = null;
+  close = vi.fn();
+  constructor(public url: string) {}
+}
+
+Object.defineProperty(window, 'EventSource', {
+  writable: true,
+  value: MockEventSource,
+})
