@@ -15,10 +15,11 @@ interface Summary {
 }
 
 const QUICK_ACTIONS = [
-  { icon: '📸', label: '扫码查验', route: 'DeviceScan', color: colors.danger },
-  { icon: '📋', label: '创建工单', route: 'OrderCreate', color: colors.primary },
-  { icon: '🔧', label: '工具箱', route: 'Toolbox', color: '#C77DFF' },
-  { icon: '📦', label: '备件查询', route: 'Records', color: '#FFD93D' },
+  { icon: '📸', label: '扫码查验', route: 'DeviceScan', color: colors.danger, role: 'all' },
+  { icon: '📋', label: '创建工单', route: 'OrderCreate', color: colors.primary, role: 'all' },
+  { icon: '🔧', label: '工具箱', route: 'Toolbox', color: '#C77DFF', role: 'all' },
+  { icon: '📦', label: '备件查询', route: 'Records', color: '#FFD93D', role: 'all' },
+  { icon: '📊', label: '数据驾驶舱', route: 'AdminDashboard', color: '#6A5ACD', role: 'admin' },
 ]
 
 export function HomeScreen() {
@@ -59,6 +60,8 @@ export function HomeScreen() {
   const handleQuickAction = async (route: string) => {
     if (route === 'DeviceScan') {
       navigation.navigate('DeviceScan')
+    } else if (route === 'AdminDashboard') {
+      navigation.navigate('AdminDashboard')
     } else {
       if (route === 'OrderCreate') {
         navigation.getParent()?.navigate('Orders', { screen: 'OrderCreate' })
@@ -141,7 +144,7 @@ export function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>快捷操作</Text>
           <View style={styles.quickGrid}>
-            {QUICK_ACTIONS.map((action, i) => (
+            {QUICK_ACTIONS.filter(a => a.role === 'all' || a.role === user?.role).map((action, i) => (
               <TouchableOpacity
                 key={i}
                 style={styles.quickCard}

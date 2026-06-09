@@ -10,6 +10,7 @@ export type HomeStackParamList = {
   HomeMain: undefined;
   DeviceScan: undefined;
   Notifications: undefined;
+  AdminDashboard: undefined;
 };
 
 // Orders Stack
