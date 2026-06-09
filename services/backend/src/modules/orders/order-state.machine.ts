@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { OrderPriority, OrderStatus, WorkOrder } from './entities/order.entity'
 
 export const SLA_COMPLETE_HOURS: Record<OrderPriority, number> = {
@@ -29,6 +30,7 @@ export class OrderStateMachine {
   constructor(
     @InjectRepository(WorkOrder)
     private readonly orderRepo: Repository<WorkOrder>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private assertStatus(order: WorkOrder, expectedStatuses: OrderStatus[], action: string) {
@@ -55,10 +57,14 @@ export class OrderStateMachine {
       throw new ConflictException(`Order ${order.orderNo} was changed by another operator, please refresh`)
     }
 
-    return this.orderRepo.findOneOrFail({
+    const updatedOrder = await this.orderRepo.findOneOrFail({
       where: { id: order.id, projectId: order.projectId },
       relations: ['device', 'reporter', 'assignee', 'project'],
     })
+
+    this.eventEmitter.emit('order.updated', updatedOrder)
+
+    return updatedOrder
   }
 
   async assign(order: WorkOrder, assigneeId: string): Promise<WorkOrder> {

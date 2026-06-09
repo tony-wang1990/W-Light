@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, EntityManager, Repository } from 'typeorm'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { v4 as uuidv4 } from 'uuid'
 import { AddRepairLogDto } from './dto/add-repair-log.dto'
 import { AssignOrderDto } from './dto/assign-order.dto'
@@ -22,6 +23,7 @@ export class OrdersService {
     private readonly stateMachine: OrderStateMachine,
     private readonly dataSource: DataSource,
     private readonly partsService: PartsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(dto: CreateOrderDto, reporterId: string, projectId: string): Promise<WorkOrder> {
@@ -37,7 +39,9 @@ export class OrdersService {
         status: OrderStatus.PENDING,
         isOvertime: false,
       })
-      return repo.save(order)
+      const savedOrder = await repo.save(order)
+      this.eventEmitter.emit('order.updated', savedOrder)
+      return savedOrder
     })
   }
 

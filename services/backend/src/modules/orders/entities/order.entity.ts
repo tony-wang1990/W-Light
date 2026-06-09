@@ -32,6 +32,10 @@ export enum OrderCategory {
 }
 
 @Entity('work_orders')
+@Index(['projectId', 'status'])
+@Index(['projectId', 'assigneeId'])
+@Index(['deviceId'])
+@Index(['createdAt'])
 export class WorkOrder {
   @PrimaryGeneratedColumn('uuid')
   id: string

@@ -7,6 +7,7 @@ import { UserRole } from '../users/entities/user.entity'
 import { OrderPriority, OrderStatus, WorkOrder } from './entities/order.entity'
 import { RepairLog } from './entities/repair-log.entity'
 import { OrderStateMachine } from './order-state.machine'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { OrdersService } from './orders.service'
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
@@ -33,6 +34,7 @@ describe('OrdersService', () => {
   let stateMachine: jest.Mocked<OrderStateMachine>
   let dataSource: jest.Mocked<DataSource>
   let partsService: jest.Mocked<PartsService>
+  let eventEmitter: jest.Mocked<EventEmitter2>
   let service: OrdersService
 
   beforeEach(() => {
@@ -47,9 +49,13 @@ describe('OrdersService', () => {
     } as unknown as jest.Mocked<DataSource>
     partsService = {
       outbound: jest.fn(),
-    } as unknown as jest.Mocked<PartsService>
+    } as any
 
-    service = new OrdersService(orderRepo, repairLogRepo, stateMachine, dataSource, partsService)
+    eventEmitter = {
+      emit: jest.fn(),
+    } as any
+
+    service = new OrdersService(orderRepo, repairLogRepo, stateMachine, dataSource, partsService, eventEmitter)
   })
 
   it('uses entity property paths for paged ordering to avoid TypeORM databaseName errors', async () => {

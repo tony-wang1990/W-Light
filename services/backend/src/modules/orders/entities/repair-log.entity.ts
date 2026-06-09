@@ -1,11 +1,12 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn,
+  CreateDateColumn, ManyToOne, JoinColumn, Index
 } from 'typeorm'
 import { WorkOrder } from './order.entity'
 import { User } from '../../users/entities/user.entity'
 
 @Entity('repair_logs')
+@Index(['orderId'])
 export class RepairLog {
   @PrimaryGeneratedColumn('uuid')
   id: string

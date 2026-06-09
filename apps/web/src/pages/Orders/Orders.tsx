@@ -126,6 +126,25 @@ export default function Orders() {
     fetchOrders();
   }, [fetchOrders]);
 
+  useEffect(() => {
+    const token = useAuthStore.getState().token;
+    if (!token) return;
+    
+    // Connect to SSE using the standard EventSource. 
+    // Note: EventSource doesn't support headers directly in browser, so we pass token via query
+    const url = `${import.meta.env.VITE_API_BASE_URL}/v1/sse/orders?token=${token}`;
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      // Refresh the orders list silently when an event arrives
+      fetchOrders();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [fetchOrders]);
+
   const refreshSelectedOrder = useCallback(async (orderId: string) => {
     const detail = await apiClient.get<Order>(`/orders/${orderId}`);
     setSelectedOrder(detail);

@@ -78,9 +78,11 @@ class NotificationsController {
 }
 
 // ─── Module ───────────────────────────────────────────────────────────────────
+import { SseController } from './sse.controller'
+
 @Module({
   imports: [TypeOrmModule.forFeature([Notification])],
-  controllers: [NotificationsController],
+  controllers: [NotificationsController, SseController],
   providers: [NotificationsService],
   exports: [NotificationsService],
 })

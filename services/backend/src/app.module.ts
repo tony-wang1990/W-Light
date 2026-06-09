@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { EventEmitterModule } from '@nestjs/event-emitter'
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module'
@@ -22,6 +23,9 @@ import { HealthModule } from './modules/health/health.module'
       isGlobal: true,
       envFilePath: ['.env', '.env.development', '.env.production'],
     }),
+
+    // 事件总线
+    EventEmitterModule.forRoot(),
 
     // TypeORM 数据库连接
     TypeOrmModule.forRootAsync({

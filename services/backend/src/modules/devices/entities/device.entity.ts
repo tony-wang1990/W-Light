@@ -22,6 +22,8 @@ export enum DeviceCategory {
 
 @Index('IDX_devices_project_deviceNo_unique', ['projectId', 'deviceNo'], { unique: true })
 @Index('IDX_devices_project_qrCode_unique', ['projectId', 'qrCode'], { unique: true })
+@Index(['projectId', 'category'])
+@Index(['projectId', 'status'])
 @Entity('devices')
 export class Device {
   @PrimaryGeneratedColumn('uuid')
