@@ -176,25 +176,25 @@ export class ReportsExportService {
 
   async exportPartsConsumptionWorkbook(projectId: string, startDate: string, endDate: string) {
     const rows = await this.query(`
-      SELECT o.orderNo, o.createdAt, p.partNo, p.name as partName, u.quantity, u.unitPrice, (u.quantity * u.unitPrice) as totalCost, c.name as engineerName,
+      SELECT o.orderNo, l.createdAt, p.partNo, p.name as partName, l.quantity, p.unitPrice, (l.quantity * COALESCE(p.unitPrice, 0)) as totalCost, c.name as engineerName,
              d.name as deviceName, COALESCE(d.location, o.locationDesc) as location, o.faultType, o.faultDesc
-      FROM order_parts_usage u
-      JOIN work_orders o ON o.id = u.orderId
-      JOIN spare_parts p ON p.id = u.partId
+      FROM spare_part_logs l
+      LEFT JOIN work_orders o ON o.id = l.orderId
+      JOIN spare_parts p ON p.id = l.partId
       LEFT JOIN devices d ON d.id = o.deviceId
-      LEFT JOIN users c ON c.id = o.assigneeId
-      WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
-      ORDER BY o.createdAt DESC
+      LEFT JOIN users c ON c.id = l.operatorId
+      WHERE p.projectId = ? AND l.opType = 'outbound' AND l.createdAt BETWEEN ? AND ?
+      ORDER BY l.createdAt DESC
     `, `
-      SELECT o."orderNo" as "orderNo", o."createdAt" as "createdAt", p."partNo" as "partNo", p.name as "partName", u.quantity, u."unitPrice" as "unitPrice", (u.quantity * u."unitPrice") as "totalCost", c.name as "engineerName",
+      SELECT o."orderNo" as "orderNo", l."createdAt" as "createdAt", p."partNo" as "partNo", p.name as "partName", l.quantity, p."unitPrice" as "unitPrice", (l.quantity * COALESCE(p."unitPrice", 0)) as "totalCost", c.name as "engineerName",
              d.name as "deviceName", COALESCE(d.location, o."locationDesc") as location, o."faultType" as "faultType", o."faultDesc" as "faultDesc"
-      FROM order_parts_usage u
-      JOIN work_orders o ON o.id::text = u."orderId"::text
-      JOIN spare_parts p ON p.id::text = u."partId"::text
+      FROM spare_part_logs l
+      LEFT JOIN work_orders o ON o.id::text = l."orderId"::text
+      JOIN spare_parts p ON p.id::text = l."partId"::text
       LEFT JOIN devices d ON d.id::text = o."deviceId"::text
-      LEFT JOIN users c ON c.id::text = o."assigneeId"::text
-      WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
-      ORDER BY o."createdAt" DESC
+      LEFT JOIN users c ON c.id::text = l."operatorId"::text
+      WHERE p."projectId"::text = $1 AND l."opType" = 'outbound' AND l."createdAt" BETWEEN $2 AND $3
+      ORDER BY l."createdAt" DESC
     `, [projectId, startDate, endDate])
 
     const workbook = new ExcelJS.Workbook()
@@ -311,23 +311,21 @@ export class ReportsExportService {
 
   async exportFinancialConsumption(projectId: string, startDate: string, endDate: string) {
     const rows = await this.query(`
-      SELECT p.category, p.name as partName, SUM(u.quantity) as totalQuantity, 
-             MAX(COALESCE(u.unitPrice, p.unitPrice, 0)) as unitPrice, 
-             SUM(u.quantity * COALESCE(u.unitPrice, p.unitPrice, 0)) as totalCost
-      FROM order_parts_usage u
-      JOIN work_orders o ON o.id = u.orderId
-      JOIN spare_parts p ON p.id = u.partId
-      WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
+      SELECT p.category, p.name as partName, SUM(l.quantity) as totalQuantity, 
+             MAX(COALESCE(p.unitPrice, 0)) as unitPrice, 
+             SUM(l.quantity * COALESCE(p.unitPrice, 0)) as totalCost
+      FROM spare_part_logs l
+      JOIN spare_parts p ON p.id = l.partId
+      WHERE p.projectId = ? AND l.opType = 'outbound' AND l.createdAt BETWEEN ? AND ?
       GROUP BY p.id, p.category, p.name
       ORDER BY totalCost DESC
     `, `
-      SELECT p.category, p.name as "partName", SUM(u.quantity) as "totalQuantity", 
-             MAX(COALESCE(u."unitPrice", p."unitPrice", 0)) as "unitPrice", 
-             SUM(u.quantity * COALESCE(u."unitPrice", p."unitPrice", 0)) as "totalCost"
-      FROM order_parts_usage u
-      JOIN work_orders o ON o.id::text = u."orderId"::text
-      JOIN spare_parts p ON p.id::text = u."partId"::text
-      WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
+      SELECT p.category, p.name as "partName", SUM(l.quantity) as "totalQuantity", 
+             MAX(COALESCE(p."unitPrice", 0)) as "unitPrice", 
+             SUM(l.quantity * COALESCE(p."unitPrice", 0)) as "totalCost"
+      FROM spare_part_logs l
+      JOIN spare_parts p ON p.id::text = l."partId"::text
+      WHERE p."projectId"::text = $1 AND l."opType" = 'outbound' AND l."createdAt" BETWEEN $2 AND $3
       GROUP BY p.id, p.category, p.name
       ORDER BY "totalCost" DESC
     `, [projectId, startDate, endDate])
@@ -533,7 +531,7 @@ export class ReportsExportService {
         doc.on('data', buffers.push.bind(buffers))
         doc.on('end', () => resolve(Buffer.concat(buffers)))
 
-        const fontPath = path.join(__dirname, '../../assets/fonts/simhei.ttf')
+        const fontPath = path.resolve(process.cwd(), 'src/assets/fonts/simhei.ttf')
         try { doc.font(fontPath) } catch { /* ignore font load error */ }
 
         doc.fontSize(24).fillColor('#111827').text(`W-Light 项目月度运维报告`, { align: 'center' })

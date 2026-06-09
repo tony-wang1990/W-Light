@@ -23,14 +23,22 @@ export default function Downloads() {
     return params.toString();
   };
 
-  const handleDownload = (path: string, prefix: string) => {
+  const handleDownload = async (path: string, prefix: string) => {
     const qs = getQueryString();
-    apiClient.download(`/reports/export/${path}?${qs}`, `w-light-${prefix}-${startDate}-${endDate}.xlsx`);
+    try {
+      await apiClient.download(`/reports/export/${path}?${qs}`, `w-light-${prefix}-${startDate}-${endDate}.xlsx`);
+    } catch (err: any) {
+      alert(err.message || '下载失败');
+    }
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const [y, m] = month.split('-');
-    apiClient.download(`/reports/export/monthly-report.pdf?year=${y}&month=${m}`, `w-light-monthly-report-${month}.pdf`);
+    try {
+      await apiClient.download(`/reports/export/monthly-report.pdf?year=${y}&month=${m}`, `w-light-monthly-report-${month}.pdf`);
+    } catch (err: any) {
+      alert(err.message || '下载失败');
+    }
   };
 
   const downloadTypes = [
@@ -56,8 +64,10 @@ export default function Downloads() {
       title: '备件库存总表',
       desc: '当前所有备件的实时库存数量，不限时间跨度。',
       icon: <Package size={24} className={styles.textWarning} />,
-      action: () => {
-        apiClient.download(`/reports/export/parts-inventory.xlsx`, `w-light-parts-inventory-${today()}.xlsx`);
+      action: async () => {
+        try {
+          await apiClient.download(`/reports/export/parts-inventory.xlsx`, `w-light-parts-inventory-${today()}.xlsx`);
+        } catch (err: any) { alert(err.message || '下载失败'); }
       },
     },
     {
@@ -70,8 +80,10 @@ export default function Downloads() {
       title: '设备台账总表',
       desc: '所有登记设备的台账信息，包括状态、位置、资产编号。',
       icon: <FileText size={24} className={styles.textSecondary} />,
-      action: () => {
-        apiClient.download(`/reports/export/devices.xlsx`, `w-light-devices-${today()}.xlsx`);
+      action: async () => {
+        try {
+          await apiClient.download(`/reports/export/devices.xlsx`, `w-light-devices-${today()}.xlsx`);
+        } catch (err: any) { alert(err.message || '下载失败'); }
       },
     },
     {
