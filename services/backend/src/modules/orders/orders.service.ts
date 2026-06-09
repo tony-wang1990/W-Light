@@ -45,7 +45,7 @@ export class OrdersService {
     projectId: string,
     page = 1,
     pageSize = 20,
-    status?: OrderStatus,
+    status?: string,
     priority?: OrderPriority,
     assigneeId?: string,
     keyword?: string,
@@ -60,7 +60,12 @@ export class OrdersService {
       .where(this.columnEqualsParam('o."projectId"', 'projectId'), { projectId })
       .orderBy('o.createdAt', 'DESC')
 
-    if (status) qb.andWhere('o.status = :status', { status })
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean)
+      if (statuses.length > 0) {
+        qb.andWhere('o.status IN (:...statuses)', { statuses })
+      }
+    }
     if (priority) qb.andWhere('o.priority = :priority', { priority })
     if (assigneeId) qb.andWhere(this.columnEqualsParam('o."assigneeId"', 'assigneeId'), { assigneeId })
     if (deviceId) qb.andWhere(this.columnEqualsParam('o."deviceId"', 'deviceId'), { deviceId })

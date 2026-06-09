@@ -30,14 +30,14 @@ export class OrdersController {
 
   @Get()
   @ApiOperation({ summary: '获取工单列表' })
-  @ApiQuery({ name: 'status', enum: OrderStatus, required: false })
+  @ApiQuery({ name: 'status', required: false, description: 'Comma separated OrderStatus' })
   @ApiQuery({ name: 'priority', enum: OrderPriority, required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
   @ApiQuery({ name: 'keyword', required: false })
   findAll(
     @Request() req,
-    @Query('status') status?: OrderStatus,
+    @Query('status') status?: string,
     @Query('priority') priority?: OrderPriority,
     @Query('assigneeId') assigneeId?: string,
     @Query('keyword') keyword?: string,

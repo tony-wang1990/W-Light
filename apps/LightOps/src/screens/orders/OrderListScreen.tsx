@@ -14,10 +14,10 @@ import type { OrdersStackParamList } from '../../navigation/types'
 
 const STATUS_FILTERS = [
   { label: '全部', value: '', countKey: 'total' },
-  { label: '待处理', value: 'pending', countKey: 'pending' },
-  { label: '处理中', value: 'processing', countKey: 'processing' },
+  { label: '待处理', value: 'pending,assigned', countKey: 'pending' },
+  { label: '处理中', value: 'processing,suspended', countKey: 'processing' },
   { label: '待验收', value: 'reviewing', countKey: 'reviewing' },
-  { label: '已完成', value: 'closed', countKey: 'closed' },
+  { label: '已完成', value: 'closed,rejected', countKey: 'closed' },
 ]
 
 export function OrderListScreen() {
@@ -92,6 +92,12 @@ export function OrderListScreen() {
     }
     if (countKey === 'pending') {
       return Number(summary.pending || 0) + Number(summary.assigned || 0)
+    }
+    if (countKey === 'processing') {
+      return Number(summary.processing || 0) + Number(summary.suspended || 0)
+    }
+    if (countKey === 'closed') {
+      return Number(summary.closed || 0) + Number(summary.rejected || 0)
     }
     return Number(summary[countKey] || 0)
   }
