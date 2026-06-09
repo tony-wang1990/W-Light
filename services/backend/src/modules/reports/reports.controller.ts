@@ -145,6 +145,81 @@ export class ReportsController {
     res.send(buffer)
   }
 
+  @Get('export/financial-consumption.xlsx')
+  async exportFinancialConsumption(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportFinancialConsumption(req.projectId, range.start, range.end)
+    const filename = `lightops-financial-consumption-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/device-reliability.xlsx')
+  async exportDeviceReliability(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportDeviceReliability(req.projectId, range.start, range.end)
+    const filename = `lightops-device-reliability-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/location-heatmap.xlsx')
+  async exportLocationHeatmap(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportLocationHeatmap(req.projectId, range.start, range.end)
+    const filename = `lightops-location-heatmap-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/daily-kpi.xlsx')
+  async exportDailyKpi(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportDailyKpi(req.projectId, range.start, range.end)
+    const filename = `lightops-daily-kpi-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
+  @Get('export/inspection-anomaly.xlsx')
+  async exportInspectionAnomaly(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportInspectionAnomaly(req.projectId, range.start, range.end)
+    const filename = `lightops-inspection-anomaly-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
   @Get('export/monthly-report.pdf')
   async exportMonthlyPdf(
     @Request() req,

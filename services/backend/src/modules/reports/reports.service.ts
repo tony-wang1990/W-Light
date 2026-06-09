@@ -67,6 +67,26 @@ export class ReportsService {
     return this.exportService.exportFaultStatsWorkbook(projectId, startDate, endDate)
   }
 
+  exportFinancialConsumption(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportFinancialConsumption(projectId, startDate, endDate)
+  }
+
+  exportDeviceReliability(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportDeviceReliability(projectId, startDate, endDate)
+  }
+
+  exportLocationHeatmap(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportLocationHeatmap(projectId, startDate, endDate)
+  }
+
+  exportDailyKpi(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportDailyKpi(projectId, startDate, endDate)
+  }
+
+  exportInspectionAnomaly(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportInspectionAnomaly(projectId, startDate, endDate)
+  }
+
   exportMonthlyPdfReport(projectId: string, year: number, month: number) {
     return this.exportService.exportMonthlyPdfReport(projectId, year, month)
   }

@@ -309,6 +309,199 @@ export class ReportsExportService {
     return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
   }
 
+  async exportFinancialConsumption(projectId: string, startDate: string, endDate: string) {
+    const rows = await this.query(`
+      SELECT p.category, p.name as partName, SUM(u.quantity) as totalQuantity, 
+             MAX(COALESCE(u.unitPrice, p.unitPrice, 0)) as unitPrice, 
+             SUM(u.quantity * COALESCE(u.unitPrice, p.unitPrice, 0)) as totalCost
+      FROM order_parts_usage u
+      JOIN work_orders o ON o.id = u.orderId
+      JOIN spare_parts p ON p.id = u.partId
+      WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
+      GROUP BY p.id, p.category, p.name
+      ORDER BY totalCost DESC
+    `, `
+      SELECT p.category, p.name as "partName", SUM(u.quantity) as "totalQuantity", 
+             MAX(COALESCE(u."unitPrice", p."unitPrice", 0)) as "unitPrice", 
+             SUM(u.quantity * COALESCE(u."unitPrice", p."unitPrice", 0)) as "totalCost"
+      FROM order_parts_usage u
+      JOIN work_orders o ON o.id::text = u."orderId"::text
+      JOIN spare_parts p ON p.id::text = u."partId"::text
+      WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
+      GROUP BY p.id, p.category, p.name
+      ORDER BY "totalCost" DESC
+    `, [projectId, startDate, endDate])
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('备件资金消耗汇总')
+    sheet.columns = [
+      { header: '备件分类', key: 'category', width: 16 },
+      { header: '备件名称', key: 'partName', width: 24 },
+      { header: '消耗总数', key: 'totalQuantity', width: 14 },
+      { header: '单价参考', key: 'unitPrice', width: 14 },
+      { header: '资金消耗总额', key: 'totalCost', width: 18 },
+    ]
+    rows.forEach(row => sheet.addRow(row))
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFBEB' } }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+    return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
+  }
+
+  async exportDeviceReliability(projectId: string, startDate: string, endDate: string) {
+    const rows = await this.query(`
+      SELECT COALESCE(d.manufacturer, '未知') as manufacturer, d.category, 
+             COUNT(DISTINCT d.id) as totalDevices, 
+             COUNT(o.id) as faultCount
+      FROM devices d
+      LEFT JOIN work_orders o ON o.deviceId = d.id AND o.createdAt BETWEEN ? AND ?
+      WHERE d.projectId = ?
+      GROUP BY COALESCE(d.manufacturer, '未知'), d.category
+      ORDER BY faultCount DESC
+    `, `
+      SELECT COALESCE(d.manufacturer, '未知') as manufacturer, d.category, 
+             COUNT(DISTINCT d.id) as "totalDevices", 
+             COUNT(o.id) as "faultCount"
+      FROM devices d
+      LEFT JOIN work_orders o ON o.id::text = o.id::text AND o."deviceId"::text = d.id::text AND o."createdAt" BETWEEN $1 AND $2
+      WHERE d."projectId"::text = $3
+      GROUP BY COALESCE(d.manufacturer, '未知'), d.category
+      ORDER BY "faultCount" DESC
+    `, [startDate, endDate, projectId])
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('设备质量评估汇总')
+    sheet.columns = [
+      { header: '品牌/厂家', key: 'manufacturer', width: 20 },
+      { header: '设备分类', key: 'category', width: 16 },
+      { header: '保有量', key: 'totalDevices', width: 14 },
+      { header: '区间故障总数', key: 'faultCount', width: 16 },
+      { header: '区间故障率', key: 'failureRate', width: 14 },
+    ]
+    rows.forEach(row => {
+      const total = Number(row.totalDevices) || 0
+      const faults = Number(row.faultCount) || 0
+      sheet.addRow({
+        ...row,
+        failureRate: total > 0 ? ((faults / total) * 100).toFixed(2) + '%' : '0.00%',
+      })
+    })
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+    return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
+  }
+
+  async exportLocationHeatmap(projectId: string, startDate: string, endDate: string) {
+    const rows = await this.query(`
+      SELECT COALESCE(d.location, o.locationDesc, '未知区域') as location, 
+             COUNT(o.id) as faultCount, 
+             SUM(o.repairCost) as totalCost
+      FROM work_orders o
+      LEFT JOIN devices d ON d.id = o.deviceId
+      WHERE o.projectId = ? AND o.createdAt BETWEEN ? AND ?
+      GROUP BY COALESCE(d.location, o.locationDesc, '未知区域')
+      ORDER BY faultCount DESC
+    `, `
+      SELECT COALESCE(d.location, o."locationDesc", '未知区域') as location, 
+             COUNT(o.id) as "faultCount", 
+             SUM(o."repairCost") as "totalCost"
+      FROM work_orders o
+      LEFT JOIN devices d ON d.id::text = o."deviceId"::text
+      WHERE o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
+      GROUP BY COALESCE(d.location, o."locationDesc", '未知区域')
+      ORDER BY "faultCount" DESC
+    `, [projectId, startDate, endDate])
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('区域故障热力汇总')
+    sheet.columns = [
+      { header: '物理区域', key: 'location', width: 30 },
+      { header: '故障总数', key: 'faultCount', width: 14 },
+      { header: '累计维修成本', key: 'totalCost', width: 18 },
+    ]
+    rows.forEach(row => sheet.addRow(row))
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+    return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
+  }
+
+  async exportDailyKpi(projectId: string, startDate: string, endDate: string) {
+    const rows = await this.query(`
+      SELECT DATE(createdAt) as date,
+             COUNT(id) as newOrders,
+             SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closedOrders,
+             SUM(CASE WHEN isOvertime = 1 OR isOvertime = 'true' THEN 1 ELSE 0 END) as overtimeOrders
+      FROM work_orders
+      WHERE projectId = ? AND createdAt BETWEEN ? AND ?
+      GROUP BY DATE(createdAt)
+      ORDER BY date ASC
+    `, `
+      SELECT DATE("createdAt") as date,
+             COUNT(id) as "newOrders",
+             SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as "closedOrders",
+             SUM(CASE WHEN "isOvertime" = true THEN 1 ELSE 0 END) as "overtimeOrders"
+      FROM work_orders
+      WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3
+      GROUP BY DATE("createdAt")
+      ORDER BY date ASC
+    `, [projectId, startDate, endDate])
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('每日运营走势')
+    sheet.columns = [
+      { header: '日期', key: 'date', width: 16 },
+      { header: '新增工单数', key: 'newOrders', width: 16 },
+      { header: '结案工单数', key: 'closedOrders', width: 16 },
+      { header: '超时告警数', key: 'overtimeOrders', width: 16 },
+    ]
+    rows.forEach(row => sheet.addRow(row))
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+    return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
+  }
+
+  async exportInspectionAnomaly(projectId: string, startDate: string, endDate: string) {
+    const rows = await this.query(`
+      SELECT i.inspectedAt, i.status, i.resultDesc, u.name as inspectorName, p.name as planName, o.orderNo
+      FROM inspection_records i
+      JOIN inspection_plans p ON p.id = i.planId
+      LEFT JOIN users u ON u.id = i.inspectorId
+      LEFT JOIN work_orders o ON o.id = i.orderId
+      WHERE p.projectId = ? AND i.status != 'normal' AND i.inspectedAt BETWEEN ? AND ?
+      ORDER BY i.inspectedAt DESC
+    `, `
+      SELECT i."inspectedAt" as "inspectedAt", i.status, i."resultDesc" as "resultDesc", u.name as "inspectorName", p.name as "planName", o."orderNo" as "orderNo"
+      FROM inspection_records i
+      JOIN inspection_plans p ON p.id::text = i."planId"::text
+      LEFT JOIN users u ON u.id::text = i."inspectorId"::text
+      LEFT JOIN work_orders o ON o.id::text = i."orderId"::text
+      WHERE p."projectId"::text = $1 AND i.status != 'normal' AND i."inspectedAt" BETWEEN $2 AND $3
+      ORDER BY i."inspectedAt" DESC
+    `, [projectId, startDate, endDate])
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('巡检异常统计')
+    sheet.columns = [
+      { header: '巡检时间', key: 'inspectedAt', width: 22 },
+      { header: '所属计划', key: 'planName', width: 24 },
+      { header: '状态', key: 'status', width: 14 },
+      { header: '异常描述', key: 'resultDesc', width: 36 },
+      { header: '巡检人', key: 'inspectorName', width: 16 },
+      { header: '关联工单', key: 'orderNo', width: 20 },
+    ]
+    rows.forEach(row => sheet.addRow({
+      ...row,
+      status: row.status === 'abnormal' ? '异常' : row.status === 'skipped' ? '跳过/漏检' : row.status,
+    }))
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } }
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+    return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
+  }
+
   async exportMonthlyPdfReport(projectId: string, year: number, month: number) {
     const PDFDocument = (await import('pdfkit')).default
     const path = await import('path')

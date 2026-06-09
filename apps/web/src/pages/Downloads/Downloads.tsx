@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, Package, Wrench, Users, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { Download, FileText, Package, Wrench, Users, AlertTriangle, FileSpreadsheet, DollarSign, Activity, MapPin, TrendingUp, ShieldAlert } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import styles from '../CommonAdmin.module.css';
 
@@ -73,6 +73,36 @@ export default function Downloads() {
       action: () => {
         apiClient.download(`/reports/export/devices.xlsx`, `w-light-devices-${today()}.xlsx`);
       },
+    },
+    {
+      title: '备件资金消耗汇总表',
+      desc: '按备件分类汇总的资金消耗大表，包含每种备件的花费总额。',
+      icon: <DollarSign size={24} className={styles.textWarning} />,
+      action: () => handleDownload('financial-consumption.xlsx', 'financial-consumption'),
+    },
+    {
+      title: '设备质量评估汇总表',
+      desc: '分析不同品牌/型号设备的故障率，作为下次采购的参考依据。',
+      icon: <Activity size={24} className={styles.textSuccess} />,
+      action: () => handleDownload('device-reliability.xlsx', 'device-reliability'),
+    },
+    {
+      title: '区域故障热力汇总表',
+      desc: '统计不同物理区域的故障高发频次，精准暴露环境隐患。',
+      icon: <MapPin size={24} className={styles.textPrimary} />,
+      action: () => handleDownload('location-heatmap.xlsx', 'location-heatmap'),
+    },
+    {
+      title: '每日运营走势大表',
+      desc: '每日新增工单、结案、超时情况宏观走势聚合。',
+      icon: <TrendingUp size={24} className={styles.textSuccess} />,
+      action: () => handleDownload('daily-kpi.xlsx', 'daily-kpi'),
+    },
+    {
+      title: '巡检异常统计汇总表',
+      desc: '专门统计巡检中发现的异常与漏检项，防患于未然。',
+      icon: <ShieldAlert size={24} className={styles.textDanger} />,
+      action: () => handleDownload('inspection-anomaly.xlsx', 'inspection-anomaly'),
     },
   ];
 
