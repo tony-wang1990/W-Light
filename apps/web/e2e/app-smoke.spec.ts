@@ -162,6 +162,10 @@ async function mockApi(page: Page) {
       return response(route, { items: [], total: 0 })
     }
 
+    if (request.method() === 'GET' && path.includes('/sse/orders')) {
+      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: '' })
+    }
+
     return response(route, {})
   })
 }
@@ -316,6 +320,10 @@ async function mockOrderWorkflowApi(page: Page) {
         acceptanceNote: '验收通过',
       }
       return response(route, order)
+    }
+
+    if (request.method() === 'GET' && path.includes('/sse/orders')) {
+      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: '' })
     }
 
     return response(route, {})

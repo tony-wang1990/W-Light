@@ -11,9 +11,9 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { apiClient } from '../../api/client';
+import { apiClient, getApiBaseUrl } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore, getCurrentProjectId } from '../../store/authStore';
 import OrderModal from './components/OrderModal';
 import OrderDetailDrawer from './components/OrderDetailDrawer';
 import styles from './Orders.module.css';
@@ -128,11 +128,12 @@ export default function Orders() {
 
   useEffect(() => {
     const token = useAuthStore.getState().token;
+    const projectId = getCurrentProjectId();
     if (!token) return;
     
     // Connect to SSE using the standard EventSource. 
-    // Note: EventSource doesn't support headers directly in browser, so we pass token via query
-    const url = `${import.meta.env.VITE_API_BASE_URL}/v1/sse/orders?token=${token}`;
+    // Note: EventSource doesn't support headers directly in browser, so we pass token in query.
+    const url = `${getApiBaseUrl()}/v1/sse/orders?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId || '')}`;
     const eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
