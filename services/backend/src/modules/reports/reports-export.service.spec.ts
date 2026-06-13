@@ -111,6 +111,7 @@ describe('ReportsExportService', () => {
 
     const executedSql = ds.query.mock.calls.map(([sql]) => String(sql)).join('\n')
     expect(executedSql).not.toContain('"isOvertime" = 1')
+    expect(executedSql).not.toContain('p.category')
   })
 
   it('generates the monthly PDF report even when aggregate queries return empty rows', async () => {

@@ -9,6 +9,7 @@ interface ClientMetadata {
   version?: string;
   sourceArtifact?: string;
   builtAt?: string;
+  publishedAt?: string;
   commit?: string;
   sha256?: string;
   sizeBytes?: number;
@@ -60,6 +61,11 @@ function formatDate(value?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function buildDateNote(metadata?: ClientMetadata) {
+  if (!metadata?.builtAt || !metadata?.publishedAt || metadata.builtAt === metadata.publishedAt) return '';
+  return ` · 构建 ${formatDate(metadata.builtAt)}`;
 }
 
 function statusBadge(status?: ClientDownloadStatus) {
@@ -227,7 +233,7 @@ export default function Clients() {
                 <span className={styles.muted}>大小：{formatBytes(metadata?.sizeBytes)}</span>
               </div>
               <div className={styles.muted} style={{ marginTop: 8 }}>
-                构建时间：{formatDate(metadata?.builtAt)}{metadata?.sha256 ? ` · SHA256 ${metadata.sha256.slice(0, 12)}...` : ''}
+                发布时间：{formatDate(metadata?.publishedAt || metadata?.builtAt)}{buildDateNote(metadata)}{metadata?.sha256 ? ` · SHA256 ${metadata.sha256.slice(0, 12)}...` : ''}
               </div>
 
               <div style={{ marginTop: 12 }}>

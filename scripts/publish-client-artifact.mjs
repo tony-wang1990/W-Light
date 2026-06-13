@@ -11,7 +11,12 @@ const targets = {
   android: {
     latestName: 'w-light-latest.apk',
     metadataName: 'w-light-android.json',
-    metadataBase: { platform: 'android' },
+    metadataBase: {
+      target: 'android',
+      platform: 'android',
+      minSdk: 24,
+      signing: 'debug-keystore fallback unless W_LIGHT_UPLOAD_* variables are provided',
+    },
   },
   win: {
     latestName: 'W-Light-Setup-latest.exe',
@@ -111,6 +116,10 @@ function sha256(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
 }
 
+function isoNoMillis(date) {
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z')
+}
+
 const targetConfig = targets[target]
 if (!targetConfig) fail(`Unsupported target: ${target || '(missing)'}`)
 if (!artifactFile) fail('Missing --file')
@@ -118,8 +127,11 @@ if (!existsSync(artifactFile)) fail(`Artifact not found: ${artifactFile}`)
 
 mkdirSync(downloadsDir, { recursive: true })
 
+const artifactStats = statSync(artifactFile)
 const latestPath = join(downloadsDir, targetConfig.latestName)
-copyFileSync(artifactFile, latestPath)
+if (resolve(artifactFile) !== resolve(latestPath)) {
+  copyFileSync(artifactFile, latestPath)
+}
 
 const hash = sha256(latestPath)
 const sizeBytes = statSync(latestPath).size
@@ -130,7 +142,8 @@ const metadata = {
   file: targetConfig.latestName,
   version: version || rootVersion(),
   sourceArtifact: basename(artifactFile),
-  builtAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+  builtAt: isoNoMillis(artifactStats.mtime),
+  publishedAt: isoNoMillis(new Date()),
   commit: gitCommit(),
   sha256: hash,
   sizeBytes,

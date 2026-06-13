@@ -318,22 +318,22 @@ export class ReportsExportService {
 
   async exportFinancialConsumption(projectId: string, startDate: string, endDate: string) {
     const rows = await this.query(`
-      SELECT p.category, p.name as partName, SUM(l.quantity) as totalQuantity, 
+      SELECT COALESCE(NULLIF(p.model, ''), '未分类') as category, p.name as partName, SUM(l.quantity) as totalQuantity, 
              MAX(COALESCE(p.unitPrice, 0)) as unitPrice, 
              SUM(l.quantity * COALESCE(p.unitPrice, 0)) as totalCost
       FROM spare_part_logs l
       JOIN spare_parts p ON p.id = l.partId
       WHERE p.projectId = ? AND l.opType = 'outbound' AND l.createdAt BETWEEN ? AND ?
-      GROUP BY p.id, p.category, p.name
+      GROUP BY p.id, COALESCE(NULLIF(p.model, ''), '未分类'), p.name
       ORDER BY totalCost DESC
     `, `
-      SELECT p.category, p.name as "partName", SUM(l.quantity) as "totalQuantity", 
+      SELECT COALESCE(NULLIF(p.model, ''), '未分类') as category, p.name as "partName", SUM(l.quantity) as "totalQuantity", 
              MAX(COALESCE(p."unitPrice", 0)) as "unitPrice", 
              SUM(l.quantity * COALESCE(p."unitPrice", 0)) as "totalCost"
       FROM spare_part_logs l
       JOIN spare_parts p ON p.id::text = l."partId"::text
       WHERE p."projectId"::text = $1 AND l."opType" = 'outbound' AND l."createdAt" BETWEEN $2 AND $3
-      GROUP BY p.id, p.category, p.name
+      GROUP BY p.id, COALESCE(NULLIF(p.model, ''), '未分类'), p.name
       ORDER BY "totalCost" DESC
     `, [projectId, startDate, endDate])
 
