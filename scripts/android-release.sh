@@ -70,29 +70,11 @@ if [[ ! -f "$APK_PATH" ]]; then
 fi
 
 if [[ "$PUBLISH_WEB" -eq 1 ]]; then
-  mkdir -p "$DOWNLOAD_DIR"
-  cp "$APK_PATH" "${DOWNLOAD_DIR}/w-light-latest.apk"
-
-  ARTIFACT_SHA=""
-  if command -v sha256sum >/dev/null 2>&1; then
-    ARTIFACT_SHA="$(sha256sum "${DOWNLOAD_DIR}/w-light-latest.apk" | awk '{print $1}')"
-    echo "${ARTIFACT_SHA}  w-light-latest.apk" > "${DOWNLOAD_DIR}/w-light-latest.apk.sha256"
-  fi
-  ARTIFACT_SIZE="$(wc -c < "${DOWNLOAD_DIR}/w-light-latest.apk" | tr -d ' ')"
-
-  cat > "${DOWNLOAD_DIR}/w-light-android.json" <<JSON
-{
-  "platform": "android",
-  "file": "w-light-latest.apk",
-  "version": "${APP_VERSION}",
-  "builtAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "commit": "$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)",
-  "sha256": "${ARTIFACT_SHA}",
-  "sizeBytes": ${ARTIFACT_SIZE}
-}
-JSON
-
-  echo "Published APK to ${DOWNLOAD_DIR}/w-light-latest.apk"
+  node "${ROOT_DIR}/scripts/publish-client-artifact.mjs" \
+    --target android \
+    --file "$APK_PATH" \
+    --downloads-dir "$DOWNLOAD_DIR" \
+    --version "$APP_VERSION"
 fi
 
 echo "Android release APK: $APK_PATH"

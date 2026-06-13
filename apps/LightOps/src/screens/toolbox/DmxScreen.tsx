@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView,
+  ScrollView, Alert, Clipboard,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import {
@@ -105,6 +105,49 @@ export function DmxScreen() {
       && (conflict.fixtureA === assignment.label || conflict.fixtureB === assignment.label)
     )) ?? false
   )
+
+  const buildPlanText = () => {
+    if (!result) return ''
+
+    const lines = [
+      'W-Light DMX 地址分配方案',
+      `默认起始地址：${startFrom || 1}`,
+      `总通道：${result.totalChannels}ch`,
+      `Universe：${result.universesNeeded}`,
+      `地址冲突：${result.conflicts.length}`,
+      '',
+      '逐台地址：',
+      ...result.assignments.map(assignment => (
+        `${assignment.label} | ${assignment.channels}ch | U${assignment.universe} ${formatAddress(assignment.startAddress)}-${formatAddress(assignment.endAddress)}`
+      )),
+    ]
+
+    if (result.universeUsage.length > 0) {
+      lines.push('', 'Universe 使用率：')
+      result.universeUsage.forEach(usage => {
+        lines.push(`U${usage.universe}: ${usage.usedChannels}/512 (${Math.round(usage.utilization)}%)`)
+      })
+    }
+
+    if (result.conflicts.length > 0) {
+      lines.push('', '冲突：')
+      result.conflicts.forEach(conflict => {
+        lines.push(`U${conflict.universe} ${formatAddress(conflict.addressStart)}-${formatAddress(conflict.addressEnd)}: ${conflict.fixtureA} / ${conflict.fixtureB}`)
+      })
+    }
+
+    if (result.warnings.length > 0) {
+      lines.push('', '提示：', ...result.warnings)
+    }
+
+    return lines.join('\n')
+  }
+
+  const copyPlan = () => {
+    if (!result) return
+    Clipboard.setString(buildPlanText())
+    Alert.alert('已复制', 'DMX 地址方案已复制，可粘贴到工单、备忘或聊天记录。')
+  }
 
   const renderFixture = (fixture: FixtureInput, index: number) => {
     const rowResult = result?.fixtures.find(item => item.id === fixture.id)
@@ -221,7 +264,12 @@ export function DmxScreen() {
 
         {result && (
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>地址汇总</Text>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryTitle}>地址汇总</Text>
+              <TouchableOpacity style={styles.copyPlanBtn} onPress={copyPlan}>
+                <Text style={styles.copyPlanText}>复制方案</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.summaryRow}>
               <SummaryItem label="总通道" value={`${result.totalChannels}ch`} />
               <SummaryItem label="Universe" value={`${result.universesNeeded} 条`} />
@@ -492,7 +540,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: spacing.base,
   },
-  summaryTitle: { fontSize: fontSize.md, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.sm },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  summaryTitle: { fontSize: fontSize.md, fontWeight: '700', color: colors.textPrimary },
+  copyPlanBtn: {
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary + '22',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  copyPlanText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: '800' },
   summaryRow: { flexDirection: 'row', marginBottom: spacing.sm },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontSize: fontSize.lg, fontWeight: '800' },

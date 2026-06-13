@@ -37,18 +37,15 @@ $scriptName = switch ($Target) {
   default { 'dist' }
 }
 
+if ($PublishWeb -and $Target -eq 'current') {
+  throw "PublishWeb requires an explicit -Target win, mac, or linux."
+}
+
 $pattern = switch ($Target) {
   'win' { '*.exe' }
   'mac' { '*.dmg' }
   'linux' { '*.AppImage' }
   default { '*' }
-}
-
-$latestName = switch ($Target) {
-  'win' { 'W-Light-Setup-latest.exe' }
-  'mac' { 'W-Light-latest.dmg' }
-  'linux' { 'W-Light-latest.AppImage' }
-  default { 'W-Light-latest' }
 }
 
 try {
@@ -67,7 +64,6 @@ if (-not $PublishWeb) {
 }
 
 $downloadsDir = Join-Path (Get-Location) 'deploy\downloads'
-New-Item -ItemType Directory -Force -Path $downloadsDir | Out-Null
 
 $artifact = Get-ChildItem -Path 'apps\desktop\dist' -Filter $pattern -File |
   Sort-Object LastWriteTime -Descending |
@@ -77,27 +73,8 @@ if (-not $artifact) {
   throw "No desktop artifact matched $pattern in apps\desktop\dist"
 }
 
-$targetPath = Join-Path $downloadsDir $latestName
-Copy-Item -LiteralPath $artifact.FullName -Destination $targetPath -Force
-
-$hash = Get-FileHash -Algorithm SHA256 -LiteralPath $targetPath
-Set-Content -LiteralPath "$targetPath.sha256" -Value $hash.Hash.ToLowerInvariant() -Encoding utf8
-
-$metadata = [ordered]@{
-  target = $Target
-  file = $latestName
-  version = $appVersion
-  sourceArtifact = $artifact.Name
-  builtAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-  commit = "unknown"
-  sha256 = $hash.Hash.ToLowerInvariant()
-  sizeBytes = (Get-Item -LiteralPath $targetPath).Length
-}
-
-try {
-  $metadata.commit = (git rev-parse --short HEAD).Trim()
-} catch {}
-
-$metadata | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $downloadsDir 'w-light-desktop.json') -Encoding utf8
-
-Write-Host "Published $targetPath"
+Invoke-Checked node (Join-Path (Get-Location) 'scripts\publish-client-artifact.mjs') `
+  --target $Target `
+  --file $artifact.FullName `
+  --downloads-dir $downloadsDir `
+  --version $appVersion

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  FlatList, ScrollView,
+  FlatList, ScrollView, Alert, Clipboard,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import {
@@ -55,6 +55,16 @@ export function MaMacrosScreen() {
         return matchKeyword && matchCategory
       })
     : MA_TERMS.filter(t => termCategory === '全部' || t.category === termCategory)
+
+  const copyTerm = (item: typeof MA_TERMS[number]) => {
+    Clipboard.setString([
+      `${item.cn} = ${item.en}`,
+      item.abbr ? `缩写：${item.abbr}` : undefined,
+      item.category ? `分类：${item.category}` : undefined,
+      item.desc ? `说明：${item.desc}` : undefined,
+    ].filter(Boolean).join('\n'))
+    Alert.alert('已复制', '术语内容已复制。')
+  }
 
   return (
     <View style={styles.container}>
@@ -139,14 +149,14 @@ export function MaMacrosScreen() {
           data={filteredTerms}
           keyExtractor={(_, i) => String(i)}
           renderItem={({ item }) => (
-            <View style={styles.termRow}>
+            <TouchableOpacity style={styles.termRow} onPress={() => copyTerm(item)} activeOpacity={0.75}>
               <View style={styles.termLeft}>
                 <Text style={styles.termCn}>{item.cn}</Text>
                 {item.abbr && <Text style={styles.termAbbr}>{item.abbr}</Text>}
               </View>
               <Text style={styles.termEn}>{item.en}</Text>
               {item.desc && <Text style={styles.termDesc}>{item.desc}</Text>}
-            </View>
+            </TouchableOpacity>
           )}
           contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: 80 }}
         />
@@ -188,6 +198,16 @@ function FilterChips({
 function MacroItem({ macro }: { macro: MaMacro }) {
   const [expanded, setExpanded] = useState(false)
 
+  const copyMacro = () => {
+    Clipboard.setString([
+      macro.name,
+      macro.command,
+      macro.example ? `示例：${macro.example}` : undefined,
+      macro.description,
+    ].filter(Boolean).join('\n'))
+    Alert.alert('已复制', 'MA 宏命令已复制。')
+  }
+
   return (
     <TouchableOpacity
       style={styles.macroCard}
@@ -200,6 +220,9 @@ function MacroItem({ macro }: { macro: MaMacro }) {
           <Text style={styles.macroName}>{macro.name}</Text>
           <Text style={styles.macroCategory}>{macro.category}</Text>
         </View>
+        <TouchableOpacity style={styles.copyMacroBtn} onPress={copyMacro}>
+          <Text style={styles.copyMacroText}>复制</Text>
+        </TouchableOpacity>
         <Text style={styles.macroExpand}>{expanded ? '▲' : '▼'}</Text>
       </View>
 
@@ -308,6 +331,14 @@ const styles = StyleSheet.create({
   macroInfo: { flex: 1 },
   macroName: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textPrimary },
   macroCategory: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  copyMacroBtn: {
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary + '22',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    marginRight: spacing.sm,
+  },
+  copyMacroText: { fontSize: 10, color: colors.primary, fontWeight: '800' },
   macroExpand: { fontSize: 10, color: colors.textMuted },
   commandBox: {
     backgroundColor: '#0D1117',

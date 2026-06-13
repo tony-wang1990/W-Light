@@ -46,17 +46,14 @@ case "$TARGET" in
   win)
     SCRIPT="dist:win"
     PATTERN="*.exe"
-    LATEST_NAME="W-Light-Setup-latest.exe"
     ;;
   mac)
     SCRIPT="dist:mac"
     PATTERN="*.dmg"
-    LATEST_NAME="W-Light-latest.dmg"
     ;;
   linux)
     SCRIPT="dist:linux"
     PATTERN="*.AppImage"
-    LATEST_NAME="W-Light-latest.AppImage"
     ;;
 esac
 
@@ -78,6 +75,11 @@ if [[ "$PUBLISH_WEB" != "1" ]]; then
   exit 0
 fi
 
+if [[ "$TARGET" == "current" ]]; then
+  echo "--publish-web requires an explicit --win, --mac, or --linux target" >&2
+  exit 1
+fi
+
 mkdir -p deploy/downloads
 
 shopt -s nullglob
@@ -89,27 +91,8 @@ if [[ "${#artifacts[@]}" -eq 0 ]]; then
 fi
 
 artifact="$(ls -t "${artifacts[@]}" | head -n 1)"
-cp "$artifact" "deploy/downloads/$LATEST_NAME"
-
-if command -v sha256sum >/dev/null 2>&1; then
-  ARTIFACT_SHA="$(sha256sum "deploy/downloads/$LATEST_NAME" | awk '{print $1}')"
-  echo "$ARTIFACT_SHA  $LATEST_NAME" > "deploy/downloads/$LATEST_NAME.sha256"
-else
-  ARTIFACT_SHA=""
-fi
-ARTIFACT_SIZE="$(wc -c < "deploy/downloads/$LATEST_NAME" | tr -d ' ')"
-
-cat > deploy/downloads/w-light-desktop.json <<JSON
-{
-  "target": "$TARGET",
-  "file": "$LATEST_NAME",
-  "version": "$APP_VERSION",
-  "sourceArtifact": "$(basename "$artifact")",
-  "builtAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "commit": "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)",
-  "sha256": "$ARTIFACT_SHA",
-  "sizeBytes": $ARTIFACT_SIZE
-}
-JSON
-
-echo "Published deploy/downloads/$LATEST_NAME"
+node "${ROOT_DIR}/scripts/publish-client-artifact.mjs" \
+  --target "$TARGET" \
+  --file "$artifact" \
+  --downloads-dir "${ROOT_DIR}/deploy/downloads" \
+  --version "$APP_VERSION"
