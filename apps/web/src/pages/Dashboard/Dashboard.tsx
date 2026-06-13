@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, AlertTriangle, Lightbulb, Package, Users } from 'lucide-react';
 import {
@@ -85,6 +85,15 @@ function toNumber(value: unknown) {
   return Number(value) || 0;
 }
 
+function toPercent(value: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((value / total) * 100)));
+}
+
+function maxFrom<T>(rows: T[], pick: (row: T) => number) {
+  return Math.max(1, ...rows.map(pick));
+}
+
 function normalizeTrend(rows: WeeklyTrendRow[]) {
   return rows.map(row => ({
     name: row.date_str ? `${dayNames[Number(row.day_of_week) || 0]} ${String(row.date_str).slice(5)}` : dayNames[Number(row.day_of_week) || 0],
@@ -161,6 +170,17 @@ export default function Dashboard() {
     { title: '今日已巡检', value: todayInspections || '-', icon: Lightbulb, color: '#059669', bgColor: 'rgba(5,150,105,0.1)' },
     { title: '超时工单', value: operations?.overview.overtimeOrders ?? '-', icon: Users, color: '#F97316', bgColor: 'rgba(249,115,22,0.1)' },
   ], [engineerCount, operations, todayInspections]);
+
+  const closedRate = operations ? toPercent(operations.overview.closedOrders, operations.overview.totalOrders) : 0;
+  const openOrders = operations ? Math.max(operations.overview.totalOrders - operations.overview.closedOrders, 0) : 0;
+  const faultMax = maxFrom(operations?.faultTypes || [], row => toNumber(row.count));
+  const repeatFaultMax = maxFrom(operations?.repeatFaultDevices || [], row => toNumber(row.fault_count));
+  const partsMax = maxFrom(operations?.partsConsumption || [], row => toNumber(row.consumed_quantity));
+  const riskItems = [
+    { label: '超时工单', value: overdueOrders.length, tone: 'danger', detail: '需要优先派单或催办' },
+    { label: '低库存备件', value: lowStockParts.length, tone: 'warning', detail: '低于安全库存线' },
+    { label: '重复故障设备', value: operations?.repeatFaultDevices.length || 0, tone: 'info', detail: '近 30 天多次报修' },
+  ];
 
   return (
     <div className={styles.container}>
@@ -276,56 +296,154 @@ export default function Dashboard() {
       </div>
 
       {operations && (
-        <div className={styles.reportGrid}>
-          <ReportCard title="故障类型排行" badge={`${operations.overview.faultOrders} 个故障工单`}>
-            {operations.faultTypes.length > 0 ? operations.faultTypes.map(row => (
-              <div key={row.fault_type} className={styles.tableRow}>
-                <span>{row.fault_type}</span>
-                <strong>{toNumber(row.count)} 次</strong>
+        <div className={styles.insightGrid}>
+          <InsightCard title="闭环健康度" badge="近 30 天">
+            <div className={styles.healthPanel}>
+              <div className={styles.gauge} style={{ '--gauge-value': `${closedRate}%` } as CSSProperties}>
+                <div className={styles.gaugeInner}>
+                  <strong>{closedRate}%</strong>
+                  <span>闭环率</span>
+                </div>
               </div>
-            )) : <span className={styles.emptyText}>暂无故障数据</span>}
-          </ReportCard>
+              <div className={styles.progressStack}>
+                <ProgressRow label="已归档" value={operations.overview.closedOrders} total={operations.overview.totalOrders} color="#10B981" />
+                <ProgressRow label="未闭环" value={openOrders} total={operations.overview.totalOrders} color="#F59E0B" />
+                <ProgressRow label="超时" value={operations.overview.overtimeOrders} total={operations.overview.totalOrders} color="#EF4444" />
+              </div>
+            </div>
+          </InsightCard>
 
-          <ReportCard title="重复故障设备" badge="按近 30 天统计">
-            {operations.repeatFaultDevices.length > 0 ? operations.repeatFaultDevices.map(row => (
-              <div key={`${row.device_no}-${row.device_name}`} className={styles.tableRow}>
-                <span>{row.device_no || '未绑定'} · {row.device_name || '未命名设备'}</span>
-                <strong>{toNumber(row.fault_count)} 次</strong>
-              </div>
-            )) : <span className={styles.emptyText}>暂无重复故障</span>}
-          </ReportCard>
+          <InsightCard title="故障类型热度" badge={`${operations.overview.faultOrders} 个故障工单`}>
+            <RankBars
+              emptyText="暂无故障数据"
+              rows={operations.faultTypes.slice(0, 5).map(row => ({
+                key: row.fault_type || 'unknown',
+                label: row.fault_type || '未分类',
+                value: toNumber(row.count),
+                max: faultMax,
+                unit: '次',
+                color: '#EF4444',
+              }))}
+            />
+          </InsightCard>
 
-          <ReportCard title="人员绩效" badge="完工 / 总单 / 平均时长">
-            {operations.engineerPerformance.length > 0 ? operations.engineerPerformance.map(row => (
-              <div key={row.engineer_name || 'unknown'} className={styles.tableRow}>
-                <span>{row.engineer_name || '未命名工程师'}</span>
-                <strong>{toNumber(row.closed_orders)}/{toNumber(row.total_orders)} · {toNumber(row.avg_repair_hours).toFixed(1)}h</strong>
-              </div>
-            )) : <span className={styles.emptyText}>暂无人员数据</span>}
-          </ReportCard>
+          <InsightCard title="重复故障设备" badge="按近 30 天统计">
+            <RankBars
+              emptyText="暂无重复故障"
+              rows={operations.repeatFaultDevices.slice(0, 5).map(row => ({
+                key: `${row.device_no}-${row.device_name}`,
+                label: `${row.device_no || '未绑定'} · ${row.device_name || '未命名设备'}`,
+                value: toNumber(row.fault_count),
+                max: repeatFaultMax,
+                unit: '次',
+                color: '#F97316',
+              }))}
+            />
+          </InsightCard>
 
-          <ReportCard title="备件消耗" badge="按出库统计">
-            {operations.partsConsumption.length > 0 ? operations.partsConsumption.map(row => (
-              <div key={row.part_name} className={styles.tableRow}>
-                <span>{row.part_name}</span>
-                <strong>{toNumber(row.consumed_quantity)} {row.unit || ''}</strong>
-              </div>
-            )) : <span className={styles.emptyText}>暂无备件消耗</span>}
-          </ReportCard>
+          <InsightCard title="人员绩效" badge="完工率 / 平均时长">
+            <RankBars
+              emptyText="暂无人员数据"
+              rows={operations.engineerPerformance.slice(0, 5).map(row => {
+                const totalOrders = toNumber(row.total_orders);
+                const closedOrders = toNumber(row.closed_orders);
+                return {
+                  key: row.engineer_name || 'unknown',
+                  label: row.engineer_name || '未命名工程师',
+                  value: toPercent(closedOrders, totalOrders),
+                  max: 100,
+                  unit: `% · ${closedOrders}/${totalOrders} · ${toNumber(row.avg_repair_hours).toFixed(1)}h`,
+                  color: '#8B5CF6',
+                };
+              })}
+            />
+          </InsightCard>
+
+          <InsightCard title="备件消耗" badge="按出库统计">
+            <RankBars
+              emptyText="暂无备件消耗"
+              rows={operations.partsConsumption.slice(0, 5).map(row => ({
+                key: row.part_name || 'unknown',
+                label: row.part_name || '未命名备件',
+                value: toNumber(row.consumed_quantity),
+                max: partsMax,
+                unit: row.unit || '',
+                color: '#0EA5E9',
+              }))}
+            />
+          </InsightCard>
+
+          <InsightCard title="风险关注" badge="现场优先级">
+            <div className={styles.riskGrid}>
+              {riskItems.map(item => (
+                <button
+                  type="button"
+                  key={item.label}
+                  className={`${styles.riskItem} ${styles[item.tone]}`}
+                  onClick={() => {
+                    if (item.label === '超时工单') navigate('/orders');
+                    if (item.label === '低库存备件') navigate('/parts');
+                    if (item.label === '重复故障设备') navigate('/reports');
+                  }}
+                >
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                  <small>{item.detail}</small>
+                </button>
+              ))}
+            </div>
+          </InsightCard>
         </div>
       )}
     </div>
   );
 }
 
-function ReportCard({ title, badge, children }: { title: string; badge: string; children: ReactNode }) {
+function InsightCard({ title, badge, children }: { title: string; badge: string; children: ReactNode }) {
   return (
     <div className={styles.chartCard}>
       <div className={styles.chartHeader}>
         <h3>{title}</h3>
         <span className={styles.chartBadge}>{badge}</span>
       </div>
-      <div className={styles.tableList}>{children}</div>
+      {children}
+    </div>
+  );
+}
+
+function ProgressRow({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const percent = toPercent(value, total);
+  return (
+    <div className={styles.progressRow}>
+      <div className={styles.progressMeta}>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+      <div className={styles.barTrack}>
+        <span className={styles.barFill} style={{ width: `${percent}%`, backgroundColor: color }} />
+      </div>
+    </div>
+  );
+}
+
+function RankBars({ rows, emptyText }: {
+  rows: Array<{ key: string; label: string; value: number; max: number; unit: string; color: string }>;
+  emptyText: string;
+}) {
+  if (rows.length === 0) return <span className={styles.emptyText}>{emptyText}</span>;
+  return (
+    <div className={styles.rankList}>
+      {rows.map(row => (
+        <div className={styles.rankRow} key={row.key}>
+          <div className={styles.rankTop}>
+            <span>{row.label}</span>
+            <strong>{row.value}{row.unit}</strong>
+          </div>
+          <div className={styles.barTrack}>
+            <span className={styles.barFill} style={{ width: `${toPercent(row.value, row.max)}%`, backgroundColor: row.color }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

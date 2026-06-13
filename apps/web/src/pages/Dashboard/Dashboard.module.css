@@ -67,9 +67,9 @@
   gap: 20px;
 }
 
-.reportGrid {
+.insightGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -159,35 +159,164 @@
   font-weight: 500;
 }
 
-.tableList {
+.healthPanel {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 22px;
 }
 
-.tableRow {
+.gauge {
+  --gauge-value: 0%;
+  width: 136px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, #fff 0 54%, transparent 55%),
+    conic-gradient(#10B981 var(--gauge-value), #E5E7EB 0);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px #F3F4F6;
+}
+
+.gaugeInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+.gaugeInner strong {
+  color: #0F172A;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.gaugeInner span {
+  color: #6B7280;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.progressStack,
+.rankList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+}
+
+.progressRow,
+.rankRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.progressMeta,
+.rankTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #F9FAFB;
-  color: var(--color-text-dark);
+  gap: 14px;
+  color: #4B5563;
   font-size: 13px;
 }
 
-.tableRow span {
+.progressMeta span,
+.rankTop span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tableRow strong {
+.progressMeta strong,
+.rankTop strong {
   flex-shrink: 0;
-  color: #111827;
+  color: #0F172A;
   font-size: 13px;
+}
+
+.barTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EEF2F7;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.riskGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.riskItem {
+  min-height: 132px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #F9FAFB;
+  padding: 14px;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.riskItem:hover {
+  transform: translateY(-1px);
+  background: #fff;
+}
+
+.riskItem span {
+  color: #4B5563;
+  font-size: 13px;
+}
+
+.riskItem strong {
+  color: #0F172A;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.riskItem small {
+  color: #6B7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.danger {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.warning {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.07);
+}
+
+.info {
+  border-color: rgba(14, 165, 233, 0.28);
+  background: rgba(14, 165, 233, 0.06);
 }
 
 .emptyText {
@@ -200,6 +329,10 @@
     grid-template-columns: 1fr;
   }
 
+  .insightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chartCardWide {
     grid-column: span 1;
   }
@@ -208,6 +341,20 @@
 @media (max-width: 760px) {
   .titleRow {
     flex-direction: column;
+  }
+
+  .insightGrid,
+  .riskGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .healthPanel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .gauge {
+    align-self: center;
   }
 }
 
