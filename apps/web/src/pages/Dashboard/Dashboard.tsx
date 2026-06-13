@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, Download, Lightbulb, Package, RefreshCw, Users } from 'lucide-react';
+import { Activity, AlertTriangle, Lightbulb, Package, Users } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -115,14 +115,12 @@ export default function Dashboard() {
   const [partsData, setPartsData] = useState<Array<{ name: string; consumed: number }>>([]);
   const [engineerCount, setEngineerCount] = useState(0);
   const [todayInspections, setTodayInspections] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [overdueOrders, setOverdueOrders] = useState<Array<{ id: string; orderNo: string; status: string; faultDesc: string }>>([]);
   const [lowStockParts, setLowStockParts] = useState<Array<{ id: string; name: string; stock: number; minStock: number; unit: string }>>([]);
   const navigate = useNavigate();
 
   const loadDashboard = useCallback(async () => {
-    setLoading(true);
     setError('');
     try {
       const [summary, trend, deviceStatus, partsRank, users, inspectionStats, overdueRes, lowStockRes] = await Promise.all([
@@ -146,8 +144,6 @@ export default function Dashboard() {
       setLowStockParts(Array.isArray(lowStockRes) ? lowStockRes : []);
     } catch (err) {
       setError(getErrorMessage(err, '控制台数据加载失败，请确认已登录、已选择项目并且后端服务正常'));
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -172,14 +168,6 @@ export default function Dashboard() {
         <div>
           <h1 className={styles.pageTitle}>控制台概览</h1>
           <p className={styles.pageSubtitle}>汇总最近 30 天的工单、设备、巡检、备件和维修绩效数据。</p>
-        </div>
-        <div className={styles.headerActions}>
-          <button className={styles.refreshBtn} onClick={loadDashboard} disabled={loading}>
-            <RefreshCw size={14} className={loading ? styles.spin : ''} /> 刷新
-          </button>
-          <button className={styles.refreshBtn} onClick={() => window.location.hash = '#/admin/downloads'}>
-            <Download size={14} /> 数据下载中心
-          </button>
         </div>
       </div>
 
