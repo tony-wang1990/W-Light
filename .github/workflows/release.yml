@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build Client Packages
 
 on:
   push:
@@ -6,15 +6,22 @@ on:
       - main
     tags:
       - 'v*'
+    paths-ignore:
+      - 'deploy/downloads/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: client-packages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +34,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: '17'
 
       - name: Setup pnpm
@@ -38,25 +45,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Android Release
-        run: |
-          cd apps/LightOps/android
-          chmod +x ./gradlew
-          ./gradlew assembleRelease
+      - name: Build and publish Android package metadata
+        run: bash scripts/android-release.sh --publish-web --skip-checks
 
-      - name: Rename APK
-        run: |
-          mv apps/LightOps/android/app/build/outputs/apk/release/app-release.apk w-light-latest.apk
-
-      - name: Upload Artifact
+      - name: Upload Android download-center files
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: w-light-latest.apk
+          name: android-downloads
+          path: |
+            deploy/downloads/w-light-latest.apk
+            deploy/downloads/w-light-latest.apk.sha256
+            deploy/downloads/w-light-android.json
+          if-no-files-found: error
 
   build-windows:
     name: Build Windows Client
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,64 +72,89 @@ jobs:
           node-version: 20
 
       - name: Setup pnpm
+        shell: pwsh
         run: |
           corepack enable
           corepack prepare pnpm@9.15.9 --activate
 
       - name: Install dependencies
+        shell: pwsh
         run: pnpm install --frozen-lockfile
 
-      - name: Build Windows Executable
-        run: pnpm --filter desktop run dist:win
+      - name: Build and publish Windows package metadata
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/desktop-release.ps1 -Target win -PublishWeb
 
-      - name: Locate and Rename EXE
-        shell: bash
-        run: |
-          EXE_PATH=$(find apps/desktop/dist -name "*.exe" | grep -v "unpacked" | head -n 1)
-          echo "Found exe at $EXE_PATH"
-          mv "$EXE_PATH" W-Light-Setup-latest.exe
-
-      - name: Upload Artifact
+      - name: Upload Windows download-center files
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
-          path: W-Light-Setup-latest.exe
+          name: windows-downloads
+          path: |
+            deploy/downloads/W-Light-Setup-latest.exe
+            deploy/downloads/W-Light-Setup-latest.exe.sha256
+            deploy/downloads/w-light-desktop.json
+          if-no-files-found: error
 
-  release:
-    name: Create GitHub Release
-    needs: [build-android, build-windows]
+  publish-download-center:
+    name: Publish packages to download center
+    if: github.ref == 'refs/heads/main'
+    needs:
+      - build-android
+      - build-windows
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download Android Artifact
+      - name: Download built package files
         uses: actions/download-artifact@v4
         with:
-          name: android-apk
+          path: deploy/downloads
+          merge-multiple: true
 
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-exe
-
-      - name: Determine Release Name
-        id: release_name
+      - name: Verify download-center files
         run: |
-          if [ "${{ github.ref_type }}" == "tag" ]; then
-            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
-          else
-            echo "VERSION=v$(date +'%Y.%m.%d')-${{ github.run_number }}" >> $GITHUB_ENV
-          fi
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm downloads:verify -- --strict
 
-      - name: Publish Release
+      - name: Commit updated packages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/downloads
+          if git diff --cached --quiet; then
+            echo "No package changes to publish."
+            exit 0
+          fi
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          git commit -m "chore: publish client packages for ${SHORT_SHA} [skip ci]"
+          git push
+
+  github-release:
+    name: Publish tagged GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build-android
+      - build-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download built package files
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }}
           files: |
-            w-light-latest.apk
-            W-Light-Setup-latest.exe
+            release-files/w-light-latest.apk
+            release-files/W-Light-Setup-latest.exe
           draft: false
           prerelease: false
           generate_release_notes: true

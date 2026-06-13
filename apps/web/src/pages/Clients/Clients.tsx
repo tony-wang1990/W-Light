@@ -230,6 +230,7 @@ export default function Clients() {
               <div className={styles.actions} style={{ marginTop: 12 }}>
                 {statusBadge(status)}
                 <span className={styles.muted}>版本：{metadata?.version || metadata?.commit || '内部测试版'}</span>
+                <span className={styles.muted}>包内代码：{metadata?.commit || '未记录'}</span>
                 <span className={styles.muted}>大小：{formatBytes(metadata?.sizeBytes)}</span>
               </div>
               <div className={styles.muted} style={{ marginTop: 8 }}>

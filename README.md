@@ -182,6 +182,24 @@ corepack pnpm downloads:verify -- --strict
 
 下载中心会自动读取这些元数据展示版本、构建时间、文件大小和校验值。
 
+## 自动打包客户端
+
+仓库已配置 GitHub Actions 自动打包流程：每次代码推送到 `main` 后，会自动构建 Android APK 和 Windows EXE，并把最新安装包、SHA256 和版本 JSON 提交回 `deploy/downloads`。
+
+自动流程产物：
+- `deploy/downloads/w-light-latest.apk`
+- `deploy/downloads/w-light-latest.apk.sha256`
+- `deploy/downloads/w-light-android.json`
+- `deploy/downloads/W-Light-Setup-latest.exe`
+- `deploy/downloads/W-Light-Setup-latest.exe.sha256`
+- `deploy/downloads/w-light-desktop.json`
+
+注意事项：
+- GitHub Actions 打包需要几分钟，代码推送后要等 Actions 完成并产生 `chore: publish client packages ...` 提交。
+- 下载中心会显示 `包内代码` 提交号。这个提交号等于最新业务代码提交时，说明 APK/EXE 已经是最新代码构建。
+- 自动提交的 `deploy/downloads` 文件不会再次触发 CI/打包，避免循环构建。
+- 服务器需要在自动打包完成后执行 `git pull` 和部署命令，才能把最新安装包同步到线上下载中心。
+
 ## 备份与恢复
 
 执行一次完整备份：
