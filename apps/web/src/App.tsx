@@ -15,6 +15,21 @@ import Reports from './pages/Reports/Reports';
 import Clients from './pages/Clients/Clients';
 import ScanPage from './pages/Scan/ScanPage';
 
+export const PROTECTED_ROUTES = [
+  { path: '/dashboard', element: <Dashboard /> },
+  { path: '/projects', element: <Projects /> },
+  { path: '/devices', element: <Devices /> },
+  { path: '/orders', element: <Orders /> },
+  { path: '/maintenance', element: <Maintenance /> },
+  { path: '/parts', element: <Parts /> },
+  { path: '/inspections', element: <Inspections /> },
+  { path: '/reports', element: <Reports /> },
+  { path: '/downloads', element: <Downloads /> },
+  { path: '/users', element: <Users /> },
+  { path: '/toolbox', element: <Toolbox /> },
+  { path: '/clients', element: <Clients /> },
+] as const;
+
 function App() {
   const Router = ['file:', 'wlight:'].includes(window.location.protocol) ? HashRouter : BrowserRouter;
 
@@ -25,18 +40,9 @@ function App() {
         {/* 公开扫码页（无需登录） */}
         <Route path="/scan/:qrCode" element={<ScanPage />} />
         <Route element={<AdminLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/devices" element={<Devices />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/maintenance" element={<Maintenance />} />
-          <Route path="/parts" element={<Parts />} />
-          <Route path="/inspections" element={<Inspections />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/downloads" element={<Downloads />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/toolbox" element={<Toolbox />} />
-          <Route path="/clients" element={<Clients />} />
+          {PROTECTED_ROUTES.map(route => (
+            <Route key={route.path} path={route.path} element={route.element} />
+          ))}
         </Route>
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>

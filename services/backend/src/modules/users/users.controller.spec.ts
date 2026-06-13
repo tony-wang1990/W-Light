@@ -1,60 +1,64 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
-import { UserRole } from './entities/user.entity'
 import { UsersController } from './users.controller'
-import { UsersService } from './users.service'
+import { UserRole } from './entities/user.entity'
 
-const PROJECT_A = '11111111-1111-4111-8111-111111111111'
-const PROJECT_B = '22222222-2222-4222-8222-222222222222'
+const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 
-describe('UsersController', () => {
-  let usersService: jest.Mocked<UsersService>
-  let controller: UsersController
+function createController() {
+  const usersService = {
+    findAll: jest.fn(async () => []),
+  }
 
-  beforeEach(() => {
-    usersService = {
-      findAll: jest.fn(),
-      findOne: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      remove: jest.fn(),
-    } as unknown as jest.Mocked<UsersService>
-    controller = new UsersController(usersService)
+  return {
+    controller: new UsersController(usersService as never),
+    usersService,
+  }
+}
+
+function request(role: UserRole, projectIds: string[] = [PROJECT_ID], headers: Record<string, unknown> = {}) {
+  return {
+    user: {
+      id: 'user-1',
+      role,
+      projectIds,
+    },
+    headers,
+  }
+}
+
+describe('UsersController permission hardening', () => {
+  it('requires project context when a non-admin lists users', () => {
+    const { controller } = createController()
+
+    expect(() => controller.findAll(request(UserRole.ENGINEER) as never))
+      .toThrow(BadRequestException)
   })
 
-  it('uses the project query parameter when listing users', async () => {
-    const req = {
-      headers: { 'x-project-id': PROJECT_B },
-      user: { role: UserRole.ADMIN, projectIds: [] },
-    }
-    usersService.findAll.mockResolvedValue([])
+  it('blocks workload metrics for non-admin users', () => {
+    const { controller } = createController()
 
-    await controller.findAll(req, PROJECT_A, '1', UserRole.ENGINEER)
-
-    expect(usersService.findAll).toHaveBeenCalledWith(
-      PROJECT_A,
-      true,
-      req.user,
-      UserRole.ENGINEER,
-    )
+    expect(() => controller.findAll(
+      request(UserRole.ENGINEER, [PROJECT_ID], { 'x-project-id': PROJECT_ID }) as never,
+      undefined,
+      'true',
+    )).toThrow(ForbiddenException)
   })
 
-  it('falls back to X-Project-Id and rejects users outside that project', () => {
-    const req = {
-      headers: { 'x-project-id': PROJECT_B },
-      user: { role: UserRole.ENGINEER, projectIds: [PROJECT_A] },
-    }
+  it('allows project-scoped basic user lists for authenticated project members', async () => {
+    const { controller, usersService } = createController()
+    const req = request(UserRole.ENGINEER, [PROJECT_ID], { 'x-project-id': PROJECT_ID })
 
-    expect(() => controller.findAll(req, undefined, undefined, undefined)).toThrow(ForbiddenException)
-    expect(usersService.findAll).not.toHaveBeenCalled()
+    await expect(controller.findAll(req as never, undefined, undefined, UserRole.ENGINEER)).resolves.toEqual([])
+
+    expect(usersService.findAll).toHaveBeenCalledWith(PROJECT_ID, false, req.user, UserRole.ENGINEER)
   })
 
-  it('rejects malformed project ids before they reach service queries', () => {
-    const req = {
-      headers: { 'x-project-id': 'project-a' },
-      user: { role: UserRole.ADMIN, projectIds: [] },
-    }
+  it('allows admins to request workload metrics', async () => {
+    const { controller, usersService } = createController()
+    const req = request(UserRole.ADMIN)
 
-    expect(() => controller.findAll(req, undefined, 'true', undefined)).toThrow(BadRequestException)
-    expect(usersService.findAll).not.toHaveBeenCalled()
+    await expect(controller.findAll(req as never, PROJECT_ID, 'true')).resolves.toEqual([])
+
+    expect(usersService.findAll).toHaveBeenCalledWith(PROJECT_ID, true, req.user, undefined)
   })
 })

@@ -126,10 +126,10 @@ export default function Dashboard() {
     setError('');
     try {
       const [summary, trend, deviceStatus, partsRank, users, inspectionStats, overdueRes, lowStockRes] = await Promise.all([
-        apiClient.get<OperationsSummary>(`/reports/operations-summary?startDate=${daysAgo(30)}&endDate=${today()}`),
-        apiClient.get<WeeklyTrendRow[]>('/reports/weekly-trend'),
-        apiClient.get<DeviceStatusRow[]>('/reports/device-status'),
-        apiClient.get<PartRankRow[]>('/reports/parts-rank'),
+        apiClient.get<OperationsSummary>(`/reports/operations-summary?startDate=${daysAgo(30)}&endDate=${today()}`).catch(() => null),
+        apiClient.get<WeeklyTrendRow[]>('/reports/weekly-trend').catch(() => []),
+        apiClient.get<DeviceStatusRow[]>('/reports/device-status').catch(() => []),
+        apiClient.get<PartRankRow[]>('/reports/parts-rank').catch(() => []),
         apiClient.get<{ items?: Array<{ id: string }> } | Array<{ id: string }>>('/users?role=engineer&pageSize=200'),
         apiClient.get<{ totalPlans?: number; todayRecords?: number }>('/inspections/stats'),
         apiClient.get<{ items: Array<{ id: string; orderNo: string; status: string; faultDesc: string }> }>('/orders/overdue').catch(() => ({ items: [] })),

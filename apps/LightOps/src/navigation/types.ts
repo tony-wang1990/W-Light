@@ -24,8 +24,6 @@ export type OrdersStackParamList = {
     initialFaultDesc?: string
   } | undefined;
   OrderRepair: { orderId: string };
-  AddRepairLog: { orderId: string };
-  AssignOrder: { orderId: string };
 };
 
 // Toolbox Stack
@@ -40,7 +38,6 @@ export type ToolboxStackParamList = {
   RgbColor: undefined;
   LightLayout: undefined;
   Theory: undefined;
-  Illuminance: undefined;
   Diagnosis: undefined;
   MaMacros: undefined;
   Terms: undefined;
@@ -52,15 +49,11 @@ export type RecordsStackParamList = {
   RecordsList: { initialTab?: 'devices' | 'parts' | 'inspections' } | undefined;
   DeviceDetail: { deviceId: string };
   DeviceCreate: { deviceId?: string } | undefined;
-  RecordDetail: { orderId: string };
 };
 
 // Profile Stack
 export type ProfileStackParamList = {
   ProfileMain: undefined;
-  EditProfile: undefined;
-  ChangePassword: undefined;
-  Settings: undefined;
 };
 
 // Main Tabs

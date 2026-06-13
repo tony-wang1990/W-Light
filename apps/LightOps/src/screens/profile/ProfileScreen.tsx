@@ -1,22 +1,32 @@
 import React, { useCallback, useState } from 'react'
-import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Switch } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import {
   getOfflineQueue,
   getOfflineQueueSummary,
+  isOfflineAutoSyncEnabled,
   removeOfflineQueueItem,
+  setOfflineAutoSyncEnabled,
   syncOfflineQueue,
   type OfflineQueueItem,
   type OfflineQueueSummary,
 } from '../../offline/offlineQueue'
+import { API_BASE_URL_STORAGE_KEY, DEFAULT_API_BASE_URL, isValidApiBaseUrl, normalizeApiBaseUrl } from '../../config/api'
+import { secureStorage } from '../../storage/secureStorage'
+
+type SettingsPanelKey = 'sync' | 'server' | 'about'
+type SettingsPanel = SettingsPanelKey | null
 
 export function ProfileScreen() {
   const { user, logout } = useAuthStore()
   const [queueSummary, setQueueSummary] = useState<OfflineQueueSummary>(() => getOfflineQueueSummary())
   const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>(() => getOfflineQueue())
   const [syncing, setSyncing] = useState(false)
+  const [activePanel, setActivePanel] = useState<SettingsPanel>(null)
+  const [autoSyncEnabled, setAutoSyncEnabledState] = useState(() => isOfflineAutoSyncEnabled())
+  const [serverUrl, setServerUrl] = useState(() => secureStorage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL)
 
   const refreshQueueSummary = useCallback(() => {
     setQueueSummary(getOfflineQueueSummary())
@@ -78,6 +88,29 @@ export function ProfileScreen() {
       },
     ])
   }
+
+  const handleToggleAutoSync = (enabled: boolean) => {
+    setOfflineAutoSyncEnabled(enabled)
+    setAutoSyncEnabledState(enabled)
+  }
+
+  const handleSaveServerUrl = () => {
+    if (!isValidApiBaseUrl(serverUrl)) {
+      Alert.alert('服务器地址无效', '请输入 http:// 或 https:// 开头的服务器地址。')
+      return
+    }
+
+    const normalized = normalizeApiBaseUrl(serverUrl)
+    secureStorage.set(API_BASE_URL_STORAGE_KEY, normalized)
+    setServerUrl(normalized)
+    Alert.alert('服务器地址已保存', `当前手机端将连接：${normalized}`)
+  }
+
+  const settingsItems: Array<{ key: SettingsPanelKey; icon: string; label: string }> = [
+    { key: 'sync', icon: '↻', label: '同步与通知设置' },
+    { key: 'server', icon: '◎', label: '服务器配置' },
+    { key: 'about', icon: 'i', label: '关于 W-Light' },
+  ]
 
   return (
     <View style={styles.container}>
@@ -177,13 +210,70 @@ export function ProfileScreen() {
             { icon: '🌐', label: '服务器配置' },
             { icon: '📱', label: '关于 W-Light' },
           ].map((item, i) => (
-            <TouchableOpacity key={i} style={styles.menuItem}>
+            <TouchableOpacity
+              key={i}
+              style={styles.menuItem}
+              onPress={() => {
+                const nextPanel = settingsItems[i]?.key || null
+                setActivePanel(activePanel === nextPanel ? null : nextPanel)
+              }}
+            >
               <Text style={styles.menuIcon}>{item.icon}</Text>
               <Text style={styles.menuLabel}>{item.label}</Text>
               <Text style={styles.menuArrow}>›</Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {activePanel === 'sync' && (
+          <View style={styles.section}>
+            <View style={styles.settingsPanel}>
+              <Text style={styles.panelTitle}>同步与通知设置</Text>
+              <View style={styles.settingRow}>
+                <View style={styles.settingTextBlock}>
+                  <Text style={styles.menuLabel}>网络恢复后自动同步</Text>
+                  <Text style={styles.panelText}>开启后，离线创建的工单和维修记录会在网络恢复时自动提交。</Text>
+                </View>
+                <Switch value={autoSyncEnabled} onValueChange={handleToggleAutoSync} />
+              </View>
+              <Text style={styles.panelText}>当前待同步：{queueSummary.total} 条，冲突：{queueSummary.conflicts} 条。</Text>
+            </View>
+          </View>
+        )}
+
+        {activePanel === 'server' && (
+          <View style={styles.section}>
+            <View style={styles.settingsPanel}>
+              <Text style={styles.panelTitle}>服务器配置</Text>
+              <Text style={styles.panelText}>填写云端 API 地址，例如 http://服务器IP:3005/v1。</Text>
+              <TextInput
+                style={styles.input}
+                value={serverUrl}
+                onChangeText={setServerUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                placeholder="http://服务器IP:3005/v1"
+                placeholderTextColor={colors.textMuted}
+              />
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveServerUrl}>
+                <Text style={styles.saveButtonText}>保存服务器地址</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {activePanel === 'about' && (
+          <View style={styles.section}>
+            <View style={styles.settingsPanel}>
+              <Text style={styles.panelTitle}>关于 W-Light</Text>
+              <Text style={styles.panelText}>版本：v1.0.0</Text>
+              <Text style={styles.panelText}>角色：{user?.role || '-'}</Text>
+              <Text style={styles.panelText}>当前服务器：{normalizeApiBaseUrl(secureStorage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL)}</Text>
+              <Text style={styles.panelText}>定位：文旅灯光运维闭环、移动工单、设备台账和灯光师工具箱。</Text>
+            </View>
+          </View>
+        )}
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -331,6 +421,36 @@ const styles = StyleSheet.create({
   menuIcon: { fontSize: 20, marginRight: spacing.md },
   menuLabel: { flex: 1, fontSize: fontSize.md, color: colors.textPrimary },
   menuArrow: { fontSize: fontSize.lg, color: colors.textMuted },
+  settingsPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  panelTitle: { fontSize: fontSize.md, color: colors.textPrimary, fontWeight: '800', marginBottom: spacing.sm },
+  panelText: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
+  settingTextBlock: { flex: 1 },
+  input: {
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+  },
+  saveButton: {
+    height: 42,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    marginTop: spacing.sm,
+  },
+  saveButtonText: { fontSize: fontSize.sm, color: colors.white, fontWeight: '800' },
   // Logout
   logoutBtn: {
     marginHorizontal: spacing.base,

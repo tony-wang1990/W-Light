@@ -8,7 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import { RootNavigator } from './src/navigation/RootNavigator';
-import { syncOfflineQueue, getOfflineQueue } from './src/offline/offlineQueue';
+import { syncOfflineQueue, getOfflineQueue, isOfflineAutoSyncEnabled } from './src/offline/offlineQueue';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +24,7 @@ function App(): React.JSX.Element {
   React.useEffect(() => {
     // 监听网络状态，当网络恢复且存在离线任务时，自动触发后台同步
     const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected && state.isInternetReachable !== false) {
+      if (state.isConnected && state.isInternetReachable !== false && isOfflineAutoSyncEnabled()) {
         const queue = getOfflineQueue();
         if (queue.length > 0) {
           syncOfflineQueue().catch(() => undefined);

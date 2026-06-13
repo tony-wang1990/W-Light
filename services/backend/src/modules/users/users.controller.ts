@@ -74,8 +74,15 @@ export class UsersController {
     @Query('role') role?: UserRole,
   ) {
     const scopedProjectId = normalizeProjectId(projectId || req.headers['x-project-id'])
+    const wantsWorkload = includeWorkload === 'true' || includeWorkload === '1'
+    if (req.user.role !== UserRole.ADMIN && !scopedProjectId) {
+      throw new BadRequestException('Project id is required')
+    }
+    if (req.user.role !== UserRole.ADMIN && wantsWorkload) {
+      throw new ForbiddenException('Only admins can include workload metrics')
+    }
     assertProjectAccess(req, scopedProjectId)
-    return this.usersService.findAll(scopedProjectId, includeWorkload === 'true' || includeWorkload === '1', req.user, role)
+    return this.usersService.findAll(scopedProjectId, wantsWorkload, req.user, role)
   }
 
   @Get(':id')

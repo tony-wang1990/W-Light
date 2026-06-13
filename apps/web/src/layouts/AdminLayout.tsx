@@ -21,7 +21,7 @@ import { apiClient } from '../api/client';
 import { isValidProjectId, useAuthStore } from '../store/authStore';
 import styles from './AdminLayout.module.css';
 
-const MENU_ITEMS = [
+export const MENU_ITEMS = [
   { path: '/dashboard', label: '控制台概览', icon: LayoutDashboard },
   { path: '/orders', label: '工单调度中心', icon: Briefcase },
   { path: '/maintenance', label: '维修记录台账', icon: FileText },

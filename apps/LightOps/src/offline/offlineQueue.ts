@@ -39,6 +39,7 @@ export interface OfflineSyncResult {
 }
 
 const queueKey = 'offline_sync_queue_v1'
+export const OFFLINE_AUTO_SYNC_STORAGE_KEY = 'offline_auto_sync_enabled'
 
 function createQueueId() {
   return `offline_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
@@ -94,6 +95,14 @@ export function getOfflineQueue() {
 export function removeOfflineQueueItem(id: string) {
   const queue = readQueue()
   writeQueue(queue.filter(item => item.id !== id))
+}
+
+export function isOfflineAutoSyncEnabled() {
+  return secureStorage.getString(OFFLINE_AUTO_SYNC_STORAGE_KEY) !== 'false'
+}
+
+export function setOfflineAutoSyncEnabled(enabled: boolean) {
+  secureStorage.set(OFFLINE_AUTO_SYNC_STORAGE_KEY, enabled ? 'true' : 'false')
 }
 
 export function getOfflineQueueSummary(): OfflineQueueSummary {

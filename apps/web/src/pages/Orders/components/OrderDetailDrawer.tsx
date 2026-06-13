@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiClient } from '../../../api/client';
+import { useAuthStore } from '../../../store/authStore';
 import { getErrorMessage } from '../../../utils/errors';
 import styles from './OrderDetailDrawer.module.css';
 
@@ -154,6 +155,7 @@ export default function OrderDetailDrawer({
   const [assignLoading, setAssignLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
   const [error, setError] = useState('');
+  const { user } = useAuthStore();
 
   useEffect(() => {
     setCurrentOrder(order);
@@ -166,6 +168,7 @@ export default function OrderDetailDrawer({
   const statusInfo = STATUS_MAP[status] || { label: currentOrder.status || '未知', color: '#6B7280', bg: '#F3F4F6' };
   const priorityInfo = PRIORITY_MAP[priority] || { label: currentOrder.priority || '未分级', color: '#6B7280' };
   const canAddLog = ['processing', 'reviewing'].includes(status);
+  const isAdmin = user?.role === 'admin';
 
   const fetchRepairLogs = useCallback(async () => {
     try {
@@ -184,13 +187,18 @@ export default function OrderDetailDrawer({
   }, [onUpdated, orderId]);
 
   const fetchUsers = useCallback(async () => {
+    if (!isAdmin) {
+      setUsers([]);
+      return;
+    }
+
     try {
       const res = await apiClient.get<UserOption[] | { items?: UserOption[] }>('/users?pageSize=200');
       setUsers(normalizeList(res).filter(user => ['admin', 'engineer'].includes(user.role || '')));
     } catch {
       setUsers([]);
     }
-  }, []);
+  }, [isAdmin]);
 
   const fetchParts = useCallback(async () => {
     try {
@@ -417,15 +425,15 @@ export default function OrderDetailDrawer({
           <div className={styles.section}>
             <h4 className={styles.sectionTitle}>工单操作</h4>
             <div className={styles.actionButtons}>
-              {status === 'pending' && (
+              {isAdmin && status === 'pending' && (
                 <>
-                  <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={actionDisabled}>
+                  <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={!isAdmin || actionDisabled}>
                     <UserCheck size={14} /> 指派工程师
                   </button>
                   <button className={styles.actionBtn} onClick={handleAssignSelf} disabled={actionDisabled}>
                     指派给我
                   </button>
-                  <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={actionDisabled}>
+                  <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={!isAdmin || actionDisabled}>
                     取消
                   </button>
                 </>
@@ -439,10 +447,10 @@ export default function OrderDetailDrawer({
                   <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('reject', '拒单')} disabled={actionDisabled}>
                     拒单
                   </button>
-                  <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={actionDisabled}>
+                  <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={!isAdmin || actionDisabled}>
                     改派
                   </button>
-                  <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={actionDisabled}>
+                  <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={!isAdmin || actionDisabled}>
                     取消
                   </button>
                 </>
@@ -465,7 +473,7 @@ export default function OrderDetailDrawer({
                 </button>
               )}
 
-              {status === 'reviewing' && (
+              {isAdmin && status === 'reviewing' && (
                 <>
                   <button className={`${styles.actionBtn} ${styles.greenBtn}`} onClick={() => handleAction('accept-check', '验收通过')} disabled={actionDisabled}>
                     <ShieldCheck size={14} /> 验收通过
@@ -477,7 +485,7 @@ export default function OrderDetailDrawer({
               )}
             </div>
 
-            {showAssignPicker && (
+            {isAdmin && showAssignPicker && (
               <div className={styles.assignPicker}>
                 <div className={styles.assignPickerTitle}>选择维修负责人</div>
                 {users.length === 0 ? (

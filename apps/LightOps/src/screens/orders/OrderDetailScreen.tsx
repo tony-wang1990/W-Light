@@ -92,6 +92,7 @@ export function OrderDetailScreen() {
   }
 
   const fetchEngineers = async () => {
+    if (user?.role !== 'admin') return
     try {
       const users = await usersApi.list({ includeWorkload: true })
       setEngineers(users.filter(item => ASSIGNABLE_ROLES.includes(item.role)))
@@ -104,7 +105,7 @@ export function OrderDetailScreen() {
 
   useEffect(() => {
     void fetchEngineers()
-  }, [])
+  }, [user?.role])
 
   const handleAction = async (action: string) => {
     if (!order) return

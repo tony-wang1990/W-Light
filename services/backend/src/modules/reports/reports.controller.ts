@@ -11,6 +11,7 @@ import { normalizeDateRange } from './reports.utils'
 @ApiTags('报表统计')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, ProjectAccessGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.VIEWER)
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly svc: ReportsService) {}

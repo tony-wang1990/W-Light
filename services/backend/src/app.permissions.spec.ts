@@ -24,7 +24,9 @@ function moduleControllers(moduleClass: Type<unknown>) {
 
 function roleMetadata(controller: Type<unknown>, methodName: ControllerMethod) {
   const handler = controller.prototype[methodName]
-  return (Reflect.getMetadata(ROLES_KEY, handler) || []) as UserRole[]
+  return (Reflect.getMetadata(ROLES_KEY, handler)
+    || Reflect.getMetadata(ROLES_KEY, controller)
+    || []) as UserRole[]
 }
 
 function expectRoles(controller: Type<unknown>, methodName: ControllerMethod, roles: UserRole[]) {
@@ -162,7 +164,7 @@ describe('backend API permission matrix', () => {
       'exportMonthlyOperations',
       'exportMonthlyPdf',
     ]) {
-      expectNoRoles(ReportsController, method)
+      expectRoles(ReportsController, method, [UserRole.ADMIN, UserRole.VIEWER])
     }
   })
 

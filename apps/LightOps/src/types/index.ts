@@ -136,8 +136,8 @@ export interface Notification {
 
 // Navigation param types
 export type RootStackParamList = {
-  AuthStack: undefined
-  MainTabs: undefined
+  Auth: undefined
+  Main: undefined
 }
 
 export type AuthStackParamList = {
@@ -152,27 +152,43 @@ export type MainTabParamList = {
   Profile: undefined
 }
 
-export type OrderStackParamList = {
-  OrderList: undefined
+export type OrdersStackParamList = {
+  OrderList: { status?: string; deviceId?: string; title?: string } | undefined
   OrderDetail: { orderId: string }
   OrderCreate: {
     deviceId?: string
-    qrCode?: string
     category?: string
     faultType?: string
     initialFaultDesc?: string
-  }
+  } | undefined
   OrderRepair: { orderId: string }
 }
 
+export type OrderStackParamList = OrdersStackParamList
+
 export type ToolboxStackParamList = {
-  ToolboxHome: undefined
-  Bpm: undefined
+  ToolboxMain: undefined
   Dmx: undefined
-  BeamAngle: undefined
+  FixtureLibrary: undefined
   PowerCalc: undefined
+  BeamAngle: undefined
+  Bpm: undefined
+  Ltc: undefined
+  RgbColor: undefined
+  LightLayout: undefined
+  Theory: undefined
   Diagnosis: undefined
   MaMacros: undefined
   Terms: undefined
   Lux: undefined
+}
+
+export type RecordsStackParamList = {
+  RecordsList: { initialTab?: 'devices' | 'parts' | 'inspections' } | undefined
+  DeviceDetail: { deviceId: string }
+  DeviceCreate: { deviceId?: string } | undefined
+}
+
+export type ProfileStackParamList = {
+  ProfileMain: undefined
 }
