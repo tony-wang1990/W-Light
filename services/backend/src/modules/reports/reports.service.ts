@@ -95,6 +95,10 @@ export class ReportsService {
     return this.exportService.exportMonthlyPdfReport(projectId, year, month)
   }
 
+  exportMonthlyDocxReport(projectId: string, year: number, month: number) {
+    return this.exportService.exportMonthlyDocxReport(projectId, year, month)
+  }
+
   backupProjectData(projectId: string) {
     return this.backupService.backupProjectData(projectId)
   }

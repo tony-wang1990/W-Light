@@ -165,6 +165,7 @@ describe('backend API route mapping', () => {
       [RequestMethod.GET, 'reports/export/daily-kpi.xlsx'],
       [RequestMethod.GET, 'reports/export/inspection-anomaly.xlsx'],
       [RequestMethod.GET, 'reports/export/monthly-operations.xlsx'],
+      [RequestMethod.GET, 'reports/export/monthly-report.docx'],
       [RequestMethod.GET, 'reports/export/monthly-report.pdf'],
       [RequestMethod.GET, 'reports/backup.json'],
       [RequestMethod.POST, 'reports/backup/restore'],

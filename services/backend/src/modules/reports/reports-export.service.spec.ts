@@ -123,4 +123,17 @@ describe('ReportsExportService', () => {
 
     await expect(service.exportMonthlyPdfReport(PROJECT_ID, 2026, 6)).resolves.toEqual(expect.any(Buffer))
   })
+
+  it('generates the monthly DOCX report from the same monthly workbook data', async () => {
+    const ds = {
+      options: { type: 'postgres' },
+      query: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<DataSource>
+    const service = new ReportsExportService(ds)
+
+    const buffer = await service.exportMonthlyDocxReport(PROJECT_ID, 2026, 6)
+
+    expect(Buffer.isBuffer(buffer)).toBe(true)
+    expect(buffer.subarray(0, 2).toString()).toBe('PK')
+  })
 })

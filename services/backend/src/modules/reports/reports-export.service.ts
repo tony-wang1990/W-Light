@@ -3,8 +3,24 @@ import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import * as ExcelJS from 'exceljs'
 import PDFDocument = require('pdfkit')
+import JSZip = require('jszip')
 import { existsSync } from 'fs'
 import * as path from 'path'
+
+interface MonthlyReportSection {
+  name: string
+  headers: string[]
+  rows: string[][]
+}
+
+interface MonthlyReportData {
+  year: number
+  month: number
+  startDate: string
+  endDate: string
+  metrics: Record<string, string>
+  sections: MonthlyReportSection[]
+}
 
 @Injectable()
 export class ReportsExportService {
@@ -828,6 +844,288 @@ export class ReportsExportService {
     return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
   }
 
+  private monthlyDateRange(year: number, month: number) {
+    return {
+      startDate: new Date(year, month - 1, 1).toISOString(),
+      endDate: new Date(year, month, 0, 23, 59, 59, 999).toISOString(),
+    }
+  }
+
+  private cellText(value: ExcelJS.CellValue) {
+    if (value == null) return ''
+    if (value instanceof Date) return value.toISOString().slice(0, 10)
+    if (typeof value === 'object') {
+      if ('text' in value && value.text != null) return String(value.text)
+      if ('richText' in value && Array.isArray(value.richText)) return value.richText.map(part => part.text).join('')
+      if ('result' in value && value.result != null) return this.cellText(value.result as ExcelJS.CellValue)
+      if ('formula' in value) return String(value.formula)
+    }
+    return String(value)
+  }
+
+  private worksheetToSection(sheet: ExcelJS.Worksheet): MonthlyReportSection {
+    const headers = sheet.getRow(1).values as ExcelJS.CellValue[]
+    const normalizedHeaders = headers.slice(1).map(value => this.cellText(value))
+    const rows: string[][] = []
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return
+      const values = row.values as ExcelJS.CellValue[]
+      const normalized = normalizedHeaders.map((_, index) => this.cellText(values[index + 1]))
+      if (normalized.some(value => value !== '')) rows.push(normalized)
+    })
+    return { name: sheet.name, headers: normalizedHeaders, rows }
+  }
+
+  private async loadMonthlyReportData(projectId: string, year: number, month: number): Promise<MonthlyReportData> {
+    const { startDate, endDate } = this.monthlyDateRange(year, month)
+    const workbookBuffer = await this.exportMonthlyOperationsWorkbook(projectId, startDate, endDate)
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(workbookBuffer as unknown as ArrayBuffer)
+
+    const sections = workbook.worksheets.map(sheet => this.worksheetToSection(sheet))
+    const metrics: Record<string, string> = {}
+    const overview = sections.find(section => section.name === '核心指标')
+    overview?.rows.forEach(row => {
+      if (row[0]) metrics[row[0]] = row[1] || ''
+    })
+
+    return { year, month, startDate, endDate, metrics, sections }
+  }
+
+  private section(data: MonthlyReportData, name: string) {
+    return data.sections.find(section => section.name === name)
+  }
+
+  private numeric(value: unknown) {
+    const parsed = Number(String(value ?? '').replace(/[^\d.-]/g, ''))
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  private ratio(value: number, total: number) {
+    if (total <= 0) return 0
+    return Math.min(100, Math.max(0, (value / total) * 100))
+  }
+
+  private barText(value: number, total: number, width = 18) {
+    const percent = this.ratio(value, total)
+    const filled = Math.round((percent / 100) * width)
+    return `${'█'.repeat(filled)}${'░'.repeat(width - filled)} ${percent.toFixed(1)}%`
+  }
+
+  private escapeXml(value: unknown) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
+  }
+
+  private ensurePdfSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
+    if (doc.y + neededHeight > doc.page.height - doc.page.margins.bottom) doc.addPage()
+  }
+
+  private drawPdfSectionTitle(doc: PDFKit.PDFDocument, title: string) {
+    this.ensurePdfSpace(doc, 44)
+    doc.moveDown(0.7)
+    doc.fontSize(15).fillColor('#0F172A').text(title, { continued: false })
+    doc.moveTo(doc.page.margins.left, doc.y + 5)
+      .lineTo(doc.page.width - doc.page.margins.right, doc.y + 5)
+      .strokeColor('#E5E7EB')
+      .stroke()
+    doc.moveDown(0.8)
+  }
+
+  private drawPdfKpiCards(doc: PDFKit.PDFDocument, data: MonthlyReportData) {
+    const metrics = [
+      ['工单总数', data.metrics['工单总数'] || '0'],
+      ['闭环率', data.metrics['闭环率'] || '0%'],
+      ['超时工单', data.metrics['超时工单'] || '0'],
+      ['维修总成本', `¥${data.metrics['维修总成本'] || '0.00'}`],
+      ['平均维修时长', data.metrics['平均维修时长'] || '0 h'],
+      ['平均响应时长', data.metrics['平均响应时长'] || '0 h'],
+    ]
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
+    const gap = 10
+    const cardWidth = (pageWidth - gap * 2) / 3
+    const cardHeight = 58
+    let x = doc.page.margins.left
+    let y = doc.y
+
+    metrics.forEach(([label, value], index) => {
+      if (index > 0 && index % 3 === 0) {
+        x = doc.page.margins.left
+        y += cardHeight + gap
+      }
+      doc.roundedRect(x, y, cardWidth, cardHeight, 8).fillAndStroke('#F8FAFC', '#E5E7EB')
+      doc.fontSize(9).fillColor('#64748B').text(label, x + 12, y + 11, { width: cardWidth - 24 })
+      doc.fontSize(17).fillColor('#0F172A').text(value, x + 12, y + 29, { width: cardWidth - 24 })
+      x += cardWidth + gap
+    })
+    doc.y = y + cardHeight + 8
+  }
+
+  private drawPdfBars(
+    doc: PDFKit.PDFDocument,
+    title: string,
+    section: MonthlyReportSection | undefined,
+    labelHeader: string,
+    valueHeader: string,
+    color: string,
+    limit = 8,
+  ) {
+    this.drawPdfSectionTitle(doc, title)
+    if (!section || section.rows.length === 0) {
+      doc.fontSize(10).fillColor('#94A3B8').text('暂无数据')
+      return
+    }
+    const labelIndex = section.headers.indexOf(labelHeader)
+    const valueIndex = section.headers.indexOf(valueHeader)
+    const rows = section.rows.slice(0, limit)
+    const max = Math.max(1, ...rows.map(row => this.numeric(row[valueIndex])))
+    const x = doc.page.margins.left
+    const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
+
+    rows.forEach(row => {
+      this.ensurePdfSpace(doc, 28)
+      const value = this.numeric(row[valueIndex])
+      const barWidth = Math.max(6, (value / max) * (width - 190))
+      const y = doc.y
+      doc.fontSize(9).fillColor('#334155').text(row[labelIndex] || '未命名', x, y, { width: 142, ellipsis: true })
+      doc.roundedRect(x + 150, y + 2, width - 205, 9, 5).fill('#EEF2F7')
+      doc.roundedRect(x + 150, y + 2, barWidth, 9, 5).fill(color)
+      doc.fontSize(9).fillColor('#0F172A').text(String(row[valueIndex] || 0), x + width - 48, y - 1, { width: 48, align: 'right' })
+      doc.y = y + 22
+    })
+  }
+
+  private drawPdfTable(doc: PDFKit.PDFDocument, title: string, section: MonthlyReportSection | undefined, limit = 8) {
+    this.drawPdfSectionTitle(doc, title)
+    if (!section || section.rows.length === 0) {
+      doc.fontSize(10).fillColor('#94A3B8').text('暂无数据')
+      return
+    }
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
+    const columns = section.headers.slice(0, 5)
+    const colWidth = pageWidth / columns.length
+    const startX = doc.page.margins.left
+    const drawRow = (cells: string[], fill: string) => {
+      this.ensurePdfSpace(doc, 25)
+      const y = doc.y
+      cells.forEach((cell, index) => {
+        const x = startX + index * colWidth
+        doc.rect(x, y, colWidth, 22).fillAndStroke(fill, '#E5E7EB')
+        doc.fontSize(8).fillColor('#0F172A')
+        doc.text(cell || '-', x + 5, y + 6, { width: colWidth - 10, height: 12, ellipsis: true })
+      })
+      doc.y = y + 22
+    }
+    drawRow(columns, '#F1F5F9')
+    section.rows.slice(0, limit).forEach(row => drawRow(row.slice(0, 5), '#FFFFFF'))
+  }
+
+  private docxParagraph(text: string, style = 'Normal') {
+    const styleXml = style ? `<w:pStyle w:val="${style}"/>` : ''
+    return `<w:p><w:pPr>${styleXml}<w:spacing w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">${this.escapeXml(text)}</w:t></w:r></w:p>`
+  }
+
+  private docxTable(headers: string[], rows: string[][], limit = 12) {
+    const widths = headers.map(() => Math.floor(9360 / Math.max(1, headers.length)))
+    const cell = (text: string, width: number, fill = 'FFFFFF', bold = false) => `
+      <w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:shd w:fill="${fill}"/><w:tcMar><w:top w:w="90" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tcMar></w:tcPr>
+      <w:p><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft YaHei"/>${bold ? '<w:b/>' : ''}<w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${this.escapeXml(text || '-')}</w:t></w:r></w:p></w:tc>`
+    const rowXml = (cells: string[], fill = 'FFFFFF', bold = false) => `<w:tr>${headers.map((_, index) => cell(cells[index] || '', widths[index], fill, bold)).join('')}</w:tr>`
+    return `
+      <w:tbl>
+        <w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="E5E7EB"/><w:left w:val="single" w:sz="4" w:color="E5E7EB"/><w:bottom w:val="single" w:sz="4" w:color="E5E7EB"/><w:right w:val="single" w:sz="4" w:color="E5E7EB"/><w:insideH w:val="single" w:sz="4" w:color="E5E7EB"/><w:insideV w:val="single" w:sz="4" w:color="E5E7EB"/></w:tblBorders></w:tblPr>
+        <w:tblGrid>${widths.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>
+        ${rowXml(headers, 'EAF2FF', true)}
+        ${rows.slice(0, limit).map(row => rowXml(row)).join('')}
+      </w:tbl>
+      <w:p/>`
+  }
+
+  private buildDocxDocumentXml(data: MonthlyReportData) {
+    const overview = this.section(data, '核心指标')
+    const fault = this.section(data, '故障类型')
+    const device = this.section(data, '设备故障率')
+    const engineer = this.section(data, '人员绩效')
+    const parts = this.section(data, '维修成本与备件')
+    const daily = this.section(data, '每日走势')
+    const suggestions = this.section(data, '运营建议')
+    const lowStock = this.section(data, '低库存预警')
+    const totalOrders = this.numeric(data.metrics['工单总数'])
+    const closedOrders = this.numeric(data.metrics['闭环归档工单'])
+    const activeOrders = this.numeric(data.metrics['未闭环工单'])
+    const overtimeOrders = this.numeric(data.metrics['超时工单'])
+    const visualRows = [
+      ['闭环归档', String(closedOrders), this.barText(closedOrders, totalOrders)],
+      ['未闭环', String(activeOrders), this.barText(activeOrders, totalOrders)],
+      ['超时', String(overtimeOrders), this.barText(overtimeOrders, totalOrders)],
+    ]
+
+    const partsXml = [
+      this.docxParagraph('W-Light 项目月度运维报告', 'Title'),
+      this.docxParagraph(`报告期间：${data.year} 年 ${data.month.toString().padStart(2, '0')} 月`, 'Subtitle'),
+      this.docxParagraph(`统计范围：${data.startDate.slice(0, 10)} 至 ${data.endDate.slice(0, 10)}`, 'Subtitle'),
+      this.docxParagraph('一、核心指标', 'Heading1'),
+      this.docxTable(overview?.headers || ['指标', '数值', '说明'], overview?.rows || []),
+      this.docxParagraph('二、占比统计', 'Heading1'),
+      this.docxTable(['项目', '数值', '占比条'], visualRows),
+      this.docxParagraph('三、故障类型排行', 'Heading1'),
+      this.docxTable(fault?.headers || [], fault?.rows || [], 10),
+      this.docxParagraph('四、设备故障率与高频设备', 'Heading1'),
+      this.docxTable(device?.headers || [], device?.rows || [], 10),
+      this.docxParagraph('五、人员绩效', 'Heading1'),
+      this.docxTable(engineer?.headers || [], engineer?.rows || [], 10),
+      this.docxParagraph('六、维修成本与备件消耗', 'Heading1'),
+      this.docxTable(parts?.headers || [], parts?.rows || [], 10),
+      this.docxParagraph('七、每日运营走势', 'Heading1'),
+      this.docxTable(daily?.headers || [], daily?.rows || [], 12),
+      this.docxParagraph('八、运营建议', 'Heading1'),
+      this.docxTable(suggestions?.headers || [], suggestions?.rows || [], 8),
+      this.docxParagraph('九、低库存预警', 'Heading1'),
+      this.docxTable(lowStock?.headers || [], lowStock?.rows || [], 10),
+    ]
+
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:body>
+          ${partsXml.join('')}
+          <w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>
+        </w:body>
+      </w:document>`
+  }
+
+  private docxStylesXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft YaHei"/><w:sz w:val="21"/></w:rPr></w:style>
+        <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="180"/></w:pPr><w:rPr><w:b/><w:color w:val="0F172A"/><w:sz w:val="34"/></w:rPr></w:style>
+        <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="100"/></w:pPr><w:rPr><w:color w:val="64748B"/><w:sz w:val="21"/></w:rPr></w:style>
+        <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="260" w:after="120"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="0F172A"/><w:sz w:val="25"/></w:rPr></w:style>
+      </w:styles>`
+  }
+
+  async exportMonthlyDocxReport(projectId: string, year: number, month: number) {
+    const data = await this.loadMonthlyReportData(projectId, year, month)
+    const zip = new JSZip()
+    zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+        <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+        <Default Extension="xml" ContentType="application/xml"/>
+        <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+        <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+      </Types>`)
+    zip.folder('_rels')?.file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+        <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+      </Relationships>`)
+    zip.folder('word')?.file('document.xml', this.buildDocxDocumentXml(data))
+    zip.folder('word')?.file('styles.xml', this.docxStylesXml())
+    return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
+  }
+
   private resolveChinesePdfFont() {
     const candidates = [
       path.resolve(process.cwd(), 'src/assets/fonts/simhei.ttf'),
@@ -843,30 +1141,10 @@ export class ReportsExportService {
   }
 
   async exportMonthlyPdfReport(projectId: string, year: number, month: number) {
-    
-    // 计算本月起止时间
-    const startDate = new Date(year, month - 1, 1).toISOString()
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999).toISOString()
-    const prevMonthStartDate = new Date(year, month - 2, 1).toISOString()
-    const prevMonthEndDate = new Date(year, month - 1, 0, 23, 59, 59, 999).toISOString()
-
-    // 查询当月数据
-    const [currentOrders = {}] = await this.query(
-      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId" = ? AND "createdAt" BETWEEN ? AND ?`,
-      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3`,
-      [projectId, startDate, endDate]
-    )
-
-    // 查询上月数据用于环比
-    const [prevOrders = {}] = await this.query(
-      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId" = ? AND "createdAt" BETWEEN ? AND ?`,
-      `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3`,
-      [projectId, prevMonthStartDate, prevMonthEndDate]
-    )
-
+    const data = await this.loadMonthlyReportData(projectId, year, month)
     return new Promise<Buffer>((resolve, reject) => {
       try {
-        const doc = new PDFDocument({ margin: 50 })
+        const doc = new PDFDocument({ size: 'A4', margin: 36 })
         const buffers: Buffer[] = []
         doc.on('data', buffers.push.bind(buffers))
         doc.on('end', () => resolve(Buffer.concat(buffers)))
@@ -874,38 +1152,41 @@ export class ReportsExportService {
         const fontPath = this.resolveChinesePdfFont()
         if (fontPath) doc.font(fontPath)
 
-        doc.fontSize(24).fillColor('#111827').text(`W-Light 项目月度运维报告`, { align: 'center' })
-        doc.moveDown()
-        doc.fontSize(14).fillColor('#666666').text(`报告期间：${year} 年 ${month} 月`, { align: 'center' })
-        doc.moveDown(2)
+        doc.roundedRect(36, 32, doc.page.width - 72, 74, 10).fill('#0F172A')
+        doc.fontSize(22).fillColor('#FFFFFF').text('W-Light 项目月度运维报告', 56, 52)
+        doc.fontSize(10).fillColor('#BAE6FD').text(`报告期间：${data.year} 年 ${data.month.toString().padStart(2, '0')} 月  |  统计范围：${data.startDate.slice(0, 10)} 至 ${data.endDate.slice(0, 10)}`, 56, 82)
+        doc.y = 124
 
-        const curTotal = Number(currentOrders.total || 0)
-        const curClosed = Number(currentOrders.closed || 0)
-        const curCost = Number(currentOrders.cost || 0)
-        const prevTotal = Number(prevOrders.total || 0)
-        
-        const rate = curTotal > 0 ? ((curClosed / curTotal) * 100).toFixed(1) : '100'
-        const increase = curTotal - prevTotal
+        this.drawPdfKpiCards(doc, data)
 
-        doc.fontSize(18).fillColor('#111827').text('一、 工单核心指标')
-        doc.moveDown(0.5)
-        doc.fontSize(12).fillColor('#374151')
-        doc.text(`本月新增工单：${curTotal} 单（较上月 ${increase > 0 ? '+' : ''}${increase}）`)
-        doc.text(`本月完成工单：${curClosed} 单`)
-        doc.text(`本月工单闭环率：${rate}%`)
-        doc.text(`本月维修总支出：¥${curCost.toFixed(2)}`)
-        doc.moveDown(2)
+        const totalOrders = this.numeric(data.metrics['工单总数'])
+        const closedOrders = this.numeric(data.metrics['闭环归档工单'])
+        const activeOrders = this.numeric(data.metrics['未闭环工单'])
+        const overtimeOrders = this.numeric(data.metrics['超时工单'])
 
-        doc.fontSize(18).fillColor('#111827').text('二、 系统评估')
-        doc.moveDown(0.5)
-        doc.fontSize(12).fillColor('#374151')
-        if (curTotal === 0) {
-          doc.text('本月无新发故障，系统运行极为平稳。')
-        } else if (Number(rate) >= 95) {
-          doc.text('本月运维响应迅速，大部分故障已及时处理，系统运行健康。')
-        } else {
-          doc.text('本月有部分工单未完成闭环，建议加强现场巡检和备件储备。')
-        }
+        this.drawPdfSectionTitle(doc, '一、闭环占比统计')
+        const ratioRows = [
+          ['闭环归档', closedOrders, '#10B981'],
+          ['未闭环', activeOrders, '#F59E0B'],
+          ['超时', overtimeOrders, '#EF4444'],
+        ] as Array<[string, number, string]>
+        ratioRows.forEach(([label, value, color]) => {
+          const y = doc.y
+          const width = doc.page.width - doc.page.margins.left - doc.page.margins.right
+          doc.fontSize(10).fillColor('#334155').text(label, doc.page.margins.left, y, { width: 90 })
+          doc.roundedRect(doc.page.margins.left + 95, y + 2, width - 170, 10, 5).fill('#EEF2F7')
+          doc.roundedRect(doc.page.margins.left + 95, y + 2, Math.max(4, this.ratio(value, totalOrders) / 100 * (width - 170)), 10, 5).fill(color)
+          doc.fontSize(10).fillColor('#0F172A').text(`${value} / ${totalOrders}（${this.ratio(value, totalOrders).toFixed(1)}%）`, doc.page.margins.left + width - 70, y - 1, { width: 70, align: 'right' })
+          doc.y = y + 26
+        })
+
+        this.drawPdfBars(doc, '二、故障类型排行', this.section(data, '故障类型'), '故障类型', '次数', '#EF4444')
+        this.drawPdfBars(doc, '三、设备故障率与高频设备', this.section(data, '设备故障率'), '设备名称', '故障次数', '#F97316')
+        this.drawPdfBars(doc, '四、维修成本与备件消耗', this.section(data, '维修成本与备件'), '备件名称', '总成本', '#0EA5E9')
+        this.drawPdfTable(doc, '五、人员绩效', this.section(data, '人员绩效'), 8)
+        this.drawPdfTable(doc, '六、每日运营走势', this.section(data, '每日走势'), 12)
+        this.drawPdfTable(doc, '七、运营建议', this.section(data, '运营建议'), 8)
+        this.drawPdfTable(doc, '八、低库存预警', this.section(data, '低库存预警'), 8)
 
         doc.end()
       } catch (err) {

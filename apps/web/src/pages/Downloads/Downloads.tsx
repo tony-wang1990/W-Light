@@ -49,6 +49,11 @@ export default function Downloads() {
     await apiClient.download(`/reports/export/monthly-report.pdf?year=${y}&month=${m}`, `w-light-monthly-report-${month}.pdf`);
   });
 
+  const handleDownloadDocx = () => runDownload('monthly-docx', async () => {
+    const [y, m] = month.split('-');
+    await apiClient.download(`/reports/export/monthly-report.docx?year=${y}&month=${m}`, `w-light-monthly-report-${month}.docx`);
+  });
+
   const downloadTypes = [
     {
       key: 'monthly-operations',
@@ -184,14 +189,14 @@ export default function Downloads() {
         ))}
       </div>
 
-      {/* PDF Report Section */}
+      {/* Monthly Report Section */}
       <div className={styles.card} style={{ marginTop: 24 }}>
          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <FileText size={24} className={styles.textPrimary} />
-            <h2 className={styles.cardTitle} style={{ margin: 0 }}>月度综合总结报告 (PDF)</h2>
+            <h2 className={styles.cardTitle} style={{ margin: 0 }}>月度综合总结报告</h2>
          </div>
          <p className={styles.muted} style={{ marginBottom: 16 }}>
-           自动生成包含本月运维概况、高频故障分析、人员工作量总结的排版精美的 PDF 月报，可直接用于汇报。
+           自动生成包含核心指标、占比统计、柱状排行、人员绩效、备件消耗、每日走势、运营建议和低库存预警的月报。PDF 适合直接汇报，Word/DOCX 适合自行二次编辑，二者使用同一份月度数据。
          </p>
          <div className={styles.toolbar}>
            <div className={styles.formGroup} style={{ width: 200 }}>
@@ -201,6 +206,9 @@ export default function Downloads() {
            <div className={styles.actions} style={{ alignSelf: 'flex-end' }}>
              <button className={styles.primaryBtn} onClick={handleDownloadPdf} disabled={Boolean(activeDownload)}>
                <Download size={16} /> {activeDownload === 'monthly-pdf' ? '下载中...' : '下载 PDF 报告'}
+             </button>
+             <button className={styles.secondaryBtn} onClick={handleDownloadDocx} disabled={Boolean(activeDownload)}>
+               <Download size={16} /> {activeDownload === 'monthly-docx' ? '下载中...' : '下载 Word/DOCX'}
              </button>
            </div>
          </div>
