@@ -23,7 +23,7 @@ On Windows:
 .\scripts\desktop-release.ps1 -Target win -PublishWeb
 ```
 
-Do not commit real APK/AAB/EXE files or signing keys to Git.
+This project is currently used as an internal company deployment. The latest internal APK/EXE, checksum files, and metadata JSON are allowed in Git so a server `git pull` can immediately serve working downloads. Keep signing keys (`*.keystore`, `*.jks`) out of Git.
 
 The current Windows and Android packages can be generated locally and copied here:
 
@@ -37,4 +37,4 @@ corepack pnpm downloads:verify
 corepack pnpm downloads:verify -- --strict
 ```
 
-After `git pull` on a server, these large binary artifacts will not appear automatically unless they were separately uploaded or rebuilt on that server.
+After `git pull` on a server, run `docker compose up -d --build` so the web container remounts the refreshed `deploy/downloads` directory.

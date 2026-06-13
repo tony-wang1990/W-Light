@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import * as ExcelJS from 'exceljs'
+import PDFDocument = require('pdfkit')
 import { existsSync } from 'fs'
 import * as path from 'path'
 
@@ -245,7 +246,7 @@ export class ReportsExportService {
       SELECT u.name, u.role, 
         COUNT(o.id) as "totalAssigned",
         SUM(CASE WHEN o.status = 'closed' THEN 1 ELSE 0 END) as "totalClosed",
-        SUM(CASE WHEN o."isOvertime" = 1 OR o."isOvertime" = true THEN 1 ELSE 0 END) as "overtimeCount",
+        SUM(CASE WHEN o."isOvertime" = true THEN 1 ELSE 0 END) as "overtimeCount",
         SUM(o."repairCost") as "totalRepairCost",
         AVG(CASE WHEN o.status = 'closed' AND o."closedAt" IS NOT NULL AND o."startedAt" IS NOT NULL 
             THEN EXTRACT(EPOCH FROM (o."closedAt" - o."startedAt")) / 3600 ELSE NULL END) as "avgRepairHours"
@@ -833,13 +834,15 @@ export class ReportsExportService {
       path.resolve(process.cwd(), 'dist/assets/fonts/simhei.ttf'),
       path.resolve(__dirname, '../../assets/fonts/simhei.ttf'),
       path.resolve(__dirname, '../../../src/assets/fonts/simhei.ttf'),
+      '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+      '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+      '/usr/share/fonts/truetype/arphic/uming.ttc',
     ]
 
     return candidates.find(candidate => existsSync(candidate))
   }
 
   async exportMonthlyPdfReport(projectId: string, year: number, month: number) {
-    const PDFDocument = (await import('pdfkit')).default
     
     // 计算本月起止时间
     const startDate = new Date(year, month - 1, 1).toISOString()
@@ -848,14 +851,14 @@ export class ReportsExportService {
     const prevMonthEndDate = new Date(year, month - 1, 0, 23, 59, 59, 999).toISOString()
 
     // 查询当月数据
-    const [currentOrders] = await this.query(
+    const [currentOrders = {}] = await this.query(
       `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId" = ? AND "createdAt" BETWEEN ? AND ?`,
       `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3`,
       [projectId, startDate, endDate]
     )
 
     // 查询上月数据用于环比
-    const [prevOrders] = await this.query(
+    const [prevOrders = {}] = await this.query(
       `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId" = ? AND "createdAt" BETWEEN ? AND ?`,
       `SELECT COUNT(id) as total, SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed, SUM("repairCost") as cost FROM work_orders WHERE "projectId"::text = $1 AND "createdAt" BETWEEN $2 AND $3`,
       [projectId, prevMonthStartDate, prevMonthEndDate]

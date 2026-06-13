@@ -80,4 +80,46 @@ describe('ReportsExportService', () => {
     expect(sql).not.toContain('o.id::text = u.id::text')
     expect(params).toEqual([PROJECT_ID, '2026-06-01', '2026-06-30'])
   })
+
+  it('generates every download-center export without postgres boolean SQL mistakes', async () => {
+    const ds = {
+      options: { type: 'postgres' },
+      query: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<DataSource>
+    const service = new ReportsExportService(ds)
+    const startDate = '2026-06-01'
+    const endDate = '2026-06-30'
+
+    const exportsToCheck: Array<() => Promise<Buffer>> = [
+      () => service.exportOrdersWorkbook(PROJECT_ID, startDate, endDate),
+      () => service.exportDeviceInventoryWorkbook(PROJECT_ID),
+      () => service.exportPartsInventoryWorkbook(PROJECT_ID),
+      () => service.exportPartsConsumptionWorkbook(PROJECT_ID, startDate, endDate),
+      () => service.exportPerformanceWorkbook(PROJECT_ID, startDate, endDate),
+      () => service.exportFaultStatsWorkbook(PROJECT_ID, startDate, endDate),
+      () => service.exportFinancialConsumption(PROJECT_ID, startDate, endDate),
+      () => service.exportDeviceReliability(PROJECT_ID, startDate, endDate),
+      () => service.exportLocationHeatmap(PROJECT_ID, startDate, endDate),
+      () => service.exportDailyKpi(PROJECT_ID, startDate, endDate),
+      () => service.exportInspectionAnomaly(PROJECT_ID, startDate, endDate),
+      () => service.exportMonthlyOperationsWorkbook(PROJECT_ID, startDate, endDate),
+    ]
+
+    for (const exportTask of exportsToCheck) {
+      await expect(exportTask()).resolves.toEqual(expect.any(Buffer))
+    }
+
+    const executedSql = ds.query.mock.calls.map(([sql]) => String(sql)).join('\n')
+    expect(executedSql).not.toContain('"isOvertime" = 1')
+  })
+
+  it('generates the monthly PDF report even when aggregate queries return empty rows', async () => {
+    const ds = {
+      options: { type: 'postgres' },
+      query: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<DataSource>
+    const service = new ReportsExportService(ds)
+
+    await expect(service.exportMonthlyPdfReport(PROJECT_ID, 2026, 6)).resolves.toEqual(expect.any(Buffer))
+  })
 })

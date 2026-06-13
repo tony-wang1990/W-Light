@@ -65,7 +65,7 @@ function formatDate(value?: string) {
 function statusBadge(status?: ClientDownloadStatus) {
   if (!status || status.state === 'checking') return <span className={styles.badge}>检查中</span>;
   if (status.state === 'available') return <span className={`${styles.badge} ${styles.successBadge}`}>可下载</span>;
-  if (status.state === 'missing') return <span className={`${styles.badge} ${styles.warningBadge}`}>未发布</span>;
+  if (status.state === 'missing') return <span className={`${styles.badge} ${styles.warningBadge}`}>未同步</span>;
   return <span className={`${styles.badge} ${styles.dangerBadge}`}>检查失败</span>;
 }
 
@@ -84,8 +84,8 @@ export default function Clients() {
       checksumHref: '/downloads/w-light-latest.apk.sha256',
       metadataHref: '/downloads/w-light-android.json',
       primary: true,
-      note: '重新打包后把 APK 发布到 deploy/downloads，即可更新这里的下载状态。',
-      changelog: ['连接同一套云端 API，手机端与 Web/Windows 数据同步', '保留离线工具箱能力，适合现场无网时使用', '当前以内测包为主，正式外部分发前建议配置正式签名'],
+      note: '内部自用直接分发 APK；服务器上存在 deploy/downloads/w-light-latest.apk 后即可下载。',
+      changelog: ['连接同一套云端 API，手机端与 Web/Windows 数据同步', '保留离线工具箱能力，适合现场无网时使用', '公司内部使用可直接下载安装包，不需要上架应用商店'],
     },
     {
       key: 'windows',
@@ -96,8 +96,8 @@ export default function Clients() {
       checksumHref: '/downloads/W-Light-Setup-latest.exe.sha256',
       metadataHref: '/downloads/w-light-desktop.json',
       primary: true,
-      note: '重新打包后把安装包发布到 deploy/downloads，即可更新这里的下载状态。',
-      changelog: ['独立窗口启动 Web 控制台，不再依赖浏览器标签页', '默认连接服务器 /v1 API，和手机端共享数据', '生产分发建议配置代码签名证书，减少系统安全提示'],
+      note: '内部自用直接分发 EXE；服务器上存在 deploy/downloads/W-Light-Setup-latest.exe 后即可下载。',
+      changelog: ['独立窗口启动 Web 控制台，不再依赖浏览器标签页', '默认连接服务器 /v1 API，和手机端共享数据', '公司内部电脑可直接下载安装包，未签名时按 Windows 提示继续安装'],
     },
     {
       key: 'web',
@@ -137,7 +137,7 @@ export default function Clients() {
             state: response.ok ? 'available' : 'missing',
             metadata,
             checkedAt: new Date().toISOString(),
-            message: response.ok ? '安装包已发布' : `HTTP ${response.status}`,
+            message: response.ok ? '安装包已同步到服务器' : `服务器未找到安装包，HTTP ${response.status}`,
           },
         }));
       } catch (err) {
@@ -249,7 +249,7 @@ export default function Clients() {
                     if (!isAvailable) event.preventDefault();
                   }}
                 >
-                  <Download size={16} /> {item.key === 'web' ? '打开 Web 控制台' : isAvailable ? '下载安装包' : '暂未发布'}
+                  <Download size={16} /> {item.key === 'web' ? '打开 Web 控制台' : isAvailable ? '下载安装包' : '服务器未同步'}
                 </a>
                 {checksumHref && (
                   <a

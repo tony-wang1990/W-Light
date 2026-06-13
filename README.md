@@ -18,6 +18,17 @@
 - Windows 安装包在干净 Windows 10/11 上安装、登录、切换服务器、卸载重装。
 - 服务器 HTTPS、域名、备份恢复演练、监控告警和真实数据压测。
 
+## 2026-06-13 下载与报表修复记录
+
+本项目当前按公司内部自用处理，不走 App Store、TestFlight、Microsoft Store 等商店发布流程。Android APK 和 Windows EXE 作为内部测试包直接放在 `deploy/downloads`，服务器更新代码后即可通过“客户端下载中心”下载。
+
+本轮修复：
+- `deploy/downloads/w-light-latest.apk`、`deploy/downloads/W-Light-Setup-latest.exe`、对应 `.sha256` 和版本 JSON 已允许纳入 Git，避免服务器 `git pull` 后下载中心显示 HTTP 404。
+- 下载中心文案从“未发布”改为“服务器未同步”，更符合内部自用场景。
+- 修复报表导出中的 PostgreSQL boolean SQL 错误，避免人员绩效等 Excel 导出 500。
+- 修复 PDF 月报生成时 PDFKit 导入不稳定的问题，并增加中文字体路径兜底。
+- 新增全导出 smoke 测试，覆盖下载中心所有 Excel/PDF 导出函数。
+
 W-Light 面向文旅灯光项目现场运维，目标是把项目、设备、工单、维修记录、巡检、备件、报表和灯光师工具箱统一到一套云端系统里。当前优先交付三端：Web 控制台、Android APP、Windows 客户端。iOS 和 macOS 暂不作为当前上线目标，因为需要 Apple Developer、TestFlight、签名和公证流程。
 
 ## 当前状态

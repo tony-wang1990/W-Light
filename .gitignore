@@ -70,6 +70,12 @@ deploy/downloads/*.blockmap
 deploy/downloads/*.yml
 deploy/downloads/*.sha256
 deploy/downloads/*.json
+!deploy/downloads/w-light-latest.apk
+!deploy/downloads/w-light-latest.apk.sha256
+!deploy/downloads/W-Light-Setup-latest.exe
+!deploy/downloads/W-Light-Setup-latest.exe.sha256
+!deploy/downloads/w-light-android.json
+!deploy/downloads/w-light-desktop.json
 apps/LightOps/android/app/*.keystore
 apps/LightOps/android/app/*.jks
 

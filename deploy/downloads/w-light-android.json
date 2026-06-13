@@ -1,0 +1,11 @@
+﻿{
+    "target":  "android",
+    "file":  "w-light-latest.apk",
+    "sourceArtifact":  "app-release.apk",
+    "builtAt":  "2026-06-07T02:56:11Z",
+    "commit":  "ce11fb4",
+    "sha256":  "e2fab0884f95c32cc5a9dabce6b665c0ae858ca6a4f5c5c1fae418ac1454ae1a",
+    "sizeBytes":  85362405,
+    "minSdk":  24,
+    "signing":  "debug-keystore fallback unless W_LIGHT_UPLOAD_* variables are provided"
+}

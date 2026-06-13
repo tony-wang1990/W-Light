@@ -21,6 +21,9 @@ RUN pnpm run build
 
 FROM base AS production
 ENV NODE_ENV=production
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends fonts-wqy-zenhei \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY services/backend/package.json services/backend/package.json
 COPY apps/LightOps/package.json apps/LightOps/package.json
