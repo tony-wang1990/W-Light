@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+$appVersion = ((Get-Content -LiteralPath (Join-Path (Get-Location) 'package.json') -Raw) | ConvertFrom-Json).version
 
 function Invoke-Checked {
   param(
@@ -85,9 +86,12 @@ Set-Content -LiteralPath "$targetPath.sha256" -Value $hash.Hash.ToLowerInvariant
 $metadata = [ordered]@{
   target = $Target
   file = $latestName
+  version = $appVersion
   sourceArtifact = $artifact.Name
   builtAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
   commit = "unknown"
+  sha256 = $hash.Hash.ToLowerInvariant()
+  sizeBytes = (Get-Item -LiteralPath $targetPath).Length
 }
 
 try {

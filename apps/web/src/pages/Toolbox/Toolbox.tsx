@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity,
   BookOpen,
   Clock3,
+  Copy,
   Cpu,
+  Download,
   Library,
   Lightbulb,
   Palette,
+  Plus,
   Search,
   ShieldAlert,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   Zap,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   calculateDmxAddresses,
@@ -19,14 +24,23 @@ import {
   calcSpotSize,
   calcTotalPower,
   calculateLux,
+  DIAGNOSIS_NODES,
+  FAULT_TYPE_ROOTS,
   FIXTURE_PRESETS,
+  generateLtcWav,
+  LIGHTING_TERMS,
+  LTC_ROUTING_PRESETS,
+  MA_MACRO_COMMANDS,
   POWER_REFERENCES,
+  TIMECODE_FRAME_RATES,
+  calculateTimecodeRange,
+  type TimecodeFrameRate,
 } from '@lightops/toolbox-core';
 import styles from './Toolbox.module.css';
 
 const TOOLS = [
   { id: 'bpm', label: 'BPM 测速', icon: Activity },
-  { id: 'dmx', label: 'DMX 地址', icon: Cpu },
+  { id: 'dmx', label: 'DMX 多灯具链', icon: Cpu },
   { id: 'power', label: '功率负荷', icon: Zap },
   { id: 'beam', label: '光束角', icon: SlidersHorizontal },
   { id: 'lux', label: '照度计算', icon: Lightbulb },
@@ -42,52 +56,22 @@ const TOOLS = [
 
 type ToolId = typeof TOOLS[number]['id'];
 
-const MACRO_REFERENCES = [
-  { category: '基础操作', name: '清空选择', syntax: 'ClearAll', desc: '清空当前选择和 Programmer。' },
-  { category: '灯具选择', name: '选择范围', syntax: 'Fixture 1 Thru 20', desc: '选择指定编号范围内灯具。' },
-  { category: 'Cue', name: '存储 Cue', syntax: 'Store Cue 1 /Merge', desc: '将当前状态写入或合并到 Cue。' },
-  { category: '执行器', name: '分配序列', syntax: 'Assign Sequence 1 At Executor 1.201', desc: '将序列分配到执行器。' },
-  { category: '现场', name: '高亮找灯', syntax: 'Highlight On / Highlight Off', desc: '让选中灯具明显输出，便于现场定位。' },
-  { category: '维护', name: '停驻参数', syntax: 'Fixture 1 Attribute "Dimmer" Park', desc: '锁定某个灯具或参数输出。' },
-  { category: '数据迁移', name: '克隆灯具', syntax: 'Clone Fixture 1 Thru 10 At Fixture 101 Thru 110', desc: '把灯具编程数据迁移到新灯具。' },
-  { category: '文件', name: '保存演出', syntax: 'SaveShow "Backup_20260606"', desc: '保存或另存当前 show 文件。' },
-];
+interface DmxFixtureRow {
+  id: string;
+  name: string;
+  channels: number;
+  quantity: number;
+  startAddress: string;
+  universe: string;
+}
 
-const TERMS = [
-  ['摇头光束灯', 'Moving Head Beam', '发出窄角度光束的摇头灯。'],
-  ['洗墙灯', 'Wash Light', '用于大面积铺光和均匀染色。'],
-  ['DMX Universe', 'DMX Universe', '一组 512 通道 DMX 控制空间。'],
-  ['RDM', 'Remote Device Management', '通过 DMX 线路双向管理设备。'],
-  ['Art-Net', 'Art-Net', '基于以太网传输 DMX 的协议。'],
-  ['sACN', 'Streaming ACN / E1.31', '以太网灯光控制协议。'],
-  ['照度', 'Illuminance / Lux', '单位面积接收到的光通量。'],
-  ['色温', 'Color Temperature / CCT', '用 K 表示的光色冷暖。'],
-  ['显色指数', 'CRI / Ra', '光源还原物体颜色的能力。'],
-  ['安全绳', 'Safety Cable', '灯具吊挂的二次安全保护。'],
-];
-
-const DIAGNOSIS = [
-  {
-    name: '灯具不亮',
-    risk: '中高',
-    steps: ['确认回路空开和供电电压', '检查 PowerCON/电源线接触', '查看灯具屏幕错误代码', '手动测试 Dimmer/Shutter', '必要时更换光源或电源板'],
-  },
-  {
-    name: '频闪/闪烁',
-    risk: '中',
-    steps: ['排除控台 Strobe 通道误触发', '测量回路电压是否波动', '检查 DMX 线和终端电阻', '单台频闪时检查光源驱动和内部接插件'],
-  },
-  {
-    name: '不受控',
-    risk: '中',
-    steps: ['核对 DMX 地址和通道模式', '检查 Universe 输出和节点配置', '替换 DMX 信号线', '链路末端加 120Ω 终端', '确认灯库 Profile 是否匹配'],
-  },
-  {
-    name: '漏电/跳闸',
-    risk: '高',
-    steps: ['立即断电并隔离区域', '用兆欧表检查绝缘', '检查线缆外皮和接地', '分段接入定位故障设备', '由持证电工复核后恢复'],
-  },
-];
+interface DiagnosisConclusion {
+  problem: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  solution: string[];
+  estimatedTime: string;
+  needsExpert?: boolean;
+}
 
 const PALETTES = [
   { name: '水秀冷蓝', rgb: [38, 156, 255], cct: 8000 },
@@ -104,6 +88,25 @@ const LAYOUT_PRESETS = [
   { name: '景观洗墙', throwM: 6, trimM: 3.5, targetM: 1, beamAngle: 50, note: '大面积铺光，关注均匀度和暗区。' },
 ];
 
+const DEFAULT_FIXTURE_ATTRIBUTES = [
+  'Dimmer',
+  'Shutter/Strobe',
+  'Pan',
+  'Pan Fine',
+  'Tilt',
+  'Tilt Fine',
+  'Color Wheel',
+  'Gobo Wheel',
+  'Prism',
+  'Focus',
+  'Frost',
+  'Zoom',
+  'Control/Reset',
+  'Speed',
+  'Macro',
+  'Reserved',
+].join('\n');
+
 function clampNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(Math.max(value, min), max);
@@ -118,6 +121,51 @@ function dmxDipSwitches(address: number) {
   return Array.from({ length: 10 }, (_, index) => (normalized & (1 << index)) !== 0);
 }
 
+function makeFixtureRow(index: number): DmxFixtureRow {
+  return {
+    id: `fixture-${Date.now()}-${index}`,
+    name: index === 0 ? 'Beam 330W' : `Fixture ${index + 1}`,
+    channels: index === 0 ? 16 : 18,
+    quantity: index === 0 ? 8 : 4,
+    startAddress: '',
+    universe: '',
+  };
+}
+
+function downloadHref(href: string, fileName: string) {
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function downloadTextFile(fileName: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  downloadHref(url, fileName);
+  URL.revokeObjectURL(url);
+}
+
+async function copyText(text: string) {
+  if (!navigator.clipboard) {
+    window.prompt('复制内容', text);
+    return;
+  }
+  await navigator.clipboard.writeText(text);
+}
+
+function severityText(severity: DiagnosisConclusion['severity']) {
+  switch (severity) {
+    case 'critical': return '紧急';
+    case 'high': return '高';
+    case 'medium': return '中';
+    case 'low': return '低';
+    default: return severity;
+  }
+}
+
 export default function Toolbox() {
   const [activeTool, setActiveTool] = useState<ToolId>('bpm');
   const [bpm, setBpm] = useState(0);
@@ -125,9 +173,7 @@ export default function Toolbox() {
   const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [dmxStart, setDmxStart] = useState(1);
-  const [dmxChannels, setDmxChannels] = useState(16);
-  const [dmxQuantity, setDmxQuantity] = useState(8);
-  const [dmxName, setDmxName] = useState('Beam 330W');
+  const [dmxFixtures, setDmxFixtures] = useState<DmxFixtureRow[]>([makeFixtureRow(0)]);
 
   const [powerW, setPowerW] = useState(330);
   const [powerQuantity, setPowerQuantity] = useState(12);
@@ -146,11 +192,30 @@ export default function Toolbox() {
 
   const [rgb, setRgb] = useState({ r: 38, g: 156, b: 255 });
   const [cct, setCct] = useState(8000);
-  const [macroQuery, setMacroQuery] = useState('');
-  const [termQuery, setTermQuery] = useState('');
 
-  const [ltc, setLtc] = useState({ hour: 1, minute: 0, second: 0, frame: 0, fps: 25, duration: 60 });
+  const [macroQuery, setMacroQuery] = useState('');
+  const [macroCategory, setMacroCategory] = useState('全部');
+  const [macroVersion, setMacroVersion] = useState<'全部' | 'MA2' | 'MA3' | 'BOTH'>('全部');
+  const [termQuery, setTermQuery] = useState('');
+  const [termCategory, setTermCategory] = useState('全部');
+
+  const diagnosisTypes = useMemo(() => Object.keys(FAULT_TYPE_ROOTS), []);
+  const [diagnosisType, setDiagnosisType] = useState(diagnosisTypes[0] || '');
+  const [diagnosisNodeId, setDiagnosisNodeId] = useState(diagnosisTypes[0] ? FAULT_TYPE_ROOTS[diagnosisTypes[0]] : '');
+  const [diagnosisConclusion, setDiagnosisConclusion] = useState<DiagnosisConclusion | null>(null);
+
+  const [ltc, setLtc] = useState({
+    startTimecode: '01:00:00:00',
+    fps: 25 as TimecodeFrameRate,
+    duration: 30,
+    sampleRate: 48000 as 44100 | 48000,
+    routeIndex: 0,
+    level: 0.72,
+  });
+  const [ltcMessage, setLtcMessage] = useState('');
+
   const [fixture, setFixture] = useState({ brand: 'Custom', model: 'Beam 330W', mode: 'Standard', channels: 16 });
+  const [fixtureAttributes, setFixtureAttributes] = useState(DEFAULT_FIXTURE_ATTRIBUTES);
   const [layout, setLayout] = useState({ throwM: 12, trimM: 6, targetM: 1.6, beamAngle: 25, fixtureCount: 6, coverageWidth: 18 });
 
   useEffect(() => () => {
@@ -177,12 +242,17 @@ export default function Toolbox() {
     }, 3000);
   };
 
-  const dmxResult = useMemo(() => calculateDmxAddresses([{
-    id: 'web-fixture',
-    name: dmxName || 'Fixture',
-    channels: dmxChannels,
-    quantity: dmxQuantity,
-  }], dmxStart), [dmxChannels, dmxName, dmxQuantity, dmxStart]);
+  const dmxResult = useMemo(() => calculateDmxAddresses(
+    dmxFixtures.map((row) => ({
+      id: row.id,
+      name: row.name || 'Fixture',
+      channels: row.channels,
+      quantity: row.quantity,
+      startAddress: row.startAddress ? Number(row.startAddress) : undefined,
+      universe: row.universe ? Number(row.universe) : undefined,
+    })),
+    dmxStart,
+  ), [dmxFixtures, dmxStart]);
 
   const powerResult = useMemo(() => calcTotalPower([{
     id: 'power-fixture',
@@ -203,9 +273,36 @@ export default function Toolbox() {
 
   const luxValue = useMemo(() => calculateLux(lumens, luxDistance, luxBeamAngle), [lumens, luxBeamAngle, luxDistance]);
   const hexColor = `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
-  const macroResults = MACRO_REFERENCES.filter(item => `${item.category} ${item.name} ${item.syntax} ${item.desc}`.toLowerCase().includes(macroQuery.toLowerCase())).slice(0, 8);
-  const termResults = TERMS.filter(item => item.join(' ').toLowerCase().includes(termQuery.toLowerCase())).slice(0, 8);
-  const totalFrames = ((ltc.hour * 3600 + ltc.minute * 60 + ltc.second) * ltc.fps) + ltc.frame;
+
+  const macroCategories = useMemo(() => ['全部', ...Array.from(new Set(MA_MACRO_COMMANDS.map(item => item.category)))], []);
+  const macroResults = useMemo(() => {
+    const query = macroQuery.trim().toLowerCase();
+    return MA_MACRO_COMMANDS
+      .filter(item => macroCategory === '全部' || item.category === macroCategory)
+      .filter(item => macroVersion === '全部' || item.version === macroVersion || item.version === 'BOTH')
+      .filter(item => !query || `${item.category} ${item.name} ${item.syntax} ${item.description} ${item.example} ${item.tags.join(' ')}`.toLowerCase().includes(query))
+      .slice(0, 40);
+  }, [macroCategory, macroQuery, macroVersion]);
+
+  const termCategories = useMemo(() => ['全部', ...Array.from(new Set(LIGHTING_TERMS.map(item => item.category)))], []);
+  const termResults = useMemo(() => {
+    const query = termQuery.trim().toLowerCase();
+    return LIGHTING_TERMS
+      .filter(item => termCategory === '全部' || item.category === termCategory)
+      .filter(item => !query || `${item.chinese} ${item.english} ${item.abbreviation || ''} ${item.description || ''}`.toLowerCase().includes(query))
+      .slice(0, 60);
+  }, [termCategory, termQuery]);
+
+  const currentDiagnosisNode = diagnosisNodeId ? DIAGNOSIS_NODES[diagnosisNodeId] : undefined;
+  const activeRoute = LTC_ROUTING_PRESETS[ltc.routeIndex] || LTC_ROUTING_PRESETS[0];
+  const timecodeRange = useMemo(() => {
+    try {
+      return calculateTimecodeRange(ltc.startTimecode, ltc.fps, ltc.duration);
+    } catch {
+      return null;
+    }
+  }, [ltc.duration, ltc.fps, ltc.startTimecode]);
+
   const layoutResult = useMemo(() => {
     const throwDistance = Math.max(layout.throwM, 0.1);
     const heightDiff = Math.max(layout.trimM - layout.targetM, 0.1);
@@ -224,17 +321,90 @@ export default function Toolbox() {
       overlap,
     };
   }, [layout]);
-  const fixtureExport = JSON.stringify({
-    manufacturer: fixture.brand,
-    model: fixture.model,
-    mode: fixture.mode,
-    protocol: 'DMX512',
-    channels: Array.from({ length: fixture.channels }, (_, index) => ({
-      channel: index + 1,
-      attribute: index === 0 ? 'Dimmer' : index === 1 ? 'Shutter' : index === 2 ? 'Pan' : index === 3 ? 'Tilt' : `Attribute ${index + 1}`,
-      defaultValue: 0,
-    })),
-  }, null, 2);
+
+  const fixtureProfile = useMemo(() => {
+    const attributes = fixtureAttributes
+      .split(/\r?\n/)
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    return {
+      manufacturer: fixture.brand || 'Custom',
+      model: fixture.model || 'Unnamed Fixture',
+      mode: fixture.mode || 'Standard',
+      protocol: 'DMX512',
+      channels: Array.from({ length: clampNumber(Math.floor(fixture.channels), 1, 512) }, (_, index) => ({
+        channel: index + 1,
+        attribute: attributes[index] || `Attribute ${index + 1}`,
+        defaultValue: 0,
+        highlightValue: index === 0 ? 100 : 0,
+        notes: '',
+      })),
+    };
+  }, [fixture, fixtureAttributes]);
+
+  const fixtureJson = JSON.stringify(fixtureProfile, null, 2);
+  const fixtureCsv = [
+    'Channel,Attribute,Default,Highlight,Notes',
+    ...fixtureProfile.channels.map(channel => [
+      channel.channel,
+      `"${channel.attribute.replace(/"/g, '""')}"`,
+      channel.defaultValue,
+      channel.highlightValue,
+      `"${channel.notes}"`,
+    ].join(',')),
+  ].join('\n');
+
+  const updateDmxFixture = (id: string, patch: Partial<DmxFixtureRow>) => {
+    setDmxFixtures(prev => prev.map(row => (row.id === id ? { ...row, ...patch } : row)));
+  };
+
+  const addDmxFixture = () => {
+    setDmxFixtures(prev => [...prev, makeFixtureRow(prev.length)]);
+  };
+
+  const removeDmxFixture = (id: string) => {
+    setDmxFixtures(prev => (prev.length <= 1 ? prev : prev.filter(row => row.id !== id)));
+  };
+
+  const addPresetToDmx = (preset: typeof FIXTURE_PRESETS[number]) => {
+    setDmxFixtures(prev => [
+      ...prev,
+      {
+        id: `preset-${Date.now()}-${preset.model}`,
+        name: preset.model,
+        channels: preset.channels,
+        quantity: 1,
+        startAddress: '',
+        universe: '',
+      },
+    ]);
+  };
+
+  const startDiagnosis = (type: string) => {
+    setDiagnosisType(type);
+    setDiagnosisNodeId(FAULT_TYPE_ROOTS[type]);
+    setDiagnosisConclusion(null);
+  };
+
+  const generateLtc = () => {
+    setLtcMessage('');
+    try {
+      const wav = generateLtcWav({
+        startTimecode: ltc.startTimecode,
+        frameRate: ltc.fps,
+        durationSeconds: ltc.duration,
+        sampleRate: ltc.sampleRate,
+        leftChannel: activeRoute.left,
+        rightChannel: activeRoute.right,
+        level: ltc.level,
+      });
+      downloadHref(wav.dataUri, wav.fileName);
+      setLtcMessage(wav.warnings.length ? wav.warnings.join('；') : `已生成 ${Math.round(wav.byteLength / 1024)} KB 立体声 WAV。`);
+    } catch (err) {
+      setLtcMessage(err instanceof Error ? err.message : 'LTC WAV 生成失败');
+    }
+  };
 
   const renderTool = () => {
     switch (activeTool) {
@@ -253,20 +423,55 @@ export default function Toolbox() {
             </div>
           </section>
         );
+
       case 'dmx':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Cpu} title="DMX 地址码计算" desc="支持多台灯具连续地址展开、Universe 统计和拨码开关。" />
+            <ToolHeader icon={Cpu} title="DMX 多灯具链地址计算" desc="支持多组灯具、手动 Universe/起始地址、冲突检测、512 通道溢出提醒和拨码开关参考。" />
             <div className={styles.formGrid}>
-              <Field label="灯具名称"><input value={dmxName} onChange={event => setDmxName(event.target.value)} /></Field>
-              <Field label="起始地址"><input type="number" min={1} max={512} value={dmxStart} onChange={event => setDmxStart(Number(event.target.value))} /></Field>
-              <Field label="通道数"><input type="number" min={1} max={512} value={dmxChannels} onChange={event => setDmxChannels(Number(event.target.value))} /></Field>
-              <Field label="数量"><input type="number" min={1} value={dmxQuantity} onChange={event => setDmxQuantity(Number(event.target.value))} /></Field>
+              <Field label="自动分配起始地址">
+                <input type="number" min={1} max={512} value={dmxStart} onChange={event => setDmxStart(Number(event.target.value))} />
+              </Field>
+            </div>
+            <div className={styles.quickList}>
+              {FIXTURE_PRESETS.slice(0, 10).map(item => (
+                <button key={item.model} onClick={() => addPresetToDmx(item)}>
+                  <Plus size={14} /> {item.model} · {item.channels}ch
+                </button>
+              ))}
+            </div>
+            <div className={styles.fixtureRows}>
+              {dmxFixtures.map((row, index) => (
+                <div className={styles.fixtureRow} key={row.id}>
+                  <Field label={`灯具组 ${index + 1}`}>
+                    <input value={row.name} onChange={event => updateDmxFixture(row.id, { name: event.target.value })} />
+                  </Field>
+                  <Field label="通道数">
+                    <input type="number" min={1} max={512} value={row.channels} onChange={event => updateDmxFixture(row.id, { channels: Number(event.target.value) })} />
+                  </Field>
+                  <Field label="数量">
+                    <input type="number" min={1} value={row.quantity} onChange={event => updateDmxFixture(row.id, { quantity: Number(event.target.value) })} />
+                  </Field>
+                  <Field label="固定 Universe">
+                    <input placeholder="自动" value={row.universe} onChange={event => updateDmxFixture(row.id, { universe: event.target.value })} />
+                  </Field>
+                  <Field label="固定起始地址">
+                    <input placeholder="自动" value={row.startAddress} onChange={event => updateDmxFixture(row.id, { startAddress: event.target.value })} />
+                  </Field>
+                  <button className={styles.iconBtn} onClick={() => removeDmxFixture(row.id)} title="删除灯具组">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className={styles.inlineActions}>
+              <button className={styles.secondaryBtn} onClick={addDmxFixture}><Plus size={16} /> 新增灯具组</button>
             </div>
             <div className={styles.resultGrid}>
               <Result label="总通道" value={`${dmxResult.totalChannels} ch`} />
-              <Result label="Universe" value={`${dmxResult.universesNeeded}`} tone={dmxResult.hasOverflow ? 'warn' : 'ok'} />
-              <Result label="冲突" value={dmxResult.hasConflicts ? '有' : '无'} tone={dmxResult.hasConflicts ? 'danger' : 'ok'} />
+              <Result label="Universe 数" value={`${dmxResult.universesNeeded}`} tone={dmxResult.hasOverflow ? 'warn' : 'ok'} />
+              <Result label="地址冲突" value={dmxResult.hasConflicts ? '有' : '无'} tone={dmxResult.hasConflicts ? 'danger' : 'ok'} />
+              <Result label="灯具实例" value={`${dmxResult.assignments.length}`} />
             </div>
             <div className={styles.dipSwitches}>
               {dmxDipSwitches(dmxStart).map((on, index) => (
@@ -276,8 +481,30 @@ export default function Toolbox() {
                 </div>
               ))}
             </div>
+            {dmxResult.warnings.length > 0 && (
+              <div className={styles.warningList}>
+                {dmxResult.warnings.map(warning => <div className={styles.warningItem} key={warning}>{warning}</div>)}
+              </div>
+            )}
+            {dmxResult.conflicts.length > 0 && (
+              <div className={styles.warningList}>
+                {dmxResult.conflicts.map(conflict => (
+                  <div className={styles.warningItem} key={`${conflict.fixtureA}-${conflict.fixtureB}-${conflict.addressStart}`}>
+                    U{conflict.universe} 地址 {conflict.addressStart}-{conflict.addressEnd} 冲突：{conflict.fixtureA} / {conflict.fixtureB}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className={styles.tableList}>
-              {dmxResult.assignments.slice(0, 12).map(item => (
+              {dmxResult.universeUsage.map(item => (
+                <div className={styles.row} key={item.universe}>
+                  <span>Universe {item.universe}：{item.firstAddress}-{item.lastAddress}</span>
+                  <strong>{item.usedChannels}/512 · {item.utilization}%</strong>
+                </div>
+              ))}
+            </div>
+            <div className={styles.tableList}>
+              {dmxResult.assignments.slice(0, 80).map(item => (
                 <div className={styles.row} key={item.id}>
                   <span>{item.label}</span>
                   <strong>U{item.universe} · {item.startAddress}-{item.endAddress}</strong>
@@ -286,12 +513,13 @@ export default function Toolbox() {
             </div>
           </section>
         );
+
       case 'power':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Zap} title="功率/负荷计算" desc="估算总功率、电流、空开负载和是否超安全负载。" />
+            <ToolHeader icon={Zap} title="功率/负荷计算" desc="估算总功率、电流、空开负载和是否超过安全负载。" />
             <div className={styles.quickList}>
-              {POWER_REFERENCES.slice(0, 6).map(item => (
+              {POWER_REFERENCES.slice(0, 8).map(item => (
                 <button key={item.name} onClick={() => setPowerW(item.powerW)}>{item.name} · {item.powerW}W</button>
               ))}
             </div>
@@ -315,6 +543,7 @@ export default function Toolbox() {
             </div>
           </section>
         );
+
       case 'beam':
         return (
           <section className={styles.panel}>
@@ -328,27 +557,28 @@ export default function Toolbox() {
               {beamMode === 'angle' ? (
                 <Field label="光斑直径 m"><input type="number" value={spotDiameter} onChange={event => setSpotDiameter(Number(event.target.value))} /></Field>
               ) : (
-                <Field label="光束角 °"><input type="number" value={knownAngle} onChange={event => setKnownAngle(Number(event.target.value))} /></Field>
+                <Field label="光束角 deg"><input type="number" value={knownAngle} onChange={event => setKnownAngle(Number(event.target.value))} /></Field>
               )}
             </div>
             <div className={styles.resultGrid}>
               {beamMode === 'angle' && beamResult && 'beamAngle' in beamResult && (
                 <>
-                  <Result label="光束角" value={`${beamResult.beamAngle}°`} />
-                  <Result label="半角" value={`${beamResult.halfAngle}°`} />
-                  <Result label="光斑面积" value={`${beamResult.spotArea} m²`} />
+                  <Result label="光束角" value={`${beamResult.beamAngle} deg`} />
+                  <Result label="半角" value={`${beamResult.halfAngle} deg`} />
+                  <Result label="光斑面积" value={`${beamResult.spotArea} m2`} />
                 </>
               )}
               {beamMode === 'spot' && beamResult && 'diameter' in beamResult && (
                 <>
                   <Result label="光斑直径" value={`${beamResult.diameter} m`} />
                   <Result label="半径" value={`${beamResult.radius} m`} />
-                  <Result label="面积" value={`${beamResult.area} m²`} />
+                  <Result label="面积" value={`${beamResult.area} m2`} />
                 </>
               )}
             </div>
           </section>
         );
+
       case 'lux':
         return (
           <section className={styles.panel}>
@@ -356,15 +586,16 @@ export default function Toolbox() {
             <div className={styles.formGrid}>
               <Field label="光通量 lm"><input type="number" value={lumens} onChange={event => setLumens(Number(event.target.value))} /></Field>
               <Field label="距离 m"><input type="number" value={luxDistance} onChange={event => setLuxDistance(Number(event.target.value))} /></Field>
-              <Field label="光束角 °"><input type="number" value={luxBeamAngle} onChange={event => setLuxBeamAngle(Number(event.target.value))} /></Field>
+              <Field label="光束角 deg"><input type="number" value={luxBeamAngle} onChange={event => setLuxBeamAngle(Number(event.target.value))} /></Field>
             </div>
             <div className={styles.resultGrid}>
               <Result label="估算照度" value={`${luxValue} lx`} tone={luxValue < 100 ? 'warn' : 'ok'} />
               <Result label="维护照度" value={`${Math.round(luxValue * 0.8)} lx`} />
-              <Result label="参考" value={luxValue >= 800 ? '舞台主区' : luxValue >= 300 ? '展陈重点' : '景观/通道'} />
+              <Result label="参考场景" value={luxValue >= 800 ? '舞台主区' : luxValue >= 300 ? '展陈重点' : '景观/通道'} />
             </div>
           </section>
         );
+
       case 'color':
         return (
           <section className={styles.panel}>
@@ -391,71 +622,170 @@ export default function Toolbox() {
             </div>
           </section>
         );
+
       case 'diagnosis':
-        return <ReferencePanel icon={ShieldAlert} title="故障分析流程" desc="常见故障的安全优先排查路径。" items={DIAGNOSIS.map(item => ({ title: `${item.name} · 风险 ${item.risk}`, body: item.steps.join(' → ') }))} />;
+        return (
+          <section className={styles.panel}>
+            <ToolHeader icon={ShieldAlert} title="故障诊断流程" desc="按不亮、频闪、不受控、漏电、物理损坏等场景逐步排查，并给出处理建议。" />
+            <div className={styles.quickList}>
+              {diagnosisTypes.map(type => (
+                <button key={type} onClick={() => startDiagnosis(type)} className={type === diagnosisType ? styles.activePill : ''}>{type}</button>
+              ))}
+            </div>
+            {currentDiagnosisNode && !diagnosisConclusion && (
+              <div className={styles.rowLarge}>
+                <span>{currentDiagnosisNode.question}</span>
+                {currentDiagnosisNode.hint && <em>{currentDiagnosisNode.hint}</em>}
+                <div className={styles.inlineActions}>
+                  {currentDiagnosisNode.options.map(option => (
+                    <button
+                      className={styles.secondaryBtn}
+                      key={option.label}
+                      onClick={() => {
+                        if (option.nextNodeId) setDiagnosisNodeId(option.nextNodeId);
+                        if (option.conclusion) setDiagnosisConclusion(option.conclusion);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {diagnosisConclusion && (
+              <div className={styles.rowLarge}>
+                <span>诊断结论 · 风险 {severityText(diagnosisConclusion.severity)}</span>
+                <code>{diagnosisConclusion.problem}</code>
+                <em>预计处理时间：{diagnosisConclusion.estimatedTime}{diagnosisConclusion.needsExpert ? ' · 建议专业人员处理' : ''}</em>
+                <ol className={styles.orderedList}>
+                  {diagnosisConclusion.solution.map(step => <li key={step}>{step}</li>)}
+                </ol>
+                <div className={styles.inlineActions}>
+                  <button className={styles.secondaryBtn} onClick={() => startDiagnosis(diagnosisType)}>重新诊断</button>
+                </div>
+              </div>
+            )}
+          </section>
+        );
+
       case 'macro':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={BookOpen} title="MA 宏命令参考" desc="常用 MA2/MA3 命令、语法和使用场景。" />
-            <SearchBox value={macroQuery} onChange={setMacroQuery} placeholder="搜索 Cue、Executor、Park、Clone..." />
+            <ToolHeader icon={BookOpen} title="MA 宏命令参考" desc="覆盖 grandMA2 / grandMA3 常用命令语法、示例、标签和使用场景，支持分类检索。" />
+            <div className={styles.formGrid}>
+              <SearchBox value={macroQuery} onChange={setMacroQuery} placeholder="搜索 Cue、Executor、Park、Clone、Fixture..." />
+              <Field label="分类">
+                <select value={macroCategory} onChange={event => setMacroCategory(event.target.value)}>
+                  {macroCategories.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </Field>
+              <Field label="控台版本">
+                <select value={macroVersion} onChange={event => setMacroVersion(event.target.value as typeof macroVersion)}>
+                  <option value="全部">全部</option>
+                  <option value="MA2">MA2</option>
+                  <option value="MA3">MA3</option>
+                  <option value="BOTH">通用</option>
+                </select>
+              </Field>
+            </div>
             <div className={styles.tableList}>
               {macroResults.map(item => (
-                <div className={styles.rowLarge} key={item.syntax}>
-                  <span>{item.category} · {item.name}</span>
+                <div className={styles.rowLarge} key={item.id}>
+                  <span>{item.category} · {item.name} · {item.version}</span>
                   <code>{item.syntax}</code>
-                  <em>{item.desc}</em>
+                  <em>{item.description}</em>
+                  <code>{item.example}</code>
                 </div>
               ))}
             </div>
           </section>
         );
+
       case 'terms':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Search} title="行业术语翻译" desc="灯光行业中英对照术语库，支持模糊搜索。" />
-            <SearchBox value={termQuery} onChange={setTermQuery} placeholder="搜索 DMX、照度、控台、灯位..." />
+            <ToolHeader icon={Search} title="行业术语翻译" desc="灯光行业中英对照术语库，覆盖设备、控台、协议、演出制作和运维。" />
+            <div className={styles.formGrid}>
+              <SearchBox value={termQuery} onChange={setTermQuery} placeholder="搜索 DMX、照度、控台、灯位、Art-Net..." />
+              <Field label="分类">
+                <select value={termCategory} onChange={event => setTermCategory(event.target.value)}>
+                  {termCategories.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </Field>
+            </div>
             <div className={styles.tableList}>
               {termResults.map(item => (
-                <div className={styles.rowLarge} key={item[0]}>
-                  <span>{item[0]}</span>
-                  <code>{item[1]}</code>
-                  <em>{item[2]}</em>
+                <div className={styles.rowLarge} key={item.id}>
+                  <span>{item.chinese} · {item.category}{item.abbreviation ? ` · ${item.abbreviation}` : ''}</span>
+                  <code>{item.english}</code>
+                  {item.description && <em>{item.description}</em>}
                 </div>
               ))}
             </div>
           </section>
         );
+
       case 'ltc':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Clock3} title="LTC 时码工具" desc="SMPTE 时码换算、帧率估算和立体声路由参考。" />
+            <ToolHeader icon={Clock3} title="LTC 时码生成" desc="SMPTE 时码换算、结束时码预估、立体声 LTC WAV 生成和声道路由参考。" />
             <div className={styles.formGrid}>
-              <Field label="时"><input type="number" value={ltc.hour} onChange={event => setLtc(prev => ({ ...prev, hour: Number(event.target.value) }))} /></Field>
-              <Field label="分"><input type="number" value={ltc.minute} onChange={event => setLtc(prev => ({ ...prev, minute: Number(event.target.value) }))} /></Field>
-              <Field label="秒"><input type="number" value={ltc.second} onChange={event => setLtc(prev => ({ ...prev, second: Number(event.target.value) }))} /></Field>
-              <Field label="帧"><input type="number" value={ltc.frame} onChange={event => setLtc(prev => ({ ...prev, frame: Number(event.target.value) }))} /></Field>
+              <Field label="起始时码 HH:MM:SS:FF">
+                <input value={ltc.startTimecode} onChange={event => setLtc(prev => ({ ...prev, startTimecode: event.target.value }))} />
+              </Field>
               <Field label="帧率">
-                <select value={ltc.fps} onChange={event => setLtc(prev => ({ ...prev, fps: Number(event.target.value) }))}>
-                  <option value={24}>24</option>
-                  <option value={25}>25</option>
-                  <option value={30}>30</option>
+                <select value={String(ltc.fps)} onChange={event => setLtc(prev => ({ ...prev, fps: Number(event.target.value) as TimecodeFrameRate }))}>
+                  {TIMECODE_FRAME_RATES.map(rate => <option key={rate} value={rate}>{rate} fps</option>)}
                 </select>
               </Field>
-              <Field label="导出时长 s"><input type="number" value={ltc.duration} onChange={event => setLtc(prev => ({ ...prev, duration: Number(event.target.value) }))} /></Field>
+              <Field label="导出时长 s">
+                <input type="number" min={1} max={120} value={ltc.duration} onChange={event => setLtc(prev => ({ ...prev, duration: Number(event.target.value) }))} />
+              </Field>
+              <Field label="采样率">
+                <select value={ltc.sampleRate} onChange={event => setLtc(prev => ({ ...prev, sampleRate: Number(event.target.value) as 44100 | 48000 }))}>
+                  <option value={48000}>48 kHz</option>
+                  <option value={44100}>44.1 kHz</option>
+                </select>
+              </Field>
+              <Field label="电平">
+                <input type="range" min={0.1} max={0.95} step={0.01} value={ltc.level} onChange={event => setLtc(prev => ({ ...prev, level: Number(event.target.value) }))} />
+              </Field>
+              <Field label="声道路由">
+                <select value={ltc.routeIndex} onChange={event => setLtc(prev => ({ ...prev, routeIndex: Number(event.target.value) }))}>
+                  {LTC_ROUTING_PRESETS.map((preset, index) => <option key={preset.name} value={index}>{preset.name}</option>)}
+                </select>
+              </Field>
             </div>
             <div className={styles.resultGrid}>
-              <Result label="总帧数" value={`${totalFrames}`} />
-              <Result label="时码" value={`${String(ltc.hour).padStart(2, '0')}:${String(ltc.minute).padStart(2, '0')}:${String(ltc.second).padStart(2, '0')}:${String(ltc.frame).padStart(2, '0')}`} />
-              <Result label="路由" value="L: LTC / R: Click" />
+              <Result label="起始时码" value={timecodeRange?.startTimecode || '格式错误'} tone={timecodeRange ? 'ok' : 'danger'} />
+              <Result label="结束时码" value={timecodeRange?.endTimecode || '-'} />
+              <Result label="总帧数" value={`${timecodeRange?.totalFrames ?? 0}`} />
+              <Result label="Drop Frame" value={timecodeRange?.dropFrame ? '是' : '否'} />
+            </div>
+            <div className={styles.rowLarge}>
+              <span>路由用途</span>
+              <em>{activeRoute.useCase}</em>
+            </div>
+            {timecodeRange?.warnings?.length ? (
+              <div className={styles.warningList}>
+                {timecodeRange.warnings.map(warning => <div className={styles.warningItem} key={warning}>{warning}</div>)}
+              </div>
+            ) : null}
+            {ltcMessage && <div className={styles.warningItem}>{ltcMessage}</div>}
+            <div className={styles.inlineActions}>
+              <button className={styles.primaryBtn} onClick={generateLtc}>
+                <Download size={16} /> 生成 LTC WAV
+              </button>
             </div>
           </section>
         );
+
       case 'fixture':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Library} title="灯库制作" desc="生成基础 fixture profile JSON，可作为老虎 D4、金刚等控台灯库整理草稿。" />
+            <ToolHeader icon={Library} title="灯库制作草稿" desc="生成基础 fixture profile，可导出 JSON/CSV 作为老虎 D4、金刚控台、MA 等灯库整理草稿。" />
             <div className={styles.quickList}>
-              {FIXTURE_PRESETS.slice(0, 8).map(item => (
+              {FIXTURE_PRESETS.slice(0, 10).map(item => (
                 <button key={item.model} onClick={() => setFixture(prev => ({ ...prev, model: item.model, channels: item.channels }))}>{item.model} · {item.channels}ch</button>
               ))}
             </div>
@@ -465,9 +795,18 @@ export default function Toolbox() {
               <Field label="模式"><input value={fixture.mode} onChange={event => setFixture(prev => ({ ...prev, mode: event.target.value }))} /></Field>
               <Field label="通道数"><input type="number" min={1} max={512} value={fixture.channels} onChange={event => setFixture(prev => ({ ...prev, channels: Number(event.target.value) }))} /></Field>
             </div>
-            <textarea className={styles.exportArea} readOnly value={fixtureExport} />
+            <Field label="通道属性，一行一个">
+              <textarea className={styles.exportArea} value={fixtureAttributes} onChange={event => setFixtureAttributes(event.target.value)} />
+            </Field>
+            <div className={styles.inlineActions}>
+              <button className={styles.secondaryBtn} onClick={() => copyText(fixtureJson)}><Copy size={16} /> 复制 JSON</button>
+              <button className={styles.secondaryBtn} onClick={() => downloadTextFile(`${fixture.model || 'fixture'}.json`, fixtureJson, 'application/json;charset=utf-8')}><Download size={16} /> 下载 JSON</button>
+              <button className={styles.secondaryBtn} onClick={() => downloadTextFile(`${fixture.model || 'fixture'}-channels.csv`, fixtureCsv, 'text/csv;charset=utf-8')}><Download size={16} /> 下载 CSV</button>
+            </div>
+            <textarea className={styles.exportArea} readOnly value={fixtureJson} />
           </section>
         );
+
       case 'layout':
         return (
           <section className={styles.panel}>
@@ -483,8 +822,9 @@ export default function Toolbox() {
                     targetM: preset.targetM,
                     beamAngle: preset.beamAngle,
                   }))}
+                  title={preset.note}
                 >
-                  {preset.name} · {preset.beamAngle}°
+                  {preset.name} · {preset.beamAngle} deg
                 </button>
               ))}
             </div>
@@ -492,12 +832,12 @@ export default function Toolbox() {
               <Field label="投射距离 m"><input type="number" value={layout.throwM} onChange={event => setLayout(prev => ({ ...prev, throwM: Number(event.target.value) }))} /></Field>
               <Field label="吊挂高度 m"><input type="number" value={layout.trimM} onChange={event => setLayout(prev => ({ ...prev, trimM: Number(event.target.value) }))} /></Field>
               <Field label="目标高度 m"><input type="number" value={layout.targetM} onChange={event => setLayout(prev => ({ ...prev, targetM: Number(event.target.value) }))} /></Field>
-              <Field label="光束角 °"><input type="number" min={1} max={120} value={layout.beamAngle} onChange={event => setLayout(prev => ({ ...prev, beamAngle: Number(event.target.value) }))} /></Field>
+              <Field label="光束角 deg"><input type="number" min={1} max={120} value={layout.beamAngle} onChange={event => setLayout(prev => ({ ...prev, beamAngle: Number(event.target.value) }))} /></Field>
               <Field label="灯具数量"><input type="number" min={1} value={layout.fixtureCount} onChange={event => setLayout(prev => ({ ...prev, fixtureCount: Number(event.target.value) }))} /></Field>
               <Field label="覆盖宽度 m"><input type="number" min={1} value={layout.coverageWidth} onChange={event => setLayout(prev => ({ ...prev, coverageWidth: Number(event.target.value) }))} /></Field>
             </div>
             <div className={styles.resultGrid}>
-              <Result label="建议 Tilt" value={`${layoutResult.tiltAngle}°`} />
+              <Result label="建议 Tilt" value={`${layoutResult.tiltAngle} deg`} />
               <Result label="单灯光斑" value={`${layoutResult.spotDiameter} m`} />
               <Result label="布灯间距" value={`${layoutResult.spacingM} m`} />
               <Result label="横向重叠" value={`${layoutResult.overlap}%`} tone={layoutResult.overlap >= 15 ? 'ok' : 'warn'} />
@@ -505,7 +845,7 @@ export default function Toolbox() {
             <div className={styles.rowLarge}>
               <span>覆盖判断</span>
               <em>
-                当前单灯光斑面积约 {layoutResult.spotArea} m²。
+                当前单灯光斑面积约 {layoutResult.spotArea} m2。
                 {layoutResult.overlap >= 15
                   ? ' 覆盖较连续，可继续用现场照度和视觉均匀度复核。'
                   : ' 重叠偏低，建议增加灯具、放大角度或缩小覆盖宽度。'}
@@ -513,14 +853,16 @@ export default function Toolbox() {
             </div>
           </section>
         );
+
       case 'theory':
         return <ReferencePanel icon={BookOpen} title="灯光理论速查" desc="现场布光常用灯位、角度和色彩混合基础。" items={[
-          { title: '面光 Front Light', body: '常用 30°-45° 入射角，保证主体面部可见并控制阴影。' },
+          { title: '面光 Front Light', body: '常用 30-45 deg 入射角，保证主体面部可见并控制阴影。' },
           { title: '侧光 Side Light', body: '强化人物轮廓和动作质感，舞蹈/实景演出常用于身体塑形。' },
-          { title: '逆光 Back Light', body: '把主体从背景中分离，雾效环境中能形成层次。' },
+          { title: '逆光 Back Light', body: '把主体从背景中分离，雾效环境中能形成空间层次。' },
           { title: '顶光 Top Light', body: '用于空间氛围和特殊造型，注意避免面部阴影过重。' },
           { title: '色彩混合', body: 'RGB 适合 LED 加色混合，CMY 常见于摇头灯减色系统。' },
         ]} />;
+
       default:
         return null;
     }
@@ -530,7 +872,7 @@ export default function Toolbox() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.pageTitle}>专业工具箱</h1>
-        <p className={styles.pageSubtitle}>Web、桌面端和手机端共用同一套灯光现场计算逻辑，核心工具支持离线使用。</p>
+        <p className={styles.pageSubtitle}>Web、桌面端和移动端共用同一套灯光现场计算逻辑，核心工具支持离线使用。</p>
       </div>
 
       <div className={styles.toolGrid}>
@@ -551,7 +893,7 @@ export default function Toolbox() {
   );
 }
 
-function ToolHeader({ icon: Icon, title, desc }: { icon: typeof Activity; title: string; desc: string }) {
+function ToolHeader({ icon: Icon, title, desc }: { icon: LucideIcon; title: string; desc: string }) {
   return (
     <div className={styles.cardHeader}>
       <div className={styles.iconBox}><Icon size={20} /></div>
@@ -563,7 +905,7 @@ function ToolHeader({ icon: Icon, title, desc }: { icon: typeof Activity; title:
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className={styles.field}>
       <span>{label}</span>
@@ -590,7 +932,7 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-function ReferencePanel({ icon, title, desc, items }: { icon: typeof Activity; title: string; desc: string; items: Array<{ title: string; body: string }> }) {
+function ReferencePanel({ icon, title, desc, items }: { icon: LucideIcon; title: string; desc: string; items: Array<{ title: string; body: string }> }) {
   return (
     <section className={styles.panel}>
       <ToolHeader icon={icon} title={title} desc={desc} />

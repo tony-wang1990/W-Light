@@ -15,17 +15,14 @@
         margin: 0;
         min-height: 100vh;
         padding: 32px 16px;
-        background:
-          linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.9)),
-          radial-gradient(circle at 20% 10%, rgba(20, 184, 166, 0.16), transparent 30%),
-          radial-gradient(circle at 90% 20%, rgba(250, 204, 21, 0.1), transparent 28%);
+        background: linear-gradient(145deg, #0f172a, #111827 54%, #134e4a);
       }
       main {
         width: min(1100px, 100%);
         margin: 0 auto;
       }
       header {
-        padding: 28px 0 10px;
+        padding: 24px 0 8px;
       }
       h1 {
         margin: 0 0 10px;
@@ -37,12 +34,12 @@
         line-height: 1.75;
       }
       .lead {
-        max-width: 760px;
+        max-width: 780px;
         font-size: 17px;
       }
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 14px;
         margin-top: 28px;
       }
@@ -50,28 +47,63 @@
         border: 1px solid rgba(148, 163, 184, 0.24);
         border-radius: 8px;
         padding: 18px;
-        background: rgba(15, 23, 42, 0.78);
+        background: rgba(15, 23, 42, 0.82);
       }
       .card h2 {
         margin: 0 0 8px;
         font-size: 20px;
       }
-      .card a {
-        display: inline-block;
-        margin: 12px 8px 0 0;
+      .meta {
+        display: grid;
+        gap: 7px;
+        margin: 14px 0;
+        color: #cbd5e1;
+        font-size: 13px;
+      }
+      .badge {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.18);
+        color: #7dd3fc;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .badge.ok {
+        background: rgba(16, 185, 129, 0.16);
+        color: #86efac;
+      }
+      .badge.warn {
+        background: rgba(250, 204, 21, 0.16);
+        color: #fde68a;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      a.button {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        justify-content: center;
         color: #071018;
         background: #67e8f9;
-        padding: 10px 14px;
+        padding: 8px 14px;
         border-radius: 6px;
         text-decoration: none;
         font-weight: 700;
       }
-      .card a.secondary {
+      a.button.secondary {
         color: #e5e7eb;
         background: rgba(148, 163, 184, 0.18);
       }
-      .card a.disabled,
-      .card a[aria-disabled="true"] {
+      a.button.disabled,
+      a.button[aria-disabled="true"] {
         pointer-events: none;
         cursor: not-allowed;
         color: #94a3b8;
@@ -81,13 +113,19 @@
         color: #fde68a;
         word-break: break-all;
       }
+      ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+        color: #cbd5e1;
+        line-height: 1.75;
+      }
       .note {
         margin-top: 24px;
         padding: 14px 16px;
         border-left: 3px solid #34d399;
         background: rgba(6, 78, 59, 0.34);
       }
-      .warn {
+      .warnBox {
         margin-top: 12px;
         padding: 14px 16px;
         border-left: 3px solid #facc15;
@@ -100,53 +138,156 @@
       <header>
         <h1>W-Light 客户端下载</h1>
         <p class="lead">
-          当前交付 Android APP、Windows 客户端和 Web/PWA，全部连接同一套服务器 API。登录页服务器地址填写
+          当前维护 Android APP、Windows 客户端和 Web/PWA。所有客户端连接同一套服务器 API：
           <code id="apiUrl"></code>，工单、设备、巡检、备件和附件数据会同步到同一套云端数据库。
         </p>
       </header>
 
       <section class="grid">
-        <article class="card">
+        <article class="card" data-client="windows">
+          <span class="badge" data-status>检查中</span>
           <h2>Windows 客户端</h2>
-          <p>下载真正的 Windows 安装程序，安装后从桌面或开始菜单启动 W-Light。</p>
-          <a data-artifact href="./W-Light-Setup-latest.exe">下载 Windows 安装包</a>
-          <a data-artifact class="secondary" href="./W-Light-Setup-latest.exe.sha256">校验 SHA256</a>
+          <p>真正的 Windows 安装程序，适合调度室和项目管理电脑长期使用。</p>
+          <div class="meta">
+            <span>版本：<b data-version>读取中</b></span>
+            <span>大小：<b data-size>读取中</b></span>
+            <span>构建时间：<b data-built>读取中</b></span>
+            <span>SHA256：<code data-sha>读取中</code></span>
+          </div>
+          <ul>
+            <li>独立窗口使用 Web 控制台。</li>
+            <li>和 Android/Web 共用同一套云端数据。</li>
+            <li>正式外部分发建议配置 Windows 代码签名证书。</li>
+          </ul>
+          <div class="actions">
+            <a class="button" data-download href="./W-Light-Setup-latest.exe">下载 Windows 安装包</a>
+            <a class="button secondary" data-checksum href="./W-Light-Setup-latest.exe.sha256">校验 SHA256</a>
+          </div>
+        </article>
+
+        <article class="card" data-client="android">
+          <span class="badge" data-status>检查中</span>
+          <h2>Android APP</h2>
+          <p>现场维修人员优先使用，适合扫码、工单处理、维修记录和常用工具箱。</p>
+          <div class="meta">
+            <span>版本：<b data-version>读取中</b></span>
+            <span>大小：<b data-size>读取中</b></span>
+            <span>构建时间：<b data-built>读取中</b></span>
+            <span>SHA256：<code data-sha>读取中</code></span>
+          </div>
+          <ul>
+            <li>下载 APK 后安装。</li>
+            <li>如提示未知来源，请允许当前浏览器安装应用。</li>
+            <li>正式上线前建议使用正式签名证书重新打包。</li>
+          </ul>
+          <div class="actions">
+            <a class="button" data-download href="./w-light-latest.apk">下载 Android APK</a>
+            <a class="button secondary" data-checksum href="./w-light-latest.apk.sha256">校验 SHA256</a>
+          </div>
         </article>
 
         <article class="card">
-          <h2>Android 手机</h2>
-          <p>下载 APK 后安装。首次安装如提示未知来源，请允许当前浏览器安装应用；内测包可能使用调试签名。</p>
-          <a data-artifact href="./w-light-latest.apk">下载 Android APK</a>
-          <a data-artifact class="secondary" href="./w-light-latest.apk.sha256">校验 SHA256</a>
-        </article>
-
-        <article class="card">
+          <span class="badge ok">在线可用</span>
           <h2>Web / PWA</h2>
           <p>无需安装包，直接打开当前服务器页面。Chrome/Edge 可通过浏览器菜单安装为桌面应用。</p>
-          <a class="secondary" href="/">打开 Web 控制台</a>
+          <ul>
+            <li>服务器升级后刷新页面即可使用新版本。</li>
+            <li>适合临时电脑、调度屏、管理端快速访问。</li>
+            <li>仍然建议生产环境配置 HTTPS。</li>
+          </ul>
+          <div class="actions">
+            <a class="button secondary" href="/">打开 Web 控制台</a>
+          </div>
         </article>
       </section>
 
       <div class="note">
-        下载按钮显示“暂未发布”表示对应安装包还没有发布到 <code>/root/W-Light/deploy/downloads/</code>。当前只维护 Android APK 和 Windows EXE。
+        下载按钮显示“暂未发布”表示对应安装包还没有放到 <code>/root/W-Light/deploy/downloads/</code>。
       </div>
-      <div class="warn">
-        生产对外分发建议为 Windows 配置代码签名证书；内部测试包可以先直接下载安装。
+      <div class="warnBox">
+        当前只维护 Android 和 Windows 客户端。iOS/macOS 暂不作为当前交付目标。
       </div>
     </main>
+
     <script>
+      const clients = {
+        windows: {
+          metadata: './w-light-desktop.json',
+          fallbackFile: './W-Light-Setup-latest.exe',
+        },
+        android: {
+          metadata: './w-light-android.json',
+          fallbackFile: './w-light-latest.apk',
+        },
+      };
+
       document.getElementById('apiUrl').textContent = location.origin + '/v1';
-      document.querySelectorAll('a[data-artifact]').forEach(async (link) => {
+
+      function formatBytes(value) {
+        if (!value) return '未知大小';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = Number(value);
+        let index = 0;
+        while (size >= 1024 && index < units.length - 1) {
+          size /= 1024;
+          index += 1;
+        }
+        return `${size.toFixed(size >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+      }
+
+      function formatDate(value) {
+        if (!value) return '未记录';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString('zh-CN', { hour12: false });
+      }
+
+      function setUnavailable(card, message) {
+        const badge = card.querySelector('[data-status]');
+        badge.textContent = message || '暂未发布';
+        badge.classList.add('warn');
+        card.querySelectorAll('[data-download], [data-checksum]').forEach((link) => {
+          link.removeAttribute('href');
+          link.setAttribute('aria-disabled', 'true');
+          link.classList.add('disabled');
+          if (link.hasAttribute('data-download')) link.textContent = '暂未发布';
+        });
+      }
+
+      async function hydrateClient(key, config) {
+        const card = document.querySelector(`[data-client="${key}"]`);
+        if (!card) return;
+
+        let metadata = {};
         try {
-          const response = await fetch(link.getAttribute('href'), { method: 'HEAD', cache: 'no-store' });
-          if (response.ok) return;
+          const metadataResponse = await fetch(config.metadata, { cache: 'no-store' });
+          if (metadataResponse.ok) metadata = await metadataResponse.json();
         } catch {}
 
-        link.removeAttribute('href');
-        link.setAttribute('aria-disabled', 'true');
-        link.classList.add('disabled');
-        link.textContent = '暂未发布';
-      });
+        const file = metadata.file ? `./${metadata.file}` : config.fallbackFile;
+        const checksum = `${file}.sha256`;
+        card.querySelector('[data-version]').textContent = metadata.version || metadata.commit || '内部测试版';
+        card.querySelector('[data-size]').textContent = formatBytes(metadata.sizeBytes);
+        card.querySelector('[data-built]').textContent = formatDate(metadata.builtAt);
+        card.querySelector('[data-sha]').textContent = metadata.sha256 ? `${metadata.sha256.slice(0, 18)}...` : '未记录';
+        card.querySelector('[data-download]').setAttribute('href', file);
+        card.querySelector('[data-checksum]').setAttribute('href', checksum);
+
+        try {
+          const response = await fetch(file, { method: 'HEAD', cache: 'no-store' });
+          if (!response.ok) {
+            setUnavailable(card, `HTTP ${response.status}`);
+            return;
+          }
+          const badge = card.querySelector('[data-status]');
+          badge.textContent = '可下载';
+          badge.classList.add('ok');
+        } catch {
+          setUnavailable(card, '检查失败');
+        }
+      }
+
+      Object.entries(clients).forEach(([key, config]) => hydrateClient(key, config));
     </script>
   </body>
 </html>

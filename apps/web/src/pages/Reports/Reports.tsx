@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { DatabaseBackup, Download, RefreshCw, Upload } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
@@ -10,8 +10,11 @@ interface OperationsSummary {
     totalOrders: number;
     faultOrders: number;
     closedOrders: number;
+    activeOrders: number;
     overtimeOrders: number;
+    totalRepairCost: number;
     deviceCount: number;
+    closureRate: number;
     faultRateByOrders: number;
     faultRateByDevices: number;
     avgRepairHours: number;
@@ -38,6 +41,10 @@ function daysAgo(days: number) {
 
 function sumRestore(result: RestoreResult, field: 'accepted' | 'skipped') {
   return Object.values(result.tables).reduce((sum, table) => sum + table[field], 0);
+}
+
+function money(value?: number) {
+  return `¥${Number(value || 0).toFixed(2)}`;
 }
 
 export default function Reports() {
@@ -77,6 +84,10 @@ export default function Reports() {
     apiClient.download(`/reports/export/orders.xlsx?${queryString}`, `w-light-orders-${startDate}-${endDate}.xlsx`);
   };
 
+  const exportMonthlyOperations = () => {
+    apiClient.download(`/reports/export/monthly-operations.xlsx?${queryString}`, `w-light-monthly-operations-${startDate}-${endDate}.xlsx`);
+  };
+
   const downloadBackup = () => {
     apiClient.download('/reports/backup.json', `w-light-backup-${today()}.json`);
   };
@@ -87,7 +98,7 @@ export default function Reports() {
     restoreInputRef.current?.click();
   };
 
-  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestoreBackup = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -117,28 +128,49 @@ export default function Reports() {
     }
   };
 
+  const overview = summary?.overview;
   const overviewCards = [
-    { label: '总工单', value: summary?.overview.totalOrders ?? '-' },
-    { label: '故障工单', value: summary?.overview.faultOrders ?? '-' },
-    { label: '闭环归档', value: summary?.overview.closedOrders ?? '-' },
-    { label: '超时工单', value: summary?.overview.overtimeOrders ?? '-' },
-    { label: '工单故障率', value: summary ? `${summary.overview.faultRateByOrders}%` : '-' },
-    { label: '平均维修时长', value: summary ? `${summary.overview.avgRepairHours}h` : '-' },
+    { label: '工单总数', value: overview?.totalOrders ?? '-' },
+    { label: '未闭环工单', value: overview?.activeOrders ?? '-' },
+    { label: '闭环归档', value: overview?.closedOrders ?? '-' },
+    { label: '闭环率', value: overview ? `${overview.closureRate}%` : '-' },
+    { label: '超时工单', value: overview?.overtimeOrders ?? '-' },
+    { label: '维修成本', value: overview ? money(overview.totalRepairCost) : '-' },
+    { label: '设备故障率', value: overview ? `${overview.faultRateByDevices}%` : '-' },
+    { label: '平均维修时长', value: overview ? `${overview.avgRepairHours}h` : '-' },
+    { label: '平均响应时长', value: overview ? `${overview.avgResponseHours}h` : '-' },
   ];
+
+  const suggestions = useMemo(() => {
+    if (!summary) return ['正在读取运营数据。'];
+    const items: string[] = [];
+    if (summary.overview.closureRate < 90) items.push('闭环率低于 90%，建议优先检查派单、验收和逾期工单处理。');
+    if (summary.overview.overtimeOrders > 0) items.push(`存在 ${summary.overview.overtimeOrders} 个超时工单，建议按人员和区域复盘响应时长。`);
+    if (summary.overview.avgRepairHours > 24) items.push('平均维修时长超过 24 小时，建议建立高频备件包和疑难故障升级机制。');
+    const topDevice = summary.repeatFaultDevices[0];
+    if (topDevice) items.push(`${topDevice.device_no || topDevice.device_name} 出现重复故障，建议纳入重点巡检或替换评估。`);
+    const topFault = summary.faultTypes[0];
+    if (topFault && Number(topFault.count) > 0) items.push(`高频故障类型为 ${topFault.fault_type || '未分类'}，建议补充标准排查 SOP。`);
+    if (items.length === 0) items.push('本周期关键指标稳定，可以继续沉淀维修记录和巡检数据。');
+    return items;
+  }, [summary]);
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
           <h1 className={styles.pageTitle}>报表与数据</h1>
-          <p className={styles.pageSubtitle}>集中查看故障率、维修时长、人员绩效、备件消耗，并执行 Excel 导出和项目备份恢复。</p>
+          <p className={styles.pageSubtitle}>集中查看故障率、维修时长、人员绩效、维修成本、备件消耗，并执行 Excel 导出和项目备份恢复。</p>
         </div>
         <div className={styles.actions}>
           <button className={styles.secondaryBtn} onClick={loadReport} disabled={loading}>
             <RefreshCw size={16} /> 刷新
           </button>
-          <button className={styles.primaryBtn} onClick={exportOrders}>
-            <Download size={16} /> 导出 Excel
+          <button className={styles.primaryBtn} onClick={exportMonthlyOperations}>
+            <Download size={16} /> 月度运营总表
+          </button>
+          <button className={styles.secondaryBtn} onClick={exportOrders}>
+            <Download size={16} /> 工单明细
           </button>
         </div>
       </div>
@@ -176,66 +208,107 @@ export default function Reports() {
         ))}
       </div>
 
+      <div className={styles.wideGrid}>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>运营建议</h2>
+            <span className={styles.badge}>自动分析</span>
+          </div>
+          <div className={styles.list}>
+            {suggestions.map((item, index) => (
+              <div className={styles.copyBox} key={item}>
+                <span>{index + 1}. {item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>当前统计范围</h2>
+            <span className={styles.muted}>按工单创建时间</span>
+          </div>
+          <div className={styles.copyBox}>
+            <span>{summary?.range?.startDate || startDate} 至 {summary?.range?.endDate || endDate}</span>
+          </div>
+        </div>
+      </div>
+
       <div className={styles.grid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>故障类型排行</h2>
-            <span className={styles.muted}>按工单统计</span>
-          </div>
-          <div className={styles.list}>
-            {summary?.faultTypes.length ? summary.faultTypes.map(row => (
-              <div className={styles.copyBox} key={row.fault_type}>
-                <span>{row.fault_type || '未分类'}</span>
-                <strong>{Number(row.count)} 次</strong>
-              </div>
-            )) : <div className={styles.empty}>暂无故障类型数据</div>}
-          </div>
-        </div>
+        <ReportList
+          title="故障类型排行"
+          subtitle="按工单统计"
+          empty="暂无故障类型数据"
+          rows={summary?.faultTypes || []}
+          renderKey={row => row.fault_type || 'unclassified'}
+          renderText={row => row.fault_type || '未分类'}
+          renderValue={row => `${Number(row.count)} 次`}
+        />
 
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>重复故障设备</h2>
-            <span className={styles.muted}>同周期多次故障</span>
-          </div>
-          <div className={styles.list}>
-            {summary?.repeatFaultDevices.length ? summary.repeatFaultDevices.map(row => (
-              <div className={styles.copyBox} key={`${row.device_no}-${row.device_name}`}>
-                <span>{row.device_no || '未编号'} · {row.device_name || '未命名设备'}</span>
-                <strong>{Number(row.fault_count)} 次</strong>
-              </div>
-            )) : <div className={styles.empty}>暂无重复故障设备</div>}
-          </div>
-        </div>
+        <ReportList
+          title="重复故障设备"
+          subtitle="同周期多次故障"
+          empty="暂无重复故障设备"
+          rows={summary?.repeatFaultDevices || []}
+          renderKey={(row, index) => `${row.device_no}-${row.device_name}-${index}`}
+          renderText={row => `${row.device_no || '未编号'} · ${row.device_name || '未命名设备'}`}
+          renderValue={row => `${Number(row.fault_count)} 次`}
+        />
 
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>人员绩效</h2>
-            <span className={styles.muted}>完工/平均时长</span>
-          </div>
-          <div className={styles.list}>
-            {summary?.engineerPerformance.length ? summary.engineerPerformance.map(row => (
-              <div className={styles.copyBox} key={row.engineer_name || Math.random()}>
-                <span>{row.engineer_name || '未命名工程师'}</span>
-                <strong>{Number(row.closed_orders)}/{Number(row.total_orders)} · {(Number(row.avg_repair_hours) || 0).toFixed(1)}h</strong>
-              </div>
-            )) : <div className={styles.empty}>暂无人员绩效数据</div>}
-          </div>
-        </div>
+        <ReportList
+          title="人员绩效"
+          subtitle="完工/平均时长"
+          empty="暂无人员绩效数据"
+          rows={summary?.engineerPerformance || []}
+          renderKey={(row, index) => `${row.engineer_name}-${index}`}
+          renderText={row => row.engineer_name || '未命名工程师'}
+          renderValue={row => `${Number(row.closed_orders)}/${Number(row.total_orders)} · ${(Number(row.avg_repair_hours) || 0).toFixed(1)}h`}
+        />
 
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>备件消耗</h2>
-            <span className={styles.muted}>按出库统计</span>
+        <ReportList
+          title="备件消耗"
+          subtitle="按出库统计"
+          empty="暂无备件消耗数据"
+          rows={summary?.partsConsumption || []}
+          renderKey={(row, index) => `${row.part_name}-${index}`}
+          renderText={row => row.part_name}
+          renderValue={row => `${Number(row.consumed_quantity)} ${row.unit || ''}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ReportList<T>({
+  title,
+  subtitle,
+  empty,
+  rows,
+  renderKey,
+  renderText,
+  renderValue,
+}: {
+  title: string;
+  subtitle: string;
+  empty: string;
+  rows: T[];
+  renderKey: (row: T, index: number) => string;
+  renderText: (row: T) => string;
+  renderValue: (row: T) => string;
+}) {
+  return (
+    <div className={styles.card}>
+      <div className={styles.cardHeader}>
+        <h2 className={styles.cardTitle}>{title}</h2>
+        <span className={styles.muted}>{subtitle}</span>
+      </div>
+      <div className={styles.list}>
+        {rows.length ? rows.map((row, index) => (
+          <div className={styles.copyBox} key={renderKey(row, index)}>
+            <span>{renderText(row)}</span>
+            <strong>{renderValue(row)}</strong>
           </div>
-          <div className={styles.list}>
-            {summary?.partsConsumption.length ? summary.partsConsumption.map(row => (
-              <div className={styles.copyBox} key={row.part_name}>
-                <span>{row.part_name}</span>
-                <strong>{Number(row.consumed_quantity)} {row.unit || ''}</strong>
-              </div>
-            )) : <div className={styles.empty}>暂无备件消耗数据</div>}
-          </div>
-        </div>
+        )) : <div className={styles.empty}>{empty}</div>}
       </div>
     </div>
   );

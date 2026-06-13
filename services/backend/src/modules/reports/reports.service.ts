@@ -87,6 +87,10 @@ export class ReportsService {
     return this.exportService.exportInspectionAnomaly(projectId, startDate, endDate)
   }
 
+  exportMonthlyOperationsWorkbook(projectId: string, startDate: string, endDate: string) {
+    return this.exportService.exportMonthlyOperationsWorkbook(projectId, startDate, endDate)
+  }
+
   exportMonthlyPdfReport(projectId: string, year: number, month: number) {
     return this.exportService.exportMonthlyPdfReport(projectId, year, month)
   }

@@ -42,6 +42,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANDROID_DIR="${ROOT_DIR}/apps/LightOps/android"
 APK_PATH="${ANDROID_DIR}/app/build/outputs/apk/release/app-release.apk"
 DOWNLOAD_DIR="${ROOT_DIR}/deploy/downloads"
+APP_VERSION="$(node -e "console.log(require('${ROOT_DIR}/package.json').version)" 2>/dev/null || echo unknown)"
 
 if ! command -v java >/dev/null 2>&1; then
   echo "Java is required. Install JDK 17 and set JAVA_HOME before building Android." >&2
@@ -72,16 +73,22 @@ if [[ "$PUBLISH_WEB" -eq 1 ]]; then
   mkdir -p "$DOWNLOAD_DIR"
   cp "$APK_PATH" "${DOWNLOAD_DIR}/w-light-latest.apk"
 
+  ARTIFACT_SHA=""
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "${DOWNLOAD_DIR}/w-light-latest.apk" > "${DOWNLOAD_DIR}/w-light-latest.apk.sha256"
+    ARTIFACT_SHA="$(sha256sum "${DOWNLOAD_DIR}/w-light-latest.apk" | awk '{print $1}')"
+    echo "${ARTIFACT_SHA}  w-light-latest.apk" > "${DOWNLOAD_DIR}/w-light-latest.apk.sha256"
   fi
+  ARTIFACT_SIZE="$(wc -c < "${DOWNLOAD_DIR}/w-light-latest.apk" | tr -d ' ')"
 
   cat > "${DOWNLOAD_DIR}/w-light-android.json" <<JSON
 {
   "platform": "android",
   "file": "w-light-latest.apk",
+  "version": "${APP_VERSION}",
   "builtAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "commit": "$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  "commit": "$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)",
+  "sha256": "${ARTIFACT_SHA}",
+  "sizeBytes": ${ARTIFACT_SIZE}
 }
 JSON
 

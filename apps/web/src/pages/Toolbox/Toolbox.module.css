@@ -196,6 +196,109 @@
   background: #F3F4F6;
 }
 
+.primaryBtn {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid #00A67E;
+  border-radius: 8px;
+  background: #00A67E;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryBtn:hover {
+  background: #008B69;
+  border-color: #008B69;
+}
+
+.iconBtn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6B7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: #FEF2F2;
+  border-color: #FCA5A5;
+  color: #DC2626;
+}
+
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.inlineActions button,
+.primaryBtn,
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.fixtureRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fixtureRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) repeat(4, minmax(100px, 0.7fr)) 38px;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #F9FAFB;
+}
+
+.warningList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.warningItem {
+  padding: 10px 12px;
+  border: 1px solid #FDE68A;
+  border-radius: 8px;
+  background: #FFFBEB;
+  color: #92400E;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.activePill {
+  border-color: #00A67E !important;
+  background: #E6FFFA !important;
+  color: #047857 !important;
+}
+
+.orderedList {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .bpmLayout {
   display: grid;
   grid-template-columns: minmax(180px, 260px) minmax(220px, 1fr);
@@ -373,6 +476,12 @@
   cursor: pointer;
 }
 
+.quickList button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .quickList button:hover,
 .paletteGrid button:hover {
   border-color: #00A67E;
@@ -517,5 +626,14 @@
 
   .panel {
     padding: 16px;
+  }
+
+  .fixtureRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .iconBtn {
+    width: 100%;
   }
 }

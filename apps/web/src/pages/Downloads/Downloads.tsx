@@ -51,6 +51,13 @@ export default function Downloads() {
 
   const downloadTypes = [
     {
+      key: 'monthly-operations',
+      title: '月度运营总览工作簿',
+      desc: '一份 Excel 内含核心指标、故障类型、设备故障率、人员绩效、维修成本、每日走势和运营建议，适合月度复盘。',
+      icon: <TrendingUp size={24} className={styles.textSuccess} />,
+      action: () => handleDownload('monthly-operations.xlsx', 'monthly-operations', 'monthly-operations'),
+    },
+    {
       key: 'orders',
       title: '月度工单明细表',
       desc: '包含所有工单的详细字段，如报修时间、处理人、故障描述等。',

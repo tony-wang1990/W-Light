@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   Briefcase,
@@ -26,7 +26,7 @@ const MENU_ITEMS = [
   { path: '/orders', label: '工单调度中心', icon: Briefcase },
   { path: '/maintenance', label: '维修记录台账', icon: FileText },
   { path: '/inspections', label: '巡检管理', icon: ClipboardList, roles: ['admin', 'engineer', 'inspector'] },
-  { path: '/devices', label: '设备台账管理', icon: Settings2, roles: ['admin', 'engineer'] },
+  { path: '/devices', label: '设备台账管理', icon: Settings2, roles: ['admin', 'engineer', 'inspector', 'viewer'] },
   { path: '/parts', label: '备件库存管理', icon: Package, roles: ['admin', 'engineer'] },
   { path: '/reports', label: '报表与数据', icon: BarChart3, roles: ['admin', 'viewer'] },
   { path: '/downloads', label: '数据下载中心', icon: Download, roles: ['admin', 'viewer'] },
@@ -35,6 +35,10 @@ const MENU_ITEMS = [
   { path: '/toolbox', label: '专业工具箱', icon: Wrench },
   { path: '/clients', label: '客户端下载中心', icon: DownloadCloud },
 ];
+
+function canAccessMenuItem(item: typeof MENU_ITEMS[number], role?: string) {
+  return !item.roles || item.roles.includes(role || '');
+}
 
 interface ProjectOption {
   id: string;
@@ -59,6 +63,7 @@ export default function AdminLayout() {
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const { user, currentProjectId, setCurrentProject, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const fallbackProjects: ProjectOption[] = useMemo(
     () => (user?.projectIds || []).map(id => ({ id, name: id.slice(0, 8) })),
@@ -88,6 +93,20 @@ export default function AdminLayout() {
   }, [user?.id]);
 
   useEffect(() => {
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    const matchedItem = MENU_ITEMS.find(item => (
+      location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+    ));
+    if (matchedItem && !canAccessMenuItem(matchedItem, user.role)) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.pathname, navigate, user]);
+
+  useEffect(() => {
     const validProjectIds = projectOptions.map(project => project.id).filter(isValidProjectId);
     if (currentProjectId && validProjectIds.includes(currentProjectId)) return;
     const firstProjectId = validProjectIds[0];
@@ -99,6 +118,10 @@ export default function AdminLayout() {
     navigate('/login');
   };
 
+  const visibleMenuItems = MENU_ITEMS.filter(item => canAccessMenuItem(item, user?.role));
+
+  if (!user) return null;
+
   return (
     <div className={styles.layout}>
       <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
@@ -108,7 +131,7 @@ export default function AdminLayout() {
         </div>
 
         <nav className={styles.navMenu}>
-          {MENU_ITEMS.filter(item => !item.roles || item.roles.includes(user?.role || '')).map((item) => (
+          {visibleMenuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}

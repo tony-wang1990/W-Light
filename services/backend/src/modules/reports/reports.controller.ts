@@ -220,6 +220,21 @@ export class ReportsController {
     res.send(buffer)
   }
 
+  @Get('export/monthly-operations.xlsx')
+  async exportMonthlyOperations(
+    @Request() req,
+    @Res() res,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const range = normalizeDateRange(startDate, endDate)
+    const buffer = await this.svc.exportMonthlyOperationsWorkbook(req.projectId, range.start, range.end)
+    const filename = `lightops-monthly-operations-${new Date().toISOString().slice(0, 10)}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(buffer)
+  }
+
   @Get('export/monthly-report.pdf')
   async exportMonthlyPdf(
     @Request() req,

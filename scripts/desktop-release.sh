@@ -4,6 +4,8 @@ set -euo pipefail
 TARGET="current"
 PUBLISH_WEB="0"
 export CSC_IDENTITY_AUTO_DISCOVERY="false"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_VERSION="$(node -e "console.log(require('${ROOT_DIR}/package.json').version)" 2>/dev/null || echo unknown)"
 
 for arg in "$@"; do
   case "$arg" in
@@ -90,16 +92,23 @@ artifact="$(ls -t "${artifacts[@]}" | head -n 1)"
 cp "$artifact" "deploy/downloads/$LATEST_NAME"
 
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum "deploy/downloads/$LATEST_NAME" | awk '{print $1}' > "deploy/downloads/$LATEST_NAME.sha256"
+  ARTIFACT_SHA="$(sha256sum "deploy/downloads/$LATEST_NAME" | awk '{print $1}')"
+  echo "$ARTIFACT_SHA  $LATEST_NAME" > "deploy/downloads/$LATEST_NAME.sha256"
+else
+  ARTIFACT_SHA=""
 fi
+ARTIFACT_SIZE="$(wc -c < "deploy/downloads/$LATEST_NAME" | tr -d ' ')"
 
 cat > deploy/downloads/w-light-desktop.json <<JSON
 {
   "target": "$TARGET",
   "file": "$LATEST_NAME",
+  "version": "$APP_VERSION",
   "sourceArtifact": "$(basename "$artifact")",
   "builtAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "commit": "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  "commit": "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)",
+  "sha256": "$ARTIFACT_SHA",
+  "sizeBytes": $ARTIFACT_SIZE
 }
 JSON
 

@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+DEFAULT_APP_DIR="/root/W-Light"
+if [[ "$(id -u)" -ne 0 ]]; then
+  DEFAULT_APP_DIR="${HOME}/W-Light"
+fi
+
+if [[ -z "${APP_DIR:-}" && -f docker-compose.yml ]]; then
+  APP_DIR="$(pwd)"
+else
+  APP_DIR="${APP_DIR:-$DEFAULT_APP_DIR}"
+fi
+
+WEB_PORT="${WEB_PORT:-3005}"
+BACKUP_ROOT=""
+STRICT_DOWNLOADS=false
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/server-check.sh [options]
+
+Production readiness checks for a deployed W-Light server:
+  - Docker Compose services
+  - Web and API health endpoints
+  - PostgreSQL and Redis connectivity
+  - client download artifacts and checksums
+  - local backup directory status
+
+Options:
+  --app-dir DIR       App directory, default /root/W-Light for root
+  --port PORT         Web port, default WEB_PORT or 3005
+  --backup-root DIR   Backup root, default APP_DIR/deploy/backups
+  --strict-downloads  Require Android APK and Windows EXE artifacts
+  -h, --help          Show help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --app-dir)
+      APP_DIR="$2"
+      shift 2
+      ;;
+    --port)
+      WEB_PORT="$2"
+      shift 2
+      ;;
+    --backup-root)
+      BACKUP_ROOT="$2"
+      shift 2
+      ;;
+    --strict-downloads)
+      STRICT_DOWNLOADS=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+BACKUP_ROOT="${BACKUP_ROOT:-${APP_DIR}/deploy/backups}"
+
+PASS=0
+WARN=0
+FAIL=0
+
+ok() {
+  PASS=$((PASS + 1))
+  printf 'OK   %s\n' "$1"
+}
+
+warn() {
+  WARN=$((WARN + 1))
+  printf 'WARN %s\n' "$1"
+}
+
+fail() {
+  FAIL=$((FAIL + 1))
+  printf 'FAIL %s\n' "$1"
+}
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+compose() {
+  if docker ps >/dev/null 2>&1; then
+    docker compose "$@"
+  else
+    sudo docker compose "$@"
+  fi
+}
+
+load_env() {
+  if [[ -f .env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+    WEB_PORT="${WEB_PORT:-3005}"
+    ok ".env loaded"
+  else
+    warn ".env not found; docker compose may fail if required secrets are missing"
+  fi
+}
+
+check_http() {
+  local label="$1"
+  local url="$2"
+
+  if have curl; then
+    if curl -fsS --max-time 8 "$url" >/dev/null; then
+      ok "$label reachable: $url"
+    else
+      fail "$label not reachable: $url"
+    fi
+  elif have wget; then
+    if wget -qO- --timeout=8 "$url" >/dev/null; then
+      ok "$label reachable: $url"
+    else
+      fail "$label not reachable: $url"
+    fi
+  else
+    warn "curl/wget not installed; skipped $label HTTP check"
+  fi
+}
+
+check_compose_services() {
+  if ! have docker; then
+    fail "docker is not installed"
+    return
+  fi
+
+  if compose ps >/tmp/wlight-compose-ps.txt 2>/tmp/wlight-compose-ps.err; then
+    ok "docker compose ps succeeded"
+  else
+    fail "docker compose ps failed: $(tr '\n' ' ' </tmp/wlight-compose-ps.err)"
+    return
+  fi
+
+  local services=(web api postgres redis minio)
+  local service
+  for service in "${services[@]}"; do
+    if compose ps "$service" 2>/dev/null | grep -Eiq '(running|up|healthy)'; then
+      ok "service ${service} is running"
+    else
+      fail "service ${service} is not running"
+    fi
+  done
+}
+
+check_postgres() {
+  local user="${DB_USER:-lightops}"
+  local db="${DB_NAME:-lightops}"
+
+  if compose exec -T postgres pg_isready -U "$user" -d "$db" >/dev/null 2>&1; then
+    ok "PostgreSQL accepts connections"
+  else
+    fail "PostgreSQL connection check failed"
+    return
+  fi
+
+  if compose exec -T postgres psql -U "$user" -d "$db" -tAc "select count(*) from information_schema.tables where table_schema='public';" >/tmp/wlight-table-count.txt 2>/dev/null; then
+    local count
+    count="$(tr -d '[:space:]' </tmp/wlight-table-count.txt)"
+    if [[ "${count:-0}" -gt 0 ]]; then
+      ok "PostgreSQL has ${count} public tables"
+    else
+      fail "PostgreSQL has no public tables; migrations may not have run"
+    fi
+  else
+    warn "Skipped PostgreSQL table count"
+  fi
+}
+
+check_redis() {
+  local password="${REDIS_PASSWORD:-}"
+  if [[ -z "$password" ]]; then
+    warn "REDIS_PASSWORD is empty; skipped redis-cli ping"
+    return
+  fi
+
+  if compose exec -T redis redis-cli -a "$password" ping 2>/dev/null | grep -q PONG; then
+    ok "Redis ping returned PONG"
+  else
+    fail "Redis ping failed"
+  fi
+}
+
+check_downloads() {
+  local downloads_dir="${APP_DIR}/deploy/downloads"
+  if [[ ! -d "$downloads_dir" ]]; then
+    fail "downloads directory missing: $downloads_dir"
+    return
+  fi
+
+  if have node && [[ -f scripts/verify-downloads.mjs ]]; then
+    local args=(scripts/verify-downloads.mjs --downloads-dir "$downloads_dir")
+    if [[ "$STRICT_DOWNLOADS" == "true" ]]; then
+      args+=(--strict)
+    fi
+    if node "${args[@]}" >/tmp/wlight-downloads-check.txt 2>/tmp/wlight-downloads-check.err; then
+      ok "client download metadata/checksums verified"
+    else
+      fail "client download verification failed: $(tr '\n' ' ' </tmp/wlight-downloads-check.err)"
+    fi
+    return
+  fi
+
+  warn "node not found; using fallback download checksum checks"
+  local required=()
+  if [[ "$STRICT_DOWNLOADS" == "true" ]]; then
+    required=(w-light-latest.apk W-Light-Setup-latest.exe)
+  fi
+
+  local artifact
+  for artifact in "${required[@]}"; do
+    if [[ -s "${downloads_dir}/${artifact}" ]]; then
+      ok "download artifact exists: ${artifact}"
+    else
+      fail "download artifact missing: ${artifact}"
+    fi
+  done
+
+  if have sha256sum; then
+    local checksum
+    for checksum in "${downloads_dir}"/*.sha256; do
+      [[ -e "$checksum" ]] || continue
+      if (cd "$downloads_dir" && sha256sum -c "$(basename "$checksum")" >/dev/null 2>&1); then
+        ok "checksum verified: $(basename "$checksum")"
+      else
+        fail "checksum mismatch: $(basename "$checksum")"
+      fi
+    done
+  else
+    warn "sha256sum not installed; skipped fallback checksum verification"
+  fi
+}
+
+check_backups() {
+  if [[ ! -d "$BACKUP_ROOT" ]]; then
+    warn "backup root not found: $BACKUP_ROOT"
+    return
+  fi
+
+  local latest
+  latest="$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tail -n 1 || true)"
+  if [[ -z "$latest" ]]; then
+    warn "no backup directories found in $BACKUP_ROOT"
+    return
+  fi
+
+  ok "latest backup: $(basename "$latest")"
+  if [[ -s "${latest}/postgres.sql" ]]; then
+    ok "latest backup has PostgreSQL dump"
+  else
+    fail "latest backup missing postgres.sql"
+  fi
+  if [[ -s "${latest}/minio-data.tar.gz" ]]; then
+    ok "latest backup has MinIO archive"
+  else
+    fail "latest backup missing minio-data.tar.gz"
+  fi
+  if [[ -f "${latest}/SHA256SUMS" ]] && have sha256sum; then
+    if (cd "$latest" && sha256sum -c SHA256SUMS >/dev/null 2>&1); then
+      ok "latest backup checksums verified"
+    else
+      fail "latest backup checksum verification failed"
+    fi
+  else
+    warn "latest backup checksum manifest not verified"
+  fi
+}
+
+main() {
+  if [[ ! -d "$APP_DIR" ]]; then
+    echo "App directory does not exist: $APP_DIR" >&2
+    exit 1
+  fi
+
+  cd "$APP_DIR"
+  echo "W-Light production check"
+  echo "App dir: $APP_DIR"
+  echo "Web port: $WEB_PORT"
+  echo
+
+  load_env
+  check_compose_services
+  check_http "Web" "http://127.0.0.1:${WEB_PORT}/"
+  check_http "API health" "http://127.0.0.1:${WEB_PORT}/v1/health"
+  check_postgres
+  check_redis
+  check_downloads
+  check_backups
+
+  echo
+  echo "Summary: ${PASS} passed, ${WARN} warnings, ${FAIL} failed"
+  if [[ "$FAIL" -gt 0 ]]; then
+    exit 1
+  fi
+}
+
+main

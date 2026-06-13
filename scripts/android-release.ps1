@@ -23,6 +23,7 @@ $RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
 $AndroidDir = Join-Path $RootDir "apps/LightOps/android"
 $ApkPath = Join-Path $AndroidDir "app/build/outputs/apk/release/app-release.apk"
 $DownloadDir = Join-Path $RootDir "deploy/downloads"
+$AppVersion = ((Get-Content -LiteralPath (Join-Path $RootDir "package.json") -Raw) | ConvertFrom-Json).version
 
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
   throw "Java is required. Install JDK 17 and set JAVA_HOME before building Android."
@@ -59,8 +60,11 @@ if ($PublishWeb) {
   $Meta = [ordered]@{
     platform = "android"
     file = "w-light-latest.apk"
+    version = $AppVersion
     builtAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     commit = $Commit
+    sha256 = $Hash.Hash.ToLower()
+    sizeBytes = (Get-Item -LiteralPath $TargetApk).Length
   }
   $Meta | ConvertTo-Json | Set-Content -Path (Join-Path $DownloadDir "w-light-android.json")
 

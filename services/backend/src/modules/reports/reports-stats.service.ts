@@ -240,7 +240,9 @@ export class ReportsStatsService {
         COUNT(*) as total_orders,
         SUM(CASE WHEN faultType IS NOT NULL OR category = ? THEN 1 ELSE 0 END) as fault_orders,
         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_orders,
+        SUM(CASE WHEN status IN ('pending', 'assigned', 'processing', 'reviewing') THEN 1 ELSE 0 END) as active_orders,
         SUM(CASE WHEN isOvertime = 1 THEN 1 ELSE 0 END) as overtime_orders,
+        SUM(COALESCE(repairCost, 0)) as total_repair_cost,
         AVG(
           CASE
             WHEN startedAt IS NOT NULL AND closedAt IS NOT NULL
@@ -262,7 +264,9 @@ export class ReportsStatsService {
         COUNT(*) as total_orders,
         SUM(CASE WHEN "faultType" IS NOT NULL OR category = $1 THEN 1 ELSE 0 END) as fault_orders,
         SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_orders,
+        SUM(CASE WHEN status IN ('pending', 'assigned', 'processing', 'reviewing') THEN 1 ELSE 0 END) as active_orders,
         SUM(CASE WHEN "isOvertime" = true THEN 1 ELSE 0 END) as overtime_orders,
+        SUM(COALESCE("repairCost", 0)) as total_repair_cost,
         AVG(
           CASE
             WHEN "startedAt" IS NOT NULL AND "closedAt" IS NOT NULL
@@ -443,8 +447,11 @@ export class ReportsStatsService {
         totalOrders,
         faultOrders,
         closedOrders: Number(summary?.closed_orders) || 0,
+        activeOrders: Number(summary?.active_orders) || 0,
         overtimeOrders: Number(summary?.overtime_orders) || 0,
+        totalRepairCost: Math.round((Number(summary?.total_repair_cost) || 0) * 100) / 100,
         deviceCount,
+        closureRate: totalOrders ? Math.round(((Number(summary?.closed_orders) || 0) / totalOrders) * 1000) / 10 : 100,
         faultRateByOrders: totalOrders ? Math.round((faultOrders / totalOrders) * 1000) / 10 : 0,
         faultRateByDevices: deviceCount ? Math.round((faultOrders / deviceCount) * 1000) / 10 : 0,
         avgRepairHours: Math.round((Number(summary?.avg_repair_hours) || 0) * 10) / 10,
