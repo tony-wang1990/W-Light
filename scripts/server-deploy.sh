@@ -198,7 +198,7 @@ ensure_env() {
 
   local public_ip
   public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "127.0.0.1")
-  local default_origins="http://${public_ip},http://${public_ip}:${WEB_PORT}"
+  local default_origins="http://${public_ip},http://${public_ip}:${WEB_PORT},wlight://app"
   
   if [[ -n "${APP_ORIGINS_ARG:-}" ]]; then
     default_origins="${APP_ORIGINS_ARG}"
@@ -216,7 +216,17 @@ ensure_env() {
   set_env_default REDIS_PASSWORD "$(random_hex 24)"
   set_env_default JWT_SECRET "$(random_hex 48)"
   set_env_default JWT_EXPIRES_IN "7d"
-  set_env_default APP_ORIGINS "$default_origins"
+  if [[ -n "${APP_ORIGINS_ARG:-}" ]]; then
+    set_env APP_ORIGINS "$default_origins"
+  else
+    local current_origins
+    current_origins="$(env_value "APP_ORIGINS")"
+    if [[ -z "$current_origins" ]]; then
+      set_env APP_ORIGINS "$default_origins"
+    elif [[ ",${current_origins}," != *",wlight://app,"* ]]; then
+      set_env APP_ORIGINS "${current_origins},wlight://app"
+    fi
+  fi
   set_env_default ENABLE_SWAGGER "false"
   set_env_default MINIO_USER "lightopsadmin"
   set_env_default MINIO_PASSWORD "$(random_hex 24)"

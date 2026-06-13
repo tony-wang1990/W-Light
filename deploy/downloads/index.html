@@ -100,7 +100,7 @@
       <header>
         <h1>W-Light 客户端下载</h1>
         <p class="lead">
-          所有客户端都连接同一套服务器 API。登录页服务器地址填写
+          当前交付 Android APP、Windows 客户端和 Web/PWA，全部连接同一套服务器 API。登录页服务器地址填写
           <code id="apiUrl"></code>，工单、设备、巡检、备件和附件数据会同步到同一套云端数据库。
         </p>
       </header>
@@ -114,20 +114,6 @@
         </article>
 
         <article class="card">
-          <h2>Mac 客户端</h2>
-          <p>下载 DMG 后拖入 Applications。未签名内测包首次打开可能需要右键选择“打开”。</p>
-          <a data-artifact href="./W-Light-latest.dmg">下载 Mac DMG</a>
-          <a class="secondary" href="/">使用 Web/PWA</a>
-        </article>
-
-        <article class="card">
-          <h2>Linux 客户端</h2>
-          <p>下载 AppImage 后添加执行权限即可运行，适合 Ubuntu/Debian 运维工作站。</p>
-          <a data-artifact href="./W-Light-latest.AppImage">下载 Linux AppImage</a>
-          <a class="secondary" href="/">使用 Web/PWA</a>
-        </article>
-
-        <article class="card">
           <h2>Android 手机</h2>
           <p>下载 APK 后安装。首次安装如提示未知来源，请允许当前浏览器安装应用；内测包可能使用调试签名。</p>
           <a data-artifact href="./w-light-latest.apk">下载 Android APK</a>
@@ -135,19 +121,17 @@
         </article>
 
         <article class="card">
-          <h2>iPhone / iPad</h2>
-          <p>正式 iOS 包需要 TestFlight、企业签名或 Ad Hoc。签名导出的 IPA 可作为内测交付物下载。</p>
-          <a data-artifact href="./w-light-ios-latest.ipa">下载签名 IPA</a>
-          <a class="secondary" href="/">打开 Web/PWA</a>
+          <h2>Web / PWA</h2>
+          <p>无需安装包，直接打开当前服务器页面。Chrome/Edge 可通过浏览器菜单安装为桌面应用。</p>
+          <a class="secondary" href="/">打开 Web 控制台</a>
         </article>
       </section>
 
       <div class="note">
-        下载按钮 404 表示对应安装包还没有发布到 <code>/root/W-Light/deploy/downloads/</code>。请先按仓库里的
-        <code>DESKTOP_CLIENT_GUIDE.md</code> 或 <code>MOBILE_APP_GUIDE.md</code> 打包并上传。
+        下载按钮显示“暂未发布”表示对应安装包还没有发布到 <code>/root/W-Light/deploy/downloads/</code>。当前只维护 Android APK 和 Windows EXE。
       </div>
       <div class="warn">
-        生产对外分发建议为 Windows 配置代码签名证书，为 macOS 配置 Apple Developer ID、公证流程；内部测试包可以先直接下载安装。
+        生产对外分发建议为 Windows 配置代码签名证书；内部测试包可以先直接下载安装。
       </div>
     </main>
     <script>

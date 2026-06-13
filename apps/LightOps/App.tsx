@@ -27,8 +27,7 @@ function App(): React.JSX.Element {
       if (state.isConnected && state.isInternetReachable !== false) {
         const queue = getOfflineQueue();
         if (queue.length > 0) {
-          console.log(`[OfflineSync] Network restored. Syncing ${queue.length} items...`);
-          syncOfflineQueue().catch(e => console.warn('[OfflineSync] Auto-sync failed:', e));
+          syncOfflineQueue().catch(() => undefined);
         }
       }
     });

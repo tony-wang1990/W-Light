@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import * as ExcelJS from 'exceljs'
+import { existsSync } from 'fs'
+import * as path from 'path'
 
 @Injectable()
 export class ReportsExportService {
@@ -243,7 +245,7 @@ export class ReportsExportService {
         AVG(CASE WHEN o.status = 'closed' AND o."closedAt" IS NOT NULL AND o."startedAt" IS NOT NULL 
             THEN EXTRACT(EPOCH FROM (o."closedAt" - o."startedAt")) / 3600 ELSE NULL END) as "avgRepairHours"
       FROM users u
-      LEFT JOIN work_orders o ON o.id::text = u.id::text AND o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
+      LEFT JOIN work_orders o ON o."assigneeId"::text = u.id::text AND o."projectId"::text = $1 AND o."createdAt" BETWEEN $2 AND $3
       WHERE u.role IN ('engineer', 'admin')
       GROUP BY u.id, u.name, u.role
       ORDER BY "totalClosed" DESC
@@ -263,7 +265,6 @@ export class ReportsExportService {
     ]
     rows.forEach(row => {
       const closed = Number(row.totalClosed) || 0;
-      const assigned = Number(row.totalAssigned) || 0;
       const overtime = Number(row.overtimeCount) || 0;
       const onTimeRate = closed > 0 ? (((closed - overtime) / closed) * 100).toFixed(1) + '%' : '-';
       
@@ -500,9 +501,19 @@ export class ReportsExportService {
     return Buffer.from(await workbook.xlsx.writeBuffer() as ArrayBuffer)
   }
 
+  private resolveChinesePdfFont() {
+    const candidates = [
+      path.resolve(process.cwd(), 'src/assets/fonts/simhei.ttf'),
+      path.resolve(process.cwd(), 'dist/assets/fonts/simhei.ttf'),
+      path.resolve(__dirname, '../../assets/fonts/simhei.ttf'),
+      path.resolve(__dirname, '../../../src/assets/fonts/simhei.ttf'),
+    ]
+
+    return candidates.find(candidate => existsSync(candidate))
+  }
+
   async exportMonthlyPdfReport(projectId: string, year: number, month: number) {
     const PDFDocument = (await import('pdfkit')).default
-    const path = await import('path')
     
     // 计算本月起止时间
     const startDate = new Date(year, month - 1, 1).toISOString()
@@ -531,8 +542,8 @@ export class ReportsExportService {
         doc.on('data', buffers.push.bind(buffers))
         doc.on('end', () => resolve(Buffer.concat(buffers)))
 
-        const fontPath = path.resolve(process.cwd(), 'src/assets/fonts/simhei.ttf')
-        try { doc.font(fontPath) } catch { /* ignore font load error */ }
+        const fontPath = this.resolveChinesePdfFont()
+        if (fontPath) doc.font(fontPath)
 
         doc.fontSize(24).fillColor('#111827').text(`W-Light 项目月度运维报告`, { align: 'center' })
         doc.moveDown()

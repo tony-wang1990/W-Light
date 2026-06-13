@@ -13,6 +13,6 @@ export class DevicesPublicController {
   @Get('scan/:qrCode')
   @ApiOperation({ summary: '扫码查询设备基本信息（无需鉴权）' })
   scan(@Param('qrCode') qrCode: string) {
-    return this.svc.findByQrCode(qrCode)
+    return this.svc.findPublicByQrCode(qrCode)
   }
 }

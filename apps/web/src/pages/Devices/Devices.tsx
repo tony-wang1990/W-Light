@@ -74,6 +74,12 @@ function statusText(status: string) {
   }
 }
 
+function cellText(row: Record<string, unknown>, key: string) {
+  const value = row[key];
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
 export default function Devices() {
   const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -156,15 +162,15 @@ export default function Devices() {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data);
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws) as Record<string, any>[];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
       if (rows.length === 0) { window.alert('Excel 文件没有数据，请检查格式'); return; }
       const devices = rows.map(row => ({
-        deviceNo: row['设备编号'] || row['deviceNo'] || '',
-        name: row['设备名称'] || row['name'] || '',
-        category: row['类型'] || row['category'] || '其他',
-        location: row['安装位置'] || row['location'] || '',
-        manufacturer: row['品牌厂商'] || row['manufacturer'] || '',
-        model: row['型号'] || row['model'] || '',
+        deviceNo: cellText(row, '设备编号') || cellText(row, 'deviceNo'),
+        name: cellText(row, '设备名称') || cellText(row, 'name'),
+        category: cellText(row, '类型') || cellText(row, 'category') || '其他',
+        location: cellText(row, '安装位置') || cellText(row, 'location'),
+        manufacturer: cellText(row, '品牌厂商') || cellText(row, 'manufacturer'),
+        model: cellText(row, '型号') || cellText(row, 'model'),
       }));
       const result = await apiClient.post<{ imported: number; errors: string[] }>('/devices/batch-import', { devices });
       setImportResult(result);

@@ -3,6 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Device } from './entities/device.entity'
 
+export interface PublicDeviceInfo {
+  deviceNo: string
+  name: string
+  category?: string
+  location?: string
+  status: string
+  healthScore?: number
+  manufacturer?: string
+  model?: string
+  warrantyExpire?: string
+}
+
 @Injectable()
 export class DevicesService {
   constructor(@InjectRepository(Device) private readonly repo: Repository<Device>) {}
@@ -59,6 +71,21 @@ export class DevicesService {
     })
     if (!d) throw new NotFoundException('未找到对应设备，请检查二维码')
     return d
+  }
+
+  async findPublicByQrCode(qrCode: string): Promise<PublicDeviceInfo> {
+    const device = await this.findByQrCode(qrCode)
+    return {
+      deviceNo: device.deviceNo,
+      name: device.name,
+      category: device.category,
+      location: device.location,
+      status: device.status,
+      healthScore: device.healthScore == null ? undefined : Number(device.healthScore),
+      manufacturer: device.manufacturer,
+      model: device.model,
+      warrantyExpire: device.warrantyExpire,
+    }
   }
 
   async update(id: string, dto: Partial<Device>, projectId?: string): Promise<Device> {

@@ -12,7 +12,8 @@ import { getErrorMessage } from '../../utils/errors';
 import styles from '../CommonAdmin.module.css';
 
 // Fix leaflet icon issue in React
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+type LeafletDefaultIconPrototype = L.Icon.Default & { _getIconUrl?: unknown };
+delete (L.Icon.Default.prototype as LeafletDefaultIconPrototype)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl,
   iconUrl,

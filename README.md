@@ -1,73 +1,33 @@
 # W-Light 文旅灯光运维一体化平台
 
-W-Light 是一款专为**大型文旅夜游、实景演艺及商业照明项目**量身定制的专业级运维管控平台。系统致力于将分散的工单流转、设备台账、备件仓储、巡检管理、多维数据分析以及专业灯光调试工具统一于一套高度协同的云端业务闭环中。
+W-Light 面向文旅灯光项目现场运维，当前交付范围是：
 
-本平台提供强大的 **Web 管理后台**（PC）与便捷的 **移动端 App**（Android），并在架构设计上严格贯彻**多租户/多项目数据隔离**与 **RBAC 角色鉴权**，实现从报修发起到数据核算的全链路业务数字化。
+- Web 管理后台：项目、工单、维修台账、设备台账、备件库存、巡检、报表、数据下载、用户权限、灯光工具箱。
+- Android APP：现场扫码、工单处理、维修记录、离线队列、常用灯光工具。
+- Windows 客户端：调度室/管理电脑安装使用，连接同一套服务器 API。
 
-## 🌟 核心业务架构与特性 (Phase 1)
+说明：iOS、Mac 客户端暂不作为当前交付目标，因为需要 Apple Developer、TestFlight/签名/公证等额外流程。当前优先保证 Android、Windows、Web 三端可用。
 
-### 1. 深度协同的工单流转引擎 (Work Order Engine)
-- **全生命周期追踪**：支持从现场扫码报修、系统智能派单、工程师抢接单、维修过程记录（图文）、到终端验收归档的完整状态机流转。
-- **SLA 监控与预警**：内置工单超时（Overtime）跟踪机制，帮助管理者实时监控卡点，把控维修时效。
-- **维修日志与物料强绑定**：维修过程中的物料核销直接与库房台账联动，杜绝备件去向不明。
+## 当前项目状态
 
-### 2. 精密资产与仓储管理 (Assets & Inventory)
-- **多维度设备台账**：支持项目级设备唯一编码、分类、品牌型号记录，追踪维保期限及全生命周期维修历史，并支持地图坐标（GIS）可视化定位。
-- **动态备件库与水位预警**：严格管控出入库行为，系统实时计算当前库存并在触及“安全警戒线（Minimum Stock）”时在仪表盘自动推送预警。
+当前版本属于“内测生产候选版”，可部署到 Ubuntu/Debian 的 ARM64 或 AMD64 服务器进行业务试运行。上线前仍建议完成 HTTPS、真实账号权限矩阵、备份恢复演练、安卓真机弱网测试和 Windows 安装包复测。
 
-### 3. 自动化巡检与多层权限体系 (Inspection & RBAC)
-- **自动化防漏巡检**：通过制定周期性巡检计划，发现异常即刻转换为处理工单。
-- **RBAC 精细化控权**：严格区分系统管理员（Admin）、维修工程师（Engineer）、巡检员（Inspector）和只读访客（Viewer）。数据视图与操作按钮将根据账号角色（包括 App 端底部导航）智能动态渲染或隐藏。
+本轮重点修复：
 
-### 4. 专业灯光师随身工具箱 (Pro Toolbox)
-- 内置大量专为灯光行业定制的小工具：DMX 拨码计算、功率负载评估、BPM / LTC 时间码检测换算、光束角计算以及色温坐标转换，帮助工程师抛弃纸笔，现场快速定位问题。
+- 修复 Web 工单 SSE 地址重复 `/v1` 导致实时刷新失效的问题。
+- 修复 SSE 后端项目权限校验，避免跨项目推送。
+- 为 Nginx 的 SSE 反代关闭缓冲，保证事件能实时到达前端。
+- 修复 PostgreSQL 下人员绩效导出表关联字段错误。
+- 修复 Docker 生产镜像中 PDF 中文字体资源未打包的问题。
+- 公开扫码接口改为只返回设备信息卡字段，避免泄露完整设备实体。
+- 扫码页改用 Web/桌面统一服务器地址配置。
+- 客户端下载中心改为仅展示 Android、Windows、Web/PWA。
+- Windows 客户端改用 `wlight://app` 安全协议加载本地前端，不再关闭 Electron `webSecurity`。
+- 数据下载中心增加下载中状态和页面内错误提示。
 
----
+## 一键服务器部署
 
-## 🔥 最新重大架构升级 (Phase 2)
-
-在近期的深度优化迭代中，我们对 W-Light 的底层性能与极限环境下的业务可用性进行了脱胎换骨的升级：
-
-### 1. Web端实时状态推送架构 (SSE Real-time Dashboard)
-彻底淘汰了落后的手动刷新机制。Web 端工单看板已接入 **Server-Sent Events (SSE) 实时数据流**。无论是现场工程师抢单、提交报修，还是后台管理员派单，大屏状态均能实现**毫秒级无感同步刷新**。
-
-### 2. 移动端弱网离线队列架构 (Offline Mutation Queue)
-专为剧场地下室、偏远外景等信号盲区设计。当工程师在断网或弱网环境下**提交维修日志、消耗备件、甚至上传实景故障照片**时，系统底层引擎（Zustand + MMKV secureStorage）会自动接管，将操作及附件**加密暂存入沙箱队列**。当侦测到手机重新接入网络（4G/WIFI）的瞬间，驻留后台的“网络嗅探哨兵”将被唤醒，静默完成所有历史记录的重发同步，**数据彻底零丢失**。
-
-### 3. 数据层极速检索引擎优化 (Database Indexing)
-随着历史数据不断沉淀，系统已完成全库高频核心查询链路的 `B-Tree` / `Hash` 复合索引覆盖，包括工单状态流、物料库存明细等核心业务表结构。确保即使应对海量百万级数据查询，系统响应时间仍稳若磐石。
-
-### 4. 统一的一站式数据下载中心 (Unified Data Export)
-我们在 Web 管理端开辟了全新的**「数据下载中心」**模块，告别过去分散各页面的零散数据。您只需设定月份/日期范围，即可一键将业务数据一网打尽：
-- 📊 **月度统计报表**：备件消耗明细表、人员绩效考核表、月度统计故障表、月度工单明细表 (皆为开箱即用的 Excel 模板)。
-- 📁 **基石台账明细**：设备台账总表、备件库存总表 (Excel)。
-- 📑 **高管汇报专用**：一键生成自带图表分析与业务总结的精美排版 **PDF 月度综合运营报告**。
-
----
-
-## 🛠️ 技术栈与系统架构
-
-W-Light 采用现代化的全栈微服务架构设计，确保系统在高频并发与复杂查询场景下依然保持强劲的性能：
-
-```mermaid
-flowchart LR
-  Web["🌐 Web 管理端 (React 18 + Vite)"] --> Api["⚡ NestJS 核心服务群 (API v1)"]
-  Mobile["📱 移动端 App (React Native)"] --> Api
-  
-  Api --> Pg["🐘 PostgreSQL (核心业务与空间数据)"]
-  Api --> Redis["🔴 Redis (鉴权会话与高性能缓存)"]
-  Api --> Minio["📦 MinIO (S3 兼容分布式对象存储)"]
-  
-  Web -.-> Github["🐙 GitHub Actions (CI/CD / E2E 自动化测试)"]
-```
-
----
-
-## 🚀 生产环境部署指南
-
-推荐使用 Ubuntu/Debian 服务器进行生产部署，最低配置可支持 1C1G（内置自动 Swap 优化策略），通过 Docker Compose 实现五大组件（App, API, DB, Cache, Storage）一键拉起。
-
-### 1. 一键部署系统
+推荐系统：Ubuntu 22.04/24.04 或 Debian 12。支持 Oracle Cloud ARM64，也支持普通 AMD64 1C1G 服务器。脚本会自动安装 Docker、创建低内存 Swap、生成 `.env` 密钥并启动服务。
 
 ```bash
 git clone https://github.com/tony-wang1990/W-Light.git /root/W-Light
@@ -75,35 +35,115 @@ cd /root/W-Light
 bash scripts/server-deploy.sh --port 3005
 ```
 
-### 2. 初始化最高权限超级管理员账号
+部署完成后访问：
+
+- Web 控制台：`http://服务器IP:3005`
+- API 代理：`http://服务器IP:3005/v1`
+- 下载页：`http://服务器IP:3005/downloads/`
+
+如果公网无法打开页面，还需要在云服务器安全组/防火墙放行 TCP `3005`。
+
+## 创建管理员账号
 
 ```bash
 cd /root/W-Light
 bash scripts/server-admin.sh --phone 13800000001 --password '你的强密码'
 ```
 
-### 3. 自动化灾备与全量恢复
+登录时填写：
 
-系统提供整机级别的沙箱备份脚本，自动打包 PostgreSQL 数据、MinIO 附件快照以及 `.env` 环境变量，并生成 SHA256 校验清单防篡改。
+- 服务器地址：`http://服务器IP:3005/v1`
+- 账号：上面创建的手机号
+- 密码：上面创建的密码
 
-- **执行单次全量备份**：`bash scripts/server-backup.sh`
-- **配置自动化定时备份**（例：每日凌晨 3:15 备份，自动滚动保留最近 14 份）：
-  ```bash
-  bash scripts/server-backup.sh --install-cron --cron "15 3 * * *" --keep 14
-  ```
+## 客户端下载与发布
 
----
+服务器通过 `deploy/downloads` 目录发布安装包，Docker Web 服务会把它挂载到 `/downloads/`。
 
-## 🛡️ 上线前生产验收工序 (Checklist)
+当前维护的安装包：
 
-为保障生产系统稳定与业务数据安全，在将系统正式移交实际业务团队运行前，请务必严格核对以下关键环节：
+- Android：`deploy/downloads/w-light-latest.apk`
+- Android 校验：`deploy/downloads/w-light-latest.apk.sha256`
+- Windows：`deploy/downloads/W-Light-Setup-latest.exe`
+- Windows 校验：`deploy/downloads/W-Light-Setup-latest.exe.sha256`
 
-### 第一阶段：安全与网络加固
-- [ ] **配置 HTTPS 与反向代理**：严禁在公网环境使用 HTTP 明文传输 API 或页面。必须在 Nginx 或云端网关层配置 SSL 证书，将 Web、APP 和客户端的 API 地址统一加密传输。
-- [ ] **重置安全凭证**：停用或修改默认创建的测试管理员账号与密码。
-- [ ] **校验密钥防渗透**：确保生产环境的 `.env` 文件中配置了高强度的 `JWT_SECRET`，且**绝对不能**将含有真实密码的 `.env` 文件泄露或推送至公有代码仓库。
+验证下载产物：
 
-### 第二阶段：沙盘推演与弱网演练
-- [ ] **全端工单闭环验收**：由测试工程师使用 Android 真机进行一次完整的“扫码报修 -> 平台智能派单 -> 手机接单响应 -> 拍照上传现场 -> 备件核销扣减 -> 完工验收归档”全链路穿越测试。
-- [ ] **弱网抢通压力测试**：在进行上述演练时，尝试在“手机接单响应”环节切断手机网络，验证「移动端弱网离线队列」沙箱拦截与重发能力。
-- [ ] **权限隔离矩阵复核**：建立多层级账号并交叉验证边界。确保“工程师”角色无法越权审批非本人工单，且“巡检员”角色无法查阅“库房与设备台账”。
+```bash
+corepack pnpm downloads:verify -- --strict
+```
+
+构建 Android 内测包：
+
+```bash
+bash scripts/android-release.sh --publish-web
+```
+
+构建 Windows 安装包：
+
+```powershell
+.\scripts\desktop-release.ps1 -Target win -PublishWeb
+```
+
+Windows 客户端默认从 `wlight://app` 加载本地前端，服务器部署脚本会把 `wlight://app` 加入 CORS 白名单。旧服务器如果已经部署过，更新后请重新执行：
+
+```bash
+cd /root/W-Light
+git pull
+bash scripts/server-deploy.sh --port 3005
+docker compose up -d --build
+```
+
+## 备份与恢复
+
+执行一次完整备份：
+
+```bash
+bash scripts/server-backup.sh
+```
+
+安装定时备份，例如每天 03:15 备份并保留最近 14 份：
+
+```bash
+bash scripts/server-backup.sh --install-cron --cron "15 3 * * *" --keep 14
+```
+
+## 本地开发与验证
+
+安装依赖：
+
+```bash
+corepack pnpm install --frozen-lockfile
+```
+
+常用验证命令：
+
+```bash
+corepack pnpm --filter backend run lint
+corepack pnpm --filter backend run test
+corepack pnpm --filter backend run build
+corepack pnpm --filter web run lint
+corepack pnpm --filter web run test
+corepack pnpm --filter web run build
+corepack pnpm --filter web run test:e2e
+corepack pnpm --filter LightOps run typecheck
+corepack pnpm --filter LightOps run lint
+corepack pnpm downloads:verify -- --strict
+```
+
+## 上线前必须完成
+
+- 配置 HTTPS：公网生产环境不要长期使用 HTTP 明文。
+- 修改/停用测试账号：生产管理员密码必须重新设置。
+- 验证备份恢复：至少做一次从备份恢复到新目录/新服务器的演练。
+- Android 真机测试：扫码、拍照/视频上传、弱网离线队列、维修记录同步。
+- Windows 客户端测试：安装、登录、切换服务器地址、工单和下载中心访问。
+- 权限矩阵测试：管理员、工程师、巡检员、只读账号分别验证菜单和接口权限。
+- 下载产物签名：内部测试可直接分发，正式对外建议 Windows 配置代码签名证书。
+
+## 当前未完成/后续增强
+
+- 工具箱仍需要继续扩充：宏命令库、术语库、故障诊断树、灯库导出格式、LTC Web 端 WAV 导出、颜色方案收藏等。
+- 报表需要继续产品化：更多维度筛选、下载历史、批量打包、图表化 PDF 月报。
+- 扫码公开页后续建议升级为不可猜测二维码 token，进一步降低设备编号被枚举的风险。
+- 生产监控待完善：容器资源监控、错误日志收集、接口慢查询统计、备份告警。

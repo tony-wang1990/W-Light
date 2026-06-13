@@ -16,7 +16,7 @@ import Clients from './pages/Clients/Clients';
 import ScanPage from './pages/Scan/ScanPage';
 
 function App() {
-  const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
+  const Router = ['file:', 'wlight:'].includes(window.location.protocol) ? HashRouter : BrowserRouter;
 
   return (
     <Router>

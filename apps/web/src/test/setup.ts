@@ -23,8 +23,8 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 class MockEventSource {
-  onmessage: ((event: any) => void) | null = null;
-  onerror: ((event: any) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
   close = vi.fn();
   constructor(public url: string) {}
 }

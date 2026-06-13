@@ -129,14 +129,15 @@ export default function Orders() {
   useEffect(() => {
     const token = useAuthStore.getState().token;
     const projectId = getCurrentProjectId();
-    if (!token) return;
+    if (!token || !projectId) return;
     
     // Connect to SSE using the standard EventSource. 
     // Note: EventSource doesn't support headers directly in browser, so we pass token in query.
-    const url = `${getApiBaseUrl()}/v1/sse/orders?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId || '')}`;
+    const apiBaseUrl = getApiBaseUrl().replace(/\/+$/, '');
+    const url = `${apiBaseUrl}/sse/orders?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId)}`;
     const eventSource = new EventSource(url);
 
-    eventSource.onmessage = (event) => {
+    eventSource.onmessage = () => {
       // Refresh the orders list silently when an event arrives
       fetchOrders();
     };

@@ -54,4 +54,30 @@ describe('ReportsExportService', () => {
     expect(sheet.getRow(2).getCell(6).value).toBe('Fixture flickering')
     expect(sheet.getRow(2).getCell(7).value).toBe('DEV-001')
   })
+
+  it('exports engineer performance with postgres assignee joins', async () => {
+    const ds = {
+      options: { type: 'postgres' },
+      query: jest.fn().mockResolvedValue([
+        {
+          name: 'Engineer',
+          role: 'engineer',
+          totalAssigned: '2',
+          totalClosed: '1',
+          overtimeCount: '0',
+          totalRepairCost: '80',
+          avgRepairHours: '3.5',
+        },
+      ]),
+    } as unknown as jest.Mocked<DataSource>
+    const service = new ReportsExportService(ds)
+
+    const buffer = await service.exportPerformanceWorkbook(PROJECT_ID, '2026-06-01', '2026-06-30')
+
+    expect(Buffer.isBuffer(buffer)).toBe(true)
+    const [sql, params] = ds.query.mock.calls[0]
+    expect(sql).toContain('o."assigneeId"::text = u.id::text')
+    expect(sql).not.toContain('o.id::text = u.id::text')
+    expect(params).toEqual([PROJECT_ID, '2026-06-01', '2026-06-30'])
+  })
 })

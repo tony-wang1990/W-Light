@@ -13,7 +13,7 @@ import { ProjectAccessGuard } from '../../common/guards/project-access.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { UserRole } from '../users/entities/user.entity'
-import { OrderStatus, OrderPriority } from './entities/order.entity'
+import { OrderPriority } from './entities/order.entity'
 
 @ApiTags('工单管理')
 @ApiBearerAuth()

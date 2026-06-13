@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Activity, AlertCircle, CheckCircle, Cpu, MapPin, Tag } from 'lucide-react';
+import { getApiBaseUrl } from '../../api/client';
 
 interface DeviceInfo {
-  id: string;
+  id?: string;
   deviceNo: string;
   name: string;
   category?: string;
@@ -28,17 +29,10 @@ export default function ScanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 从 localStorage 读取服务器地址
-  const serverUrl = (() => {
-    try {
-      const stored = localStorage.getItem('api_base_url');
-      return stored ? stored.replace(/\/+$/, '') : '';
-    } catch { return ''; }
-  })();
+  const serverUrl = getApiBaseUrl().replace(/\/+$/, '');
 
   useEffect(() => {
     if (!qrCode) { setError('无效的二维码'); setLoading(false); return; }
-    if (!serverUrl) { setError('请先在 App 中配置服务器地址'); setLoading(false); return; }
 
     fetch(`${serverUrl}/public/devices/scan/${encodeURIComponent(qrCode)}`)
       .then(async (res) => {

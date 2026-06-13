@@ -6,6 +6,12 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { User } from '../users/entities/user.entity'
 
+interface RequestWithQueryToken {
+  query?: {
+    token?: unknown
+  }
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -16,9 +22,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        (request: any) => {
-          return request?.query?.token ? request.query.token : null;
-        }
+        (request: RequestWithQueryToken) => {
+          const token = request?.query?.token
+          return typeof token === 'string' ? token : null
+        },
       ]),
       ignoreExpiration: false,
       secretOrKey: config.get<string>('JWT_SECRET'),

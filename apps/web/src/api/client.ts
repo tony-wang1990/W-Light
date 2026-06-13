@@ -5,7 +5,7 @@ export const WEB_API_BASE_URL_STORAGE_KEY = 'wlight-web-api-base-url';
 const DEFAULT_DESKTOP_API_URL = 'http://127.0.0.1:3005/v1';
 
 function defaultApiBaseUrl() {
-  return window.location.protocol === 'file:' ? DEFAULT_DESKTOP_API_URL : '/v1';
+  return ['file:', 'wlight:'].includes(window.location.protocol) ? DEFAULT_DESKTOP_API_URL : '/v1';
 }
 
 export function normalizeApiBaseUrl(value: string) {
@@ -71,7 +71,7 @@ axiosClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
-      if (window.location.protocol === 'file:') {
+      if (['file:', 'wlight:'].includes(window.location.protocol)) {
         window.location.hash = '#/login';
       } else {
         window.location.href = '/login';

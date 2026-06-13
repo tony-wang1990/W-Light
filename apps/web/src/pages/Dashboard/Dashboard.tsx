@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, DatabaseBackup, Download, Lightbulb, Package, RefreshCw, Upload, Users } from 'lucide-react';
+import { Activity, AlertTriangle, Download, Lightbulb, Package, RefreshCw, Users } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -18,7 +18,6 @@ import {
 } from 'recharts';
 import { apiClient } from '../../api/client';
 import { getErrorMessage } from '../../utils/errors';
-import { useAuthStore } from '../../store/authStore';
 import styles from './Dashboard.module.css';
 
 interface OperationsSummary {
@@ -37,11 +36,6 @@ interface OperationsSummary {
   repeatFaultDevices: Array<{ device_no: string; device_name: string; fault_count: number; last_fault_at: string }>;
   engineerPerformance: Array<{ engineer_name: string; total_orders: number; closed_orders: number; avg_repair_hours: number }>;
   partsConsumption: Array<{ part_name: string; consumed_quantity: number; unit?: string; order_count: number }>;
-}
-
-interface RestoreResult {
-  warnings: string[];
-  tables: Record<string, { received: number; accepted: number; skipped: number }>;
 }
 
 interface WeeklyTrendRow {
@@ -91,10 +85,6 @@ function toNumber(value: unknown) {
   return Number(value) || 0;
 }
 
-function sumRestore(result: RestoreResult, field: 'accepted' | 'skipped') {
-  return Object.values(result.tables).reduce((sum, table) => sum + table[field], 0);
-}
-
 function normalizeTrend(rows: WeeklyTrendRow[]) {
   return rows.map(row => ({
     name: row.date_str ? `${dayNames[Number(row.day_of_week) || 0]} ${String(row.date_str).slice(5)}` : dayNames[Number(row.day_of_week) || 0],
@@ -119,7 +109,6 @@ function normalizePartsRank(rows: PartRankRow[]) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuthStore();
   const [operations, setOperations] = useState<OperationsSummary | null>(null);
   const [trendData, setTrendData] = useState<Array<{ name: string; newOrders: number; solved: number }>>([]);
   const [deviceStatusData, setDeviceStatusData] = useState<Array<{ name: string; value: number; color: string }>>([]);
@@ -127,12 +116,9 @@ export default function Dashboard() {
   const [engineerCount, setEngineerCount] = useState(0);
   const [todayInspections, setTodayInspections] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState('');
-  const [restoringBackup, setRestoringBackup] = useState(false);
   const [overdueOrders, setOverdueOrders] = useState<Array<{ id: string; orderNo: string; status: string; faultDesc: string }>>([]);
   const [lowStockParts, setLowStockParts] = useState<Array<{ id: string; name: string; stock: number; minStock: number; unit: string }>>([]);
-  const restoreInputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
 
   const loadDashboard = useCallback(async () => {
@@ -158,7 +144,6 @@ export default function Dashboard() {
       setTodayInspections(toNumber(inspectionStats.todayRecords));
       setOverdueOrders(overdueRes.items || []);
       setLowStockParts(Array.isArray(lowStockRes) ? lowStockRes : []);
-      setLastUpdated(new Date());
     } catch (err) {
       setError(getErrorMessage(err, '控制台数据加载失败，请确认已登录、已选择项目并且后端服务正常'));
     } finally {
@@ -169,59 +154,6 @@ export default function Dashboard() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
-
-  const exportOrders = () => {
-    apiClient.download(
-      `/reports/export/orders.xlsx?startDate=${daysAgo(30)}&endDate=${today()}`,
-      `lightops-orders-${today()}.xlsx`,
-    );
-  };
-
-  const exportMonthlyPdf = () => {
-    const d = new Date();
-    apiClient.download(
-      `/reports/export/monthly-report.pdf?year=${d.getFullYear()}&month=${d.getMonth() + 1}`,
-      `lightops-report-${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}.pdf`
-    );
-  };
-
-  const downloadBackup = () => {
-    apiClient.download('/reports/backup.json', `lightops-backup-${today()}.json`);
-  };
-
-  const openRestorePicker = () => {
-    if (restoringBackup) return;
-    if (restoreInputRef.current) restoreInputRef.current.value = '';
-    restoreInputRef.current?.click();
-  };
-
-  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setRestoringBackup(true);
-    setError('');
-    try {
-      const backup = JSON.parse(await file.text());
-      const preflight = await apiClient.post<RestoreResult>('/reports/backup/restore?dryRun=true', backup);
-      const acceptedTotal = sumRestore(preflight, 'accepted');
-      const skippedTotal = sumRestore(preflight, 'skipped');
-      const warnings = preflight.warnings.length ? `\n\n提示：${preflight.warnings.join('；')}` : '';
-      const confirmed = window.confirm(
-        `将恢复 ${acceptedTotal} 条数据到当前项目${skippedTotal ? `，跳过 ${skippedTotal} 条` : ''}。相同 ID 会覆盖现有记录。${warnings}\n\n确认继续？`,
-      );
-      if (!confirmed) return;
-
-      const result = await apiClient.post<RestoreResult>('/reports/backup/restore', backup);
-      window.alert(`备份恢复完成，共处理 ${sumRestore(result, 'accepted')} 条数据。`);
-      await loadDashboard();
-    } catch (err) {
-      setError(getErrorMessage(err, '备份恢复失败，请确认 JSON 文件格式正确并检查后端日志'));
-    } finally {
-      setRestoringBackup(false);
-      event.target.value = '';
-    }
-  };
 
   const statCards = useMemo(() => [
     { title: '工单总数', value: operations?.overview.totalOrders ?? '-', icon: Activity, color: '#0EA5E9', bgColor: 'rgba(14,165,233,0.1)' },

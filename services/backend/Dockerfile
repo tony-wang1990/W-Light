@@ -29,6 +29,7 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/toolbox-core/package.json packages/toolbox-core/package.json
 RUN pnpm install --filter backend... --prod --frozen-lockfile
 COPY --from=build /app/services/backend/dist services/backend/dist
+COPY --from=build /app/services/backend/src/assets services/backend/src/assets
 WORKDIR /app/services/backend
 EXPOSE 3000
 CMD ["pnpm", "run", "start"]

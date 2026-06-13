@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Copy, Download, ExternalLink, Monitor, Smartphone, TabletSmartphone } from 'lucide-react';
+import { Check, Copy, Download, Monitor, Smartphone, TabletSmartphone } from 'lucide-react';
 import { getApiBaseUrl } from '../../api/client';
 import styles from '../CommonAdmin.module.css';
 
@@ -8,6 +8,7 @@ interface ClientItem {
   platform: string;
   description: string;
   href?: string;
+  checksumHref?: string;
   primary?: boolean;
   note: string;
 }
@@ -28,17 +29,19 @@ export default function Clients() {
       title: 'Android APP',
       platform: 'Android 手机/平板',
       description: '现场维修人员优先使用，支持扫码、离线队列、工单和工具箱。',
-      href: 'https://github.com/tony-wang1990/W-Light/releases/latest/download/w-light-latest.apk',
+      href: '/downloads/w-light-latest.apk',
+      checksumHref: '/downloads/w-light-latest.apk.sha256',
       primary: true,
-      note: '通过 GitHub Releases 自动构建并提供下载。',
+      note: '服务器本地下载；重新打包后把 APK 发布到 deploy/downloads 即可更新。',
     },
     {
       title: 'Windows 客户端',
       platform: 'Windows 10/11',
       description: 'Electron 桌面安装包，适合调度室和项目管理电脑长期使用。',
-      href: 'https://github.com/tony-wang1990/W-Light/releases/latest/download/W-Light-Setup-latest.exe',
+      href: '/downloads/W-Light-Setup-latest.exe',
+      checksumHref: '/downloads/W-Light-Setup-latest.exe.sha256',
       primary: true,
-      note: '通过 GitHub Releases 自动构建并提供下载。',
+      note: '服务器本地下载；重新打包后把安装包发布到 deploy/downloads 即可更新。',
     },
 
     {
@@ -65,7 +68,7 @@ export default function Clients() {
       <div className={styles.header}>
         <div>
           <h1 className={styles.pageTitle}>客户端下载中心</h1>
-          <p className={styles.pageSubtitle}>Android、iOS、Windows、Mac、Linux 和 Web/PWA 都连接同一套云端 API，数据统一同步。</p>
+          <p className={styles.pageSubtitle}>当前交付 Android APP、Windows 客户端和 Web/PWA，全部连接同一套云端 API，数据统一同步。</p>
         </div>
 
       </div>
@@ -107,9 +110,16 @@ export default function Clients() {
             <div className={styles.muted} style={{ marginTop: 12 }}>{item.note}</div>
             <div className={styles.actions} style={{ marginTop: 16 }}>
               {item.href ? (
-                <a className={item.primary ? styles.primaryBtn : styles.secondaryBtn} href={item.href}>
-                  <Download size={16} /> 下载/打开
-                </a>
+                <>
+                  <a className={item.primary ? styles.primaryBtn : styles.secondaryBtn} href={item.href}>
+                    <Download size={16} /> 下载/打开
+                  </a>
+                  {item.checksumHref && (
+                    <a className={styles.secondaryBtn} href={item.checksumHref}>
+                      校验 SHA256
+                    </a>
+                  )}
+                </>
               ) : (
                 <span className={styles.warningBadge} style={{ padding: '6px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
                   需签名发布
