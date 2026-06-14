@@ -1,4 +1,4 @@
-import { Controller, Get, Module } from '@nestjs/common'
+import { Controller, Get, Module, Optional } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { ApiTags } from '@nestjs/swagger'
 import { DataSource } from 'typeorm'
@@ -8,7 +8,7 @@ type HealthStatus = 'ok' | 'degraded'
 @ApiTags('System Health')
 @Controller('health')
 export class HealthController {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(@Optional() @InjectDataSource() private readonly dataSource?: DataSource) {}
 
   @Get()
   check() {
@@ -22,10 +22,14 @@ export class HealthController {
       database: 'ok',
     }
 
-    try {
-      await this.dataSource.query('SELECT 1')
-    } catch {
-      checks.database = 'error'
+    if (!this.dataSource) {
+      checks.database = 'not_configured'
+    } else {
+      try {
+        await this.dataSource.query('SELECT 1')
+      } catch {
+        checks.database = 'error'
+      }
     }
 
     const status: HealthStatus = checks.database === 'ok' ? 'ok' : 'degraded'
