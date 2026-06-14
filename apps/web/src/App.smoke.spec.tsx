@@ -82,7 +82,7 @@ describe('web app route smoke tests', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: '登录控制台' })).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('请输入手机号')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请输入账号或手机号')).toBeInTheDocument()
   })
 
   it.each([

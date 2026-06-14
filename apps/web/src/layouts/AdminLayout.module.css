@@ -8,7 +8,7 @@
 
 /* Sidebar */
 .sidebar {
-  width: 250px;
+  width: 228px;
   background-color: var(--color-bg-dark);
   color: var(--color-white);
   display: flex;
@@ -55,25 +55,31 @@
 
 .navMenu {
   flex: 1;
-  padding: 20px 12px;
+  padding: 18px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow-y: auto;
 }
 
 .navItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 14px;
+  padding: 11px 14px;
   border-radius: 8px;
   color: #A3B3BC;
   transition: all 0.2s;
-  font-size: 14px;
-  font-weight: 500;
-  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 46px;
   box-sizing: border-box;
+}
+
+.navLabel {
+  min-width: 4em;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .sidebar.collapsed .navItem {
@@ -92,6 +98,7 @@
 
 .navIcon {
   flex-shrink: 0;
+  width: 20px;
 }
 
 .sidebarFooter {

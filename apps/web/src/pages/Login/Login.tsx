@@ -39,24 +39,22 @@ export default function Login() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.leftPanel}>
+      <section className={styles.leftPanel}>
         <div className={styles.leftContent}>
-          <div className={styles.header}>
+          <div className={styles.brandHeader}>
             <div className={styles.logoBox}>
               <span className={styles.logoW}>W</span>
             </div>
             <div className={styles.brandInfo}>
-              <span className={styles.brandTitleSmall}>LIGHT OPS</span>
+              <span className={styles.brandKicker}>LIGHT OPS</span>
               <h1 className={styles.brandTitle}>W-Light</h1>
               <span className={styles.brandSubtitle}>文旅灯光运维控制台</span>
             </div>
           </div>
 
-          <h2 className={styles.heroTitle}>
-            把项目、设备、工单、人员、巡检和备件收进同一套控制台。
-          </h2>
+          <h2 className={styles.heroTitle}>把项目、设备、工单、巡检和备件收进一套控制台。</h2>
           <p className={styles.heroDesc}>
-            面向文旅灯光项目现场，连接手机 APP、Web、Windows 和 Mac 客户端，所有数据同步到同一套云端后端。
+            面向文旅灯光现场，连接 Android APP、Web 和 Windows 客户端，所有数据同步到同一套云端后端。
           </p>
 
           <div className={styles.featureGrid}>
@@ -72,14 +70,14 @@ export default function Login() {
             </div>
             <div className={styles.featureCard}>
               <span className={styles.featureTag}>Toolbox</span>
-              <h3>灯光工具箱</h3>
-              <p>DMX、功率、BPM、LTC、光束角、照度和故障诊断随手可用。</p>
+              <h3>灯光工具</h3>
+              <p>DMX、功率、BPM、LTC、光束角和故障诊断随手可用。</p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className={styles.rightPanel}>
+      <section className={styles.rightPanel}>
         <div className={styles.loginCard}>
           <div className={styles.loginHeader}>
             <div className={styles.loginLogoSmall}>W</div>
@@ -97,7 +95,7 @@ export default function Login() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="http://服务器IP:3005/v1"
+                placeholder="https://你的域名/v1"
                 required
               />
             </div>
@@ -108,7 +106,7 @@ export default function Login() {
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="请输入手机号"
+                placeholder="请输入账号或手机号"
                 required
               />
             </div>
@@ -136,10 +134,8 @@ export default function Login() {
           </form>
         </div>
 
-        <div className={styles.footer}>
-          W-Light 多端同步客户端
-        </div>
-      </div>
+        <div className={styles.footer}>© 2026 W-Light</div>
+      </section>
     </div>
   );
 }

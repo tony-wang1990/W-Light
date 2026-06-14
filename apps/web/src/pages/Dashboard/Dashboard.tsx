@@ -152,7 +152,7 @@ export default function Dashboard() {
       setOverdueOrders(overdueRes.items || []);
       setLowStockParts(Array.isArray(lowStockRes) ? lowStockRes : []);
     } catch (err) {
-      setError(getErrorMessage(err, '控制台数据加载失败，请确认已登录、已选择项目并且后端服务正常'));
+      setError(getErrorMessage(err, '控制台数据加载失败，请确认已登录、已选择项目，并且后端服务正常'));
     }
   }, []);
 
@@ -165,9 +165,9 @@ export default function Dashboard() {
     { title: '待闭环工单', value: operations ? Math.max(operations.overview.totalOrders - operations.overview.closedOrders, 0) : '-', icon: AlertTriangle, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)' },
     { title: '设备总数', value: operations?.overview.deviceCount ?? '-', icon: Lightbulb, color: '#10B981', bgColor: 'rgba(16,185,129,0.1)' },
     { title: '工程师', value: engineerCount || '-', icon: Users, color: '#8B5CF6', bgColor: 'rgba(139,92,246,0.1)' },
-    { title: '故障率（按工单）', value: operations ? `${operations.overview.faultRateByOrders}%` : '-', icon: AlertTriangle, color: '#EF4444', bgColor: 'rgba(239,68,68,0.1)' },
-    { title: '平均维修时长', value: operations ? `${operations.overview.avgRepairHours}h` : '-', icon: Activity, color: '#2563EB', bgColor: 'rgba(37,99,235,0.1)' },
-    { title: '今日已巡检', value: todayInspections || '-', icon: Lightbulb, color: '#059669', bgColor: 'rgba(5,150,105,0.1)' },
+    { title: '故障率', value: operations ? `${operations.overview.faultRateByOrders}%` : '-', icon: AlertTriangle, color: '#EF4444', bgColor: 'rgba(239,68,68,0.1)' },
+    { title: '平均维修', value: operations ? `${operations.overview.avgRepairHours}h` : '-', icon: Activity, color: '#2563EB', bgColor: 'rgba(37,99,235,0.1)' },
+    { title: '今日巡检', value: todayInspections || '-', icon: Lightbulb, color: '#059669', bgColor: 'rgba(5,150,105,0.1)' },
     { title: '超时工单', value: operations?.overview.overtimeOrders ?? '-', icon: Users, color: '#F97316', bgColor: 'rgba(249,115,22,0.1)' },
   ], [engineerCount, operations, todayInspections]);
 
@@ -193,23 +193,29 @@ export default function Dashboard() {
 
       {error && <div className={styles.errorBox}>{error}</div>}
 
-      {/* 超时工单预警横幅 */}
       {overdueOrders.length > 0 && (
-        <div className={styles.alertBanner} style={{ background: 'rgba(239,68,68,0.08)', borderColor: '#EF4444' }}>
-          <AlertTriangle size={18} color="#EF4444" />
-          <span style={{ fontWeight: 600, color: '#EF4444' }}>⚠️ {overdueOrders.length} 张工单超时未处理！</span>
-          <span style={{ color: '#6B7280', fontSize: 13 }}>这些工单超过 48 小时或已过 SLA 截止时间，请尽快处理。</span>
-          <button className={styles.alertBtn} onClick={() => navigate('/orders')}>立即查看</button>
+        <div className={styles.todoBanner}>
+          <div className={styles.todoIcon}>
+            <AlertTriangle size={18} />
+          </div>
+          <div className={styles.todoContent}>
+            <strong>今日重点待办</strong>
+            <span>{overdueOrders.length} 张工单已超过处理时限，建议优先派单、催办或记录原因。</span>
+          </div>
+          <button className={styles.todoBtn} onClick={() => navigate('/orders')}>查看工单</button>
         </div>
       )}
 
-      {/* 低库存预警横幅 */}
       {lowStockParts.length > 0 && (
-        <div className={styles.alertBanner} style={{ background: 'rgba(245,158,11,0.08)', borderColor: '#F59E0B' }}>
-          <Package size={18} color="#F59E0B" />
-          <span style={{ fontWeight: 600, color: '#F59E0B' }}>库存预警：{lowStockParts.length} 种备件低于安全库存</span>
-          <span style={{ color: '#6B7280', fontSize: 13 }}>{lowStockParts.map(p => `${p.name}（剩余${p.stock}${p.unit}）`).join('、')}</span>
-          <button className={styles.alertBtn} style={{ borderColor: '#F59E0B', color: '#F59E0B' }} onClick={() => navigate('/parts')}>去补货</button>
+        <div className={styles.todoBanner}>
+          <div className={`${styles.todoIcon} ${styles.todoIconWarning}`}>
+            <Package size={18} />
+          </div>
+          <div className={styles.todoContent}>
+            <strong>备件补货提醒</strong>
+            <span>{lowStockParts.length} 种备件低于安全库存：{lowStockParts.map(p => `${p.name}（剩余 ${p.stock}${p.unit}）`).join('、')}</span>
+          </div>
+          <button className={styles.todoBtn} onClick={() => navigate('/parts')}>查看库存</button>
         </div>
       )}
 

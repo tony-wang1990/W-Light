@@ -22,18 +22,18 @@ import { isValidProjectId, useAuthStore } from '../store/authStore';
 import styles from './AdminLayout.module.css';
 
 export const MENU_ITEMS = [
-  { path: '/dashboard', label: '控制台概览', icon: LayoutDashboard },
-  { path: '/orders', label: '工单调度中心', icon: Briefcase },
-  { path: '/maintenance', label: '维修记录台账', icon: FileText },
+  { path: '/dashboard', label: '控制概览', title: '控制台概览', icon: LayoutDashboard },
+  { path: '/orders', label: '工单调度', title: '工单调度中心', icon: Briefcase },
+  { path: '/maintenance', label: '维修台账', title: '维修记录台账', icon: FileText },
   { path: '/inspections', label: '巡检管理', icon: ClipboardList, roles: ['admin', 'engineer', 'inspector'] },
-  { path: '/devices', label: '设备台账管理', icon: Settings2, roles: ['admin', 'engineer', 'inspector', 'viewer'] },
-  { path: '/parts', label: '备件库存管理', icon: Package, roles: ['admin', 'engineer'] },
-  { path: '/reports', label: '报表与数据', icon: BarChart3, roles: ['admin', 'viewer'] },
-  { path: '/downloads', label: '数据下载中心', icon: Download, roles: ['admin', 'viewer'] },
+  { path: '/devices', label: '设备台账', title: '设备台账管理', icon: Settings2, roles: ['admin', 'engineer', 'inspector', 'viewer'] },
+  { path: '/parts', label: '备件库存', title: '备件库存管理', icon: Package, roles: ['admin', 'engineer'] },
+  { path: '/reports', label: '报表数据', title: '报表与数据', icon: BarChart3, roles: ['admin', 'viewer'] },
+  { path: '/downloads', label: '数据下载', title: '数据下载中心', icon: Download, roles: ['admin', 'viewer'] },
   { path: '/projects', label: '项目管理', icon: Building2, roles: ['admin'] },
-  { path: '/users', label: '用户权限管理', icon: UsersIcon, roles: ['admin'] },
-  { path: '/toolbox', label: '专业工具箱', icon: Wrench },
-  { path: '/clients', label: '客户端下载中心', icon: DownloadCloud },
+  { path: '/users', label: '权限管理', title: '用户权限管理', icon: UsersIcon, roles: ['admin'] },
+  { path: '/toolbox', label: '专业工具', title: '专业工具箱', icon: Wrench },
+  { path: '/clients', label: '终端下载', title: '客户端下载中心', icon: DownloadCloud },
 ];
 
 function canAccessMenuItem(item: typeof MENU_ITEMS[number], role?: string) {
@@ -138,10 +138,10 @@ export default function AdminLayout() {
               className={({ isActive }) =>
                 `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
               }
-              title={item.label}
+              title={item.title || item.label}
             >
               <item.icon className={styles.navIcon} size={20} />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
             </NavLink>
           ))}
         </nav>
