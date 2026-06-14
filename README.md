@@ -1,215 +1,190 @@
 # W-Light 文旅灯光运维一体化平台
 
-## 2026-06-13 全菜单审计修复记录
+W-Light 是面向文旅灯光项目内部运维的 Web + Android APP + Windows 客户端系统。核心目标是把项目、设备、工单、维修记录、巡检、备件、报表和灯光师工具箱统一到同一套云端数据里，现场手机端、调度电脑端和 Web 控制台共用同一套 API。
 
-本轮围绕“全菜单、全功能、全路由、三端闭环”做了代码级检查和修复。结论是：当前 Web、Android、Windows 的主菜单和主要业务闭环已经具备可用基础，但不能只靠人工口头确认“全部无误”，所以本轮新增了自动化约束，并修掉了几处会在实际使用中造成误导或权限不一致的问题。
+当前定位：**内部试运行生产版候选**。代码已具备部署、升级、备份、报表导出、客户端下载和健康检查能力；正式长期运行前，需要按本文的“上线验收清单”完成一次真实环境验收和备份恢复演练。
 
-已完成：
-- Web 侧新增菜单与受保护路由一致性测试，防止后续新增菜单漏配路由、或新增页面漏进菜单。
-- 报表/下载接口权限与菜单权限对齐：报表读写导出默认仅管理员和只读角色可访问，备份/恢复仍仅管理员可访问。
-- 控制台首页对报表接口无权限或失败做降级处理，避免工程师/巡检员打开首页时因为报表接口 403 直接出现 Internal server error。
-- 用户列表接口收紧：非管理员必须带项目上下文，且不能请求工作量统计；管理员仍可使用用户权限管理中的完整列表和工作量视图。
-- Web 工单详情抽屉按角色隐藏/禁用派单、取消、验收等管理员动作，避免界面给非管理员展示后端会拒绝的操作。
-- Android 个人中心的同步设置、服务器配置、关于 W-Light 从空按钮补成真实功能；网络恢复自动同步会尊重用户开关。
-- Android 导航类型与真实 Stack 注册页面对齐，清理不存在页面类型，降低后续跳转写错的风险。
+## 当前范围
 
-仍需上线前做的人工验证：
-- Android 真机扫码、拍照/视频上传、弱网离线队列、覆盖安装升级。
-- Windows 安装包在干净 Windows 10/11 上安装、登录、切换服务器、卸载重装。
-- 服务器 HTTPS、域名、备份恢复演练、监控告警和真实数据压测。
-
-## 2026-06-13 下载与报表修复记录
-
-本项目当前按公司内部自用处理，不走 App Store、TestFlight、Microsoft Store 等商店发布流程。Android APK 和 Windows EXE 作为内部测试包直接放在 `deploy/downloads`，服务器更新代码后即可通过“客户端下载中心”下载。
-
-本轮修复：
-- `deploy/downloads/w-light-latest.apk`、`deploy/downloads/W-Light-Setup-latest.exe`、对应 `.sha256` 和版本 JSON 已允许纳入 Git，避免服务器 `git pull` 后下载中心显示 HTTP 404。
-- 下载中心文案从“未发布”改为“服务器未同步”，更符合内部自用场景。
-- 修复报表导出中的 PostgreSQL boolean SQL 错误，避免人员绩效等 Excel 导出 500。
-- 修复 PDF 月报生成时 PDFKit 导入不稳定的问题，并增加中文字体路径兜底。
-- 新增全导出 smoke 测试，覆盖下载中心所有 Excel/PDF 导出函数。
-
-W-Light 面向文旅灯光项目现场运维，目标是把项目、设备、工单、维修记录、巡检、备件、报表和灯光师工具箱统一到一套云端系统里。当前优先交付三端：Web 控制台、Android APP、Windows 客户端。iOS 和 macOS 暂不作为当前上线目标，因为需要 Apple Developer、TestFlight、签名和公证流程。
-
-## 当前状态
-
-当前版本是生产候选内测版，整体完成度约 83%。服务端、Web 控制台、Android APP、Windows 客户端都已经具备可部署、可登录、可联动的主流程，但正式长期上线前仍需要 HTTPS、正式签名、真机回归、备份恢复演练和监控告警。
-
-本轮最新完成：
-- 后端路由改为精确快照测试，覆盖认证、项目、工单、设备、备件、巡检、报表、上传、文件访问、通知、SSE、公开扫码。
-- 后端新增接口权限矩阵测试，敏感写接口不仅菜单隐藏，接口层也有角色测试约束。
-- Android 工具箱补强：DMX 多灯具地址方案可复制，MA 宏命令和术语可一键复制。
-- 客户端发布流程统一：Android APK 和 Windows EXE 都通过 `scripts/publish-client-artifact.mjs` 生成 latest 文件、SHA256 和版本元数据。
+- Web 控制台：控制台概览、项目管理、工单调度、维修记录台账、巡检管理、设备台账、备件库存、报表与数据下载、用户权限、专业工具箱、客户端下载中心。
+- Android APP：内部 APK 分发，连接同一套云端 API，适合现场维修、扫码、工单和工具箱使用。
+- Windows 客户端：Electron 安装包，适合调度室和项目管理电脑长期使用。
+- Web/PWA：浏览器直接访问，也可在 Chrome/Edge 里安装为桌面应用。
+- 暂不维护：iOS APP、macOS 客户端。内部使用场景下优先保证 Android 和 Windows，避免被开发者账号、签名公证和 TestFlight 流程拖住主线。
 
 ## 技术结构
 
-- `services/backend`：NestJS API，PostgreSQL，Redis，MinIO，JWT，角色权限，Excel/PDF 导出。
-- `apps/web`：Web 控制台，默认通过服务器 `3005` 端口访问。
-- `apps/LightOps`：React Native Android APP，连接同一套后端 API。
-- `apps/desktop`：Electron Windows 客户端，本质是可安装桌面壳，连接同一套云端数据。
-- `packages/toolbox-core`：灯光工具箱离线计算核心，Web 和 Android 共用。
-- `deploy/downloads`：客户端下载中心制品目录。
+```text
+apps/web          Web 控制台
+apps/LightOps     Android APP / React Native
+apps/desktop      Windows 桌面客户端 / Electron
+packages          共享工具箱逻辑
+services/backend  NestJS API
+deploy/downloads  客户端安装包和下载中心元数据
+scripts           服务器部署、升级、备份、自检、打包脚本
+```
 
-## 已实装菜单和闭环
+生产部署使用 Docker Compose：
 
-- 控制台概览：工单、巡检、设备和运营概况。
-- 项目管理：项目基础资料和人员项目范围。
-- 工单调度中心：报修创建、派单、接单、拒单、挂起、恢复、维修记录、备件消耗、提交验收、验收通过、验收退回、取消归档。
-- 维修记录台账：按工单沉淀维修步骤、照片视频、配件、外协费用和设备历史。
-- 设备台账管理：设备列表、详情、二维码扫码、公开扫码查询、扫码后创建工单。
-- 备件库存管理：入库、出库、低库存预警、工单维修消耗关联。
-- 巡检管理：巡检计划、今日巡检、巡检记录、异常转工单。
-- 报表与数据：工单统计、故障分析、人员绩效、维修成本、设备可靠性、备件消耗、区域热力、每日 KPI、巡检异常、月度运营总表、PDF 月报。
-- 用户权限管理：管理员、工程师、巡检员、只读用户，后端接口已有权限矩阵测试。
-- 专业工具箱：BPM、LTC、DMX 多灯具链、灯库制作、功率负荷、光束角、照度、RGB/色温、故障诊断、MA 宏命令、行业术语、灯位设计、灯光理论。
-- 客户端下载中心：Android/Windows 下载、版本号、构建时间、文件大小、SHA256 校验和状态展示。
+- `web`：Nginx 静态站点和反向代理，默认对外端口 `3005`
+- `api`：NestJS 后端，容器内端口 `3000`，对外统一走 `/v1`
+- `postgres`：业务数据库
+- `redis`：缓存、队列和运行状态
+- `minio`：图片、视频、附件等对象存储
 
-## 服务器部署
+## 服务器要求
 
-推荐 Ubuntu 22.04/24.04 或 Debian 12。支持 Oracle Cloud ARM64，也支持普通 AMD64 1C1G 小服务器。默认 Web 端口使用 `3005`。
+支持 Oracle Cloud ARM、普通 AMD64 VPS、1C1G 小机器。
+
+建议：
+
+- Ubuntu 22.04/24.04 或 Debian 12
+- 1 核 1G 可试运行，脚本会自动创建 2G swap；更舒服的配置是 2 核 2G+
+- 磁盘建议 20G+
+- 放行 TCP `3005`，如使用 Nginx Proxy Manager 或反代，则外部走 `80/443`
+- 内部正式使用建议绑定域名并启用 HTTPS
+
+## 首次部署
+
+在服务器上执行：
 
 ```bash
-git clone https://github.com/tony-wang1990/W-Light.git /root/W-Light
-cd /root/W-Light
-bash scripts/server-deploy.sh --port 3005
+curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/server-deploy.sh -o server-deploy.sh
+bash server-deploy.sh --port 3005
 ```
 
 部署完成后访问：
-- Web 控制台：`http://服务器IP:3005`
-- API：`http://服务器IP:3005/v1`
-- 下载中心：`http://服务器IP:3005/downloads/`
-- 健康检查：`http://服务器IP:3005/v1/health`
 
-如果公网打不开，检查云服务器安全组和系统防火墙是否放行 TCP `3005`。
+```text
+Web 控制台：http://服务器IP:3005
+API 地址：http://服务器IP:3005/v1
+下载中心：http://服务器IP:3005/clients
+```
 
-## 创建管理员
+如果你使用域名和 HTTPS，例如 `https://w-light.example.com`，客户端登录服务器地址填写：
+
+```text
+https://w-light.example.com/v1
+```
+
+如果直接用 IP 和 3005 端口，客户端登录服务器地址填写：
+
+```text
+http://服务器IP:3005/v1
+```
+
+## 创建或重置管理员
+
+部署完成后创建管理员账号：
 
 ```bash
 cd /root/W-Light
-bash scripts/server-admin.sh --phone 13800000001 --password '你的强密码'
+bash scripts/server-admin.sh --phone 13800000001 --password '请改成强密码'
 ```
 
-登录时填写：
-- 服务器地址：`http://服务器IP:3005/v1`
-- 账号：上面创建的手机号
-- 密码：上面创建的密码
+网页登录时：
 
-## 更新部署
+- 服务器地址：`/v1`，或完整地址 `https://域名/v1`
+- 账号：上面设置的手机号
+- 密码：上面设置的密码
+
+## 日常升级
+
+服务器已经部署过以后，不要手动乱拷贝文件，直接使用升级脚本：
 
 ```bash
 cd /root/W-Light
-git pull
-bash scripts/server-deploy.sh --port 3005
-docker compose up -d --build
+bash scripts/server-upgrade.sh --port 3005
 ```
 
-更新后建议执行：
+升级脚本会自动：
 
-```bash
-bash scripts/server-check.sh --port 3005
-```
+- 检查 git 工作区
+- 升级前备份 PostgreSQL、MinIO 和 `.env`
+- 拉取最新代码
+- 重建并重启 Web/API
+- 检查 `/v1/health`
+- 如果健康检查失败，自动回退应用代码
 
-严格检查客户端安装包也存在：
+升级后执行：
 
 ```bash
 bash scripts/server-check.sh --port 3005 --strict-downloads
+bash scripts/server-smoke.sh --port 3005 --phone 13800000001 --password '你的管理员密码'
 ```
 
-## Android APP
-
-下载地址：
-- 浏览器打开 `http://服务器IP:3005/downloads/`
-- 下载 `w-light-latest.apk`
-- Android 手机上允许“安装未知来源应用”
-- 安装后登录服务器地址 `http://服务器IP:3005/v1`
-
-本地打包并发布到下载中心：
+如果有域名：
 
 ```bash
+bash scripts/server-check.sh --port 3005 --strict-downloads --public-url https://你的域名
+bash scripts/server-smoke.sh --base-url https://你的域名 --phone 13800000001 --password '你的管理员密码'
+```
+
+## 客户端下载
+
+客户端下载中心：
+
+```text
+http://服务器IP:3005/clients
+https://你的域名/clients
+```
+
+直接下载地址：
+
+```text
+Android APK：/downloads/w-light-latest.apk
+Windows 安装包：/downloads/W-Light-Setup-latest.exe
+```
+
+下载页会显示：
+
+- 当前版本号
+- 发布日期
+- 构建时间
+- 包内代码 commit
+- SHA256 校验值
+- 安装包是否存在、校验是否通过
+
+注意：`发布时刻` 是安装包同步到下载中心的时间，`构建时间` 是安装包文件实际生成时间。确认是否为最新代码，优先看页面上的 `包内代码 commit`，并等待 GitHub Actions 自动打包完成后再下载。
+
+## 自动打包规则
+
+推送到 `main` 后，`.github/workflows/release.yml` 会自动：
+
+1. 在 Ubuntu runner 构建 Android APK。
+2. 在 Windows runner 构建 Windows 安装包。
+3. 校验 SHA256 和元数据。
+4. 把安装包同步到 `deploy/downloads`。
+5. 自动提交 `chore: publish client packages ... [skip ci]`。
+
+服务器升级时会拉取这个安装包提交，下载中心就会变成最新包。
+
+如果 GitHub Actions 还没跑完，下载页可能仍显示旧构建时间，这是正常的；等 Actions 成功后再执行服务器升级即可。
+
+本地手动打包命令：
+
+```bash
+corepack pnpm install --frozen-lockfile
 bash scripts/android-release.sh --publish-web
 ```
 
-Windows PowerShell 也可以打 Android 包：
+Windows 开发机上：
 
 ```powershell
-.\scripts\android-release.ps1 -PublishWeb
-```
-
-Android 当前状态：
-- 已支持登录、扫码查设备、扫码创工单、工单列表/详情/派单/接单/维修记录、附件上传、离线创建工单、离线维修记录队列、网络恢复自动同步、工具箱离线使用。
-- 仍建议上线前做真机回归：扫码、相机权限、照片视频上传、弱网离线同步、安装覆盖更新、不同 Android 版本兼容。
-
-## Windows 客户端
-
-下载地址：
-- 浏览器打开 `http://服务器IP:3005/downloads/`
-- 下载 `W-Light-Setup-latest.exe`
-- 安装后填写服务器地址 `http://服务器IP:3005/v1`
-
-Windows 本机一键打包并发布到下载中心：
-
-```powershell
-corepack pnpm desktop:dist:win:publish
-```
-
-等价命令：
-
-```powershell
-.\scripts\desktop-release.ps1 -Target win -PublishWeb
-```
-
-Windows 当前状态：
-- 是真正可安装的 Electron 客户端。
-- 与 Web、Android 使用同一套后端，所以数据同步到同一套云端。
-- 正式对外分发前建议配置代码签名证书，否则 Windows 可能提示未知发布者。
-
-## 手动发布已有客户端包
-
-如果你已经拿到了某个 APK 或 EXE，可以不重新打包，直接发布到下载中心：
-
-```bash
-corepack pnpm clients:publish -- --target android --file /path/to/w-light.apk
-corepack pnpm clients:publish -- --target win --file /path/to/W-Light-Setup.exe
+powershell -ExecutionPolicy Bypass -File scripts/desktop-release.ps1 -Target win -PublishWeb
 corepack pnpm downloads:verify -- --strict
 ```
 
-发布器会自动生成：
-- `deploy/downloads/w-light-latest.apk`
-- `deploy/downloads/W-Light-Setup-latest.exe`
-- 对应 `.sha256`
-- `w-light-android.json`
-- `w-light-desktop.json`
-
-下载中心会自动读取这些元数据展示版本、构建时间、文件大小和校验值。
-
-## 自动打包客户端
-
-仓库已配置 GitHub Actions 自动打包流程：每次代码推送到 `main` 后，会自动构建 Android APK 和 Windows EXE，并把最新安装包、SHA256 和版本 JSON 提交回 `deploy/downloads`。
-
-自动流程产物：
-- `deploy/downloads/w-light-latest.apk`
-- `deploy/downloads/w-light-latest.apk.sha256`
-- `deploy/downloads/w-light-android.json`
-- `deploy/downloads/W-Light-Setup-latest.exe`
-- `deploy/downloads/W-Light-Setup-latest.exe.sha256`
-- `deploy/downloads/w-light-desktop.json`
-
-注意事项：
-- GitHub Actions 打包需要几分钟，代码推送后要等 Actions 完成并产生 `chore: publish client packages ...` 提交。
-- 下载中心会显示 `包内代码` 提交号。这个提交号等于最新业务代码提交时，说明 APK/EXE 已经是最新代码构建。
-- 自动提交的 `deploy/downloads` 文件不会再次触发 CI/打包，避免循环构建。
-- 服务器需要在自动打包完成后执行 `git pull` 和部署命令，才能把最新安装包同步到线上下载中心。
-
 ## 备份与恢复
 
-执行一次完整备份：
+立即备份：
 
 ```bash
 cd /root/W-Light
 bash scripts/server-backup.sh
 ```
 
-安装定时备份，例如每天 03:15 备份并保留最近 14 份：
+安装每日自动备份，保留最近 14 份：
 
 ```bash
 bash scripts/server-backup.sh --install-cron --cron "15 3 * * *" --keep 14
@@ -221,41 +196,117 @@ bash scripts/server-backup.sh --install-cron --cron "15 3 * * *" --keep 14
 bash scripts/server-backup.sh --list
 ```
 
-验证某次备份：
+校验备份：
 
 ```bash
 bash scripts/server-backup.sh --verify /root/W-Light/deploy/backups/备份目录名
 ```
 
-## 本地开发验证
+恢复备份：
+
+```bash
+bash scripts/server-backup.sh --restore /root/W-Light/deploy/backups/备份目录名 --yes
+```
+
+## 一键生产自检
+
+上线、升级、报错排查时优先执行：
+
+```bash
+cd /root/W-Light
+bash scripts/server-check.sh --port 3005 --strict-downloads
+```
+
+它会检查：
+
+- Docker Compose 服务状态
+- Web、`/v1/health`、`/v1/health/ready`
+- PostgreSQL、Redis
+- `.env` 是否仍使用默认弱密钥
+- `DB_SYNCHRONIZE` 是否关闭
+- 磁盘占用
+- Android/Windows 安装包和 SHA256
+- 安装包是否对应当前客户端源码
+- 最新备份是否存在、是否过旧、校验是否通过
+
+接口级烟测：
+
+```bash
+bash scripts/server-smoke.sh --port 3005 --phone 13800000001 --password '你的管理员密码'
+```
+
+## 上线验收清单
+
+试运行前必须确认：
+
+- `bash scripts/server-check.sh --port 3005 --strict-downloads` 无失败项。
+- `bash scripts/server-smoke.sh ...` 通过。
+- 云服务器安全组已放行 `3005`，或域名 HTTPS 反代已配置好。
+- `.env` 中 `JWT_SECRET`、`DB_PASSWORD`、`REDIS_PASSWORD`、`MINIO_PASSWORD`、`MINIO_USER` 都不是默认值。
+- `DB_SYNCHRONIZE=false`，`DB_MIGRATIONS_RUN=true`。
+- 已创建正式管理员账号，并停用测试账号或改强密码。
+- 已安装自动备份，并完成一次备份恢复演练。
+- 下载中心 Android/Windows 均可下载，SHA256 可校验。
+- Web、Android、Windows 使用同一个 `/v1` 地址登录，数据能同步。
+- 工单创建、派单、接单、维修记录、备件扣减、验收归档流程至少跑通 3 单。
+- 报表 Excel、PDF、DOCX 下载正常。
+- 巡检计划、异常上报、自动生成维修工单流程跑通。
+
+## 常用排错
+
+页面打不开：
+
+```bash
+docker compose ps
+docker compose logs --tail=120 web
+docker compose logs --tail=120 api
+bash scripts/server-check.sh --port 3005
+```
+
+菜单出现 500：
+
+```bash
+docker compose logs --tail=200 api
+bash scripts/server-smoke.sh --port 3005 --phone 账号 --password '密码'
+```
+
+客户端下载 404：
+
+```bash
+corepack pnpm downloads:verify -- --strict
+ls -lh deploy/downloads
+```
+
+客户端不是最新：
+
+- 先看下载页的 `包内代码 commit`。
+- 等 GitHub Actions 的 Build Client Packages 成功。
+- 服务器执行 `bash scripts/server-upgrade.sh --port 3005`。
+- 再执行 `bash scripts/server-check.sh --port 3005 --strict-downloads`。
+
+## 开发验证
+
+本地常用命令：
 
 ```bash
 corepack pnpm install --frozen-lockfile
-corepack pnpm --filter backend run test -- app.routes.spec.ts app.permissions.spec.ts
-corepack pnpm --filter backend run build
-corepack pnpm --filter web run lint
-corepack pnpm --filter web run build
-corepack pnpm --filter LightOps run typecheck
-corepack pnpm --filter @lightops/toolbox-core run test
+corepack pnpm run build
+corepack pnpm run test
 corepack pnpm downloads:verify
 ```
 
-## 上线前必须完成
+后端路由和权限矩阵有测试覆盖，新增菜单或接口时必须同步更新：
 
-- 配置域名和 HTTPS。生产环境不建议长期使用 HTTP 明文。
-- 重置所有测试账号密码，梳理真实管理员、工程师、巡检员、只读账号。
-- 完成至少一次备份恢复演练，确认 PostgreSQL、MinIO 附件和 `.env` 都能恢复。
-- Android 配置正式签名，并做真机扫码、附件上传、离线同步、覆盖安装测试。
-- Windows 做安装、登录、服务器地址切换、卸载重装、未知发布者提示验证，条件允许时配置代码签名。
-- 增加生产监控：容器状态、API 错误率、数据库容量、MinIO 容量、磁盘空间、备份失败告警。
-- 压测关键接口：登录、工单列表、工单状态流转、上传、报表导出。
-- 公开扫码接口后续建议升级为不可枚举 token，降低设备编号被猜测的风险。
-- 补全系统审计日志：谁创建、派单、验收、改库存、恢复备份，都应有审计记录。
+- `services/backend/src/app.routes.spec.ts`
+- `services/backend/src/app.permissions.spec.ts`
 
-## 继续完善方向
+## 试运行后建议继续增强
 
-- Android 与 Web 工具箱继续保持同级深度，下一步重点是 LTC 文件落地保存、灯库模板更多控台格式、故障诊断树继续扩充。
-- 报表增加图表化 PDF、批量打包下载、下载历史、按区域/项目/设备类型多维筛选。
-- 下载中心增加历史版本管理、回滚入口、客户端强制最低版本提示。
-- 权限继续细化到字段级和操作级，例如工程师只能处理自己的工单，巡检员只能创建巡检记录。
-- 增加运维监控面板：服务健康、接口耗时、错误率、数据库容量、附件容量、备份新鲜度。
+这些不是当前内部试运行的阻塞项，但适合在真实使用 1-2 周后继续补：
+
+- Android 离线冲突合并策略更细化。
+- 工单 SLA 分级和消息通知策略按真实项目调整。
+- Windows 安装包配置正式代码签名证书，减少系统安全提示。
+- 报表模板根据公司实际月报格式继续微调。
+- 接入企业微信/钉钉/短信通知。
+- 增加更细的操作审计日志和管理员导出审计。

@@ -68,7 +68,10 @@ describe('backend API route mapping', () => {
       [RequestMethod.PUT, 'auth/fcm-token'],
       [RequestMethod.POST, 'auth/logout'],
     ])
-    expectExactRoutes(HealthController, [[RequestMethod.GET, 'health']])
+    expectExactRoutes(HealthController, [
+      [RequestMethod.GET, 'health'],
+      [RequestMethod.GET, 'health/ready'],
+    ])
   })
 
   it('keeps project and user management routes stable', () => {

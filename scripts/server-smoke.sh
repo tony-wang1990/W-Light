@@ -27,7 +27,7 @@ Usage:
 
 Runs a post-deploy smoke test against a W-Light server:
   - Web root and client download page
-  - API /health
+  - API /health and /health/ready
   - Admin login
   - Project resolution
   - Key authenticated APIs used by the Web menus
@@ -214,6 +214,7 @@ echo "Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 check_plain "Web root" "${BASE_URL}/"
 check_plain "Client download page" "${BASE_URL}/clients"
 check_json "API health" "/health"
+check_json "API readiness" "/health/ready"
 
 section "Login"
 login_body="{\"phone\":\"$(json_escape "$ADMIN_PHONE")\",\"password\":\"$(json_escape "$ADMIN_PASSWORD")\"}"
