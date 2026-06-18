@@ -524,6 +524,18 @@ export class ReportsExportService {
   }
 
   async exportMonthlyOperationsWorkbook(projectId: string, startDate: string, endDate: string) {
+    const [project = {}] = await this.query(`
+      SELECT name, venue, address, status, createdAt
+      FROM projects
+      WHERE id = ?
+      LIMIT 1
+    `, `
+      SELECT name, venue, address, status, "createdAt"
+      FROM projects
+      WHERE id::text = $1
+      LIMIT 1
+    `, [projectId])
+
     const [overview = {}] = await this.query(`
       SELECT
         COUNT(id) as totalOrders,
@@ -709,6 +721,21 @@ export class ReportsExportService {
     const avgResponseHours = Number(overview.avgResponseHours || 0)
     const closureRate = totalOrders > 0 ? Number(((closedOrders / totalOrders) * 100).toFixed(1)) : 100
 
+    const projectSheet = workbook.addWorksheet('项目概况')
+    projectSheet.columns = [
+      { header: '项目字段', key: 'field', width: 22 },
+      { header: '内容', key: 'value', width: 70 },
+    ]
+    projectSheet.addRows([
+      { field: '项目名称', value: project.name || '未命名项目' },
+      { field: '场地/景区', value: project.venue || '-' },
+      { field: '项目地址', value: project.address || '-' },
+      { field: '项目状态', value: project.status || '-' },
+      { field: '统计周期', value: `${startDate.slice(0, 10)} 至 ${endDate.slice(0, 10)}` },
+      { field: '报告生成时间', value: new Date().toISOString() },
+    ])
+    styleSheet(projectSheet, 'FFEFF6FF')
+
     const overviewSheet = workbook.addWorksheet('核心指标')
     overviewSheet.columns = [
       { header: '指标', key: 'metric', width: 24 },
@@ -821,6 +848,72 @@ export class ReportsExportService {
     }
     if (lowStockRows.length > 0) suggestions.push(`有 ${lowStockRows.length} 种备件低于警戒线，建议尽快补库。`)
     if (suggestions.length === 0) suggestions.push('本周期关键指标稳定，建议保持巡检频率并继续沉淀维修记录。')
+
+    const managementSummary: Array<{ topic: string; conclusion: string }> = [
+      {
+        topic: '整体运行',
+        conclusion: totalOrders === 0
+          ? '本周期未新增工单，建议确认是否已完整录入报修与巡检数据。'
+          : `本周期新增 ${totalOrders} 张工单，闭环 ${closedOrders} 张，闭环率 ${closureRate}%。`,
+      },
+      {
+        topic: '时效表现',
+        conclusion: overtimeOrders > 0
+          ? `存在 ${overtimeOrders} 张超时工单，平均响应 ${avgResponseHours.toFixed(2)} 小时、平均维修 ${avgRepairHours.toFixed(2)} 小时。`
+          : `未发现超时工单，平均响应 ${avgResponseHours.toFixed(2)} 小时、平均维修 ${avgRepairHours.toFixed(2)} 小时。`,
+      },
+      {
+        topic: '成本表现',
+        conclusion: `本周期维修成本合计 ¥${totalRepairCost.toFixed(2)}，重点关注高频故障设备和高消耗备件。`,
+      },
+      {
+        topic: '当前待办',
+        conclusion: activeOrders > 0
+          ? `仍有 ${activeOrders} 张工单未闭环，需要持续跟进派单、维修或验收。`
+          : '周期内工单均已闭环，无历史待办积压。',
+      },
+    ]
+    const summarySheet = workbook.addWorksheet('管理摘要')
+    summarySheet.columns = [
+      { header: '主题', key: 'topic', width: 18 },
+      { header: '管理结论', key: 'conclusion', width: 82 },
+    ]
+    summarySheet.addRows(managementSummary)
+    styleSheet(summarySheet, 'FFECFDF5')
+
+    const risks: Array<{ level: string; risk: string; evidence: string; action: string }> = []
+    if (closureRate < 90) {
+      risks.push({ level: '高', risk: '工单闭环率偏低', evidence: `当前闭环率 ${closureRate}%`, action: '逐单核查未闭环节点，明确责任人与完成时限。' })
+    }
+    if (overtimeOrders > 0) {
+      risks.push({ level: overtimeOrders >= 3 ? '高' : '中', risk: '存在 SLA 超时工单', evidence: `${overtimeOrders} 张工单已超时`, action: '复盘响应、备件和验收耗时，设置每日超时清零机制。' })
+    }
+    if (avgRepairHours > 24) {
+      risks.push({ level: '中', risk: '平均维修周期过长', evidence: `平均维修 ${avgRepairHours.toFixed(2)} 小时`, action: '建立常见故障标准作业与关键备件包，疑难故障及时升级。' })
+    }
+    if (deviceRows.length > 0 && Number(deviceRows[0].faultCount || 0) >= 2) {
+      risks.push({
+        level: '中',
+        risk: '设备重复故障',
+        evidence: `${deviceRows[0].deviceNo || deviceRows[0].deviceName} 发生 ${deviceRows[0].faultCount} 次故障`,
+        action: '安排专项巡检，评估环境、线路、驱动与整机替换方案。',
+      })
+    }
+    if (lowStockRows.length > 0) {
+      risks.push({ level: '中', risk: '关键备件低库存', evidence: `${lowStockRows.length} 种备件达到或低于警戒线`, action: '结合消耗频率生成补库清单并确认采购周期。' })
+    }
+    if (risks.length === 0) {
+      risks.push({ level: '低', risk: '未发现显著运营风险', evidence: '闭环、时效和库存指标处于稳定区间', action: '保持巡检频率，持续完善故障分类和维修记录。' })
+    }
+    const riskSheet = workbook.addWorksheet('风险清单')
+    riskSheet.columns = [
+      { header: '等级', key: 'level', width: 10 },
+      { header: '风险项', key: 'risk', width: 24 },
+      { header: '判断依据', key: 'evidence', width: 34 },
+      { header: '建议动作', key: 'action', width: 56 },
+    ]
+    riskSheet.addRows(risks)
+    styleSheet(riskSheet, 'FFFEF2F2')
 
     const suggestionSheet = workbook.addWorksheet('运营建议')
     suggestionSheet.columns = [
@@ -1046,7 +1139,10 @@ export class ReportsExportService {
   }
 
   private buildDocxDocumentXml(data: MonthlyReportData) {
+    const project = this.section(data, '项目概况')
+    const summary = this.section(data, '管理摘要')
     const overview = this.section(data, '核心指标')
+    const risks = this.section(data, '风险清单')
     const fault = this.section(data, '故障类型')
     const device = this.section(data, '设备故障率')
     const engineer = this.section(data, '人员绩效')
@@ -1068,23 +1164,29 @@ export class ReportsExportService {
       this.docxParagraph('W-Light 项目月度运维报告', 'Title'),
       this.docxParagraph(`报告期间：${data.year} 年 ${data.month.toString().padStart(2, '0')} 月`, 'Subtitle'),
       this.docxParagraph(`统计范围：${data.startDate.slice(0, 10)} 至 ${data.endDate.slice(0, 10)}`, 'Subtitle'),
-      this.docxParagraph('一、核心指标', 'Heading1'),
+      this.docxParagraph('一、项目概况', 'Heading1'),
+      this.docxTable(project?.headers || ['项目字段', '内容'], project?.rows || []),
+      this.docxParagraph('二、管理摘要', 'Heading1'),
+      this.docxTable(summary?.headers || ['主题', '管理结论'], summary?.rows || []),
+      this.docxParagraph('三、核心指标', 'Heading1'),
       this.docxTable(overview?.headers || ['指标', '数值', '说明'], overview?.rows || []),
-      this.docxParagraph('二、占比统计', 'Heading1'),
+      this.docxParagraph('四、风险清单', 'Heading1'),
+      this.docxTable(risks?.headers || ['等级', '风险项', '判断依据', '建议动作'], risks?.rows || []),
+      this.docxParagraph('五、占比统计', 'Heading1'),
       this.docxTable(['项目', '数值', '占比条'], visualRows),
-      this.docxParagraph('三、故障类型排行', 'Heading1'),
+      this.docxParagraph('六、故障类型排行', 'Heading1'),
       this.docxTable(fault?.headers || [], fault?.rows || [], 10),
-      this.docxParagraph('四、设备故障率与高频设备', 'Heading1'),
+      this.docxParagraph('七、设备故障率与高频设备', 'Heading1'),
       this.docxTable(device?.headers || [], device?.rows || [], 10),
-      this.docxParagraph('五、人员绩效', 'Heading1'),
+      this.docxParagraph('八、人员绩效', 'Heading1'),
       this.docxTable(engineer?.headers || [], engineer?.rows || [], 10),
-      this.docxParagraph('六、维修成本与备件消耗', 'Heading1'),
+      this.docxParagraph('九、维修成本与备件消耗', 'Heading1'),
       this.docxTable(parts?.headers || [], parts?.rows || [], 10),
-      this.docxParagraph('七、每日运营走势', 'Heading1'),
+      this.docxParagraph('十、每日运营走势', 'Heading1'),
       this.docxTable(daily?.headers || [], daily?.rows || [], 12),
-      this.docxParagraph('八、运营建议', 'Heading1'),
+      this.docxParagraph('十一、运营建议', 'Heading1'),
       this.docxTable(suggestions?.headers || [], suggestions?.rows || [], 8),
-      this.docxParagraph('九、低库存预警', 'Heading1'),
+      this.docxParagraph('十二、低库存预警', 'Heading1'),
       this.docxTable(lowStock?.headers || [], lowStock?.rows || [], 10),
     ]
 
@@ -1157,6 +1259,9 @@ export class ReportsExportService {
         doc.fontSize(10).fillColor('#BAE6FD').text(`报告期间：${data.year} 年 ${data.month.toString().padStart(2, '0')} 月  |  统计范围：${data.startDate.slice(0, 10)} 至 ${data.endDate.slice(0, 10)}`, 56, 82)
         doc.y = 124
 
+        this.drawPdfTable(doc, '一、项目概况', this.section(data, '项目概况'), 8)
+        this.drawPdfTable(doc, '二、管理摘要', this.section(data, '管理摘要'), 6)
+        this.drawPdfSectionTitle(doc, '核心指标')
         this.drawPdfKpiCards(doc, data)
 
         const totalOrders = this.numeric(data.metrics['工单总数'])
@@ -1164,7 +1269,8 @@ export class ReportsExportService {
         const activeOrders = this.numeric(data.metrics['未闭环工单'])
         const overtimeOrders = this.numeric(data.metrics['超时工单'])
 
-        this.drawPdfSectionTitle(doc, '一、闭环占比统计')
+        this.drawPdfTable(doc, '三、风险清单', this.section(data, '风险清单'), 8)
+        this.drawPdfSectionTitle(doc, '四、闭环占比统计')
         const ratioRows = [
           ['闭环归档', closedOrders, '#10B981'],
           ['未闭环', activeOrders, '#F59E0B'],
@@ -1180,13 +1286,13 @@ export class ReportsExportService {
           doc.y = y + 26
         })
 
-        this.drawPdfBars(doc, '二、故障类型排行', this.section(data, '故障类型'), '故障类型', '次数', '#EF4444')
-        this.drawPdfBars(doc, '三、设备故障率与高频设备', this.section(data, '设备故障率'), '设备名称', '故障次数', '#F97316')
-        this.drawPdfBars(doc, '四、维修成本与备件消耗', this.section(data, '维修成本与备件'), '备件名称', '总成本', '#0EA5E9')
-        this.drawPdfTable(doc, '五、人员绩效', this.section(data, '人员绩效'), 8)
-        this.drawPdfTable(doc, '六、每日运营走势', this.section(data, '每日走势'), 12)
-        this.drawPdfTable(doc, '七、运营建议', this.section(data, '运营建议'), 8)
-        this.drawPdfTable(doc, '八、低库存预警', this.section(data, '低库存预警'), 8)
+        this.drawPdfBars(doc, '五、故障类型排行', this.section(data, '故障类型'), '故障类型', '次数', '#EF4444')
+        this.drawPdfBars(doc, '六、设备故障率与高频设备', this.section(data, '设备故障率'), '设备名称', '故障次数', '#F97316')
+        this.drawPdfBars(doc, '七、维修成本与备件消耗', this.section(data, '维修成本与备件'), '备件名称', '总成本', '#0EA5E9')
+        this.drawPdfTable(doc, '八、人员绩效', this.section(data, '人员绩效'), 8)
+        this.drawPdfTable(doc, '九、每日运营走势', this.section(data, '每日走势'), 12)
+        this.drawPdfTable(doc, '十、运营建议', this.section(data, '运营建议'), 8)
+        this.drawPdfTable(doc, '十一、低库存预警', this.section(data, '低库存预警'), 8)
 
         doc.end()
       } catch (err) {

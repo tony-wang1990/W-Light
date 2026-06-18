@@ -163,6 +163,7 @@ describe('backend API permission matrix', () => {
       'exportInspectionAnomaly',
       'exportMonthlyOperations',
       'exportMonthlyPdf',
+      'exportMonthlyDocx',
     ]) {
       expectRoles(ReportsController, method, [UserRole.ADMIN, UserRole.VIEWER])
     }

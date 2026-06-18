@@ -15,6 +15,7 @@
   flex-direction: column;
   transition: width 0.3s ease;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 30;
 }
 
 .sidebar.collapsed {
@@ -214,4 +215,77 @@
   padding: 24px;
   overflow-y: auto;
   background-color: #F4F6F8;
+}
+
+.mobileBackdrop {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .sidebar,
+  .sidebar.collapsed {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 228px;
+    box-shadow: 18px 0 40px rgba(15, 23, 42, 0.28);
+    transform: translateX(-100%);
+    transition: transform 0.24s ease;
+  }
+
+  .sidebar.mobileOpen {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed .sidebarHeader,
+  .sidebar.collapsed .navItem,
+  .sidebar.collapsed .logoutBtn {
+    justify-content: flex-start;
+  }
+
+  .mobileBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: block;
+    border: 0;
+    background: rgba(15, 23, 42, 0.42);
+    cursor: default;
+  }
+
+  .mainWrapper {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .header {
+    height: 58px;
+    padding: 0 14px;
+  }
+
+  .headerLeft {
+    gap: 9px;
+  }
+
+  .pageTitle {
+    display: none;
+  }
+
+  .headerRight {
+    min-width: 0;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .projectSelect {
+    min-width: 0;
+    width: min(100%, 210px);
+  }
+
+  .userInfo {
+    display: none;
+  }
+
+  .mainContent {
+    padding: 16px;
+  }
 }

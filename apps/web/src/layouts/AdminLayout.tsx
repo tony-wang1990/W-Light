@@ -60,6 +60,7 @@ function roleLabel(role?: string) {
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const { user, currentProjectId, setCurrentProject, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -107,6 +108,10 @@ export default function AdminLayout() {
   }, [location.pathname, navigate, user]);
 
   useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     const validProjectIds = projectOptions.map(project => project.id).filter(isValidProjectId);
     if (currentProjectId && validProjectIds.includes(currentProjectId)) return;
     const firstProjectId = validProjectIds[0];
@@ -118,13 +123,28 @@ export default function AdminLayout() {
     navigate('/login');
   };
 
+  const handleMenuToggle = () => {
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      setMobileMenuOpen(open => !open);
+      return;
+    }
+    setCollapsed(value => !value);
+  };
+
   const visibleMenuItems = MENU_ITEMS.filter(item => canAccessMenuItem(item, user?.role));
 
   if (!user) return null;
 
   return (
     <div className={styles.layout}>
-      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+      {mobileMenuOpen && (
+        <button
+          className={styles.mobileBackdrop}
+          aria-label="关闭导航菜单"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${mobileMenuOpen ? styles.mobileOpen : ''}`}>
         <div className={styles.sidebarHeader}>
           <div className={styles.logoBox}>W</div>
           {!collapsed && <span className={styles.logoText}>W-Light</span>}
@@ -135,6 +155,7 @@ export default function AdminLayout() {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) =>
                 `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
               }
@@ -159,8 +180,9 @@ export default function AdminLayout() {
           <div className={styles.headerLeft}>
             <button
               className={styles.collapseBtn}
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={handleMenuToggle}
               aria-label="折叠菜单"
+              aria-expanded={mobileMenuOpen}
             >
               <Menu size={20} />
             </button>

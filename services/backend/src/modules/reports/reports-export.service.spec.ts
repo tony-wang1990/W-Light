@@ -2,6 +2,7 @@
 
 import { DataSource } from 'typeorm'
 import * as ExcelJS from 'exceljs'
+import JSZip = require('jszip')
 import { ReportsExportService } from './reports-export.service'
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
@@ -124,6 +125,35 @@ describe('ReportsExportService', () => {
     await expect(service.exportMonthlyPdfReport(PROJECT_ID, 2026, 6)).resolves.toEqual(expect.any(Buffer))
   })
 
+  it('includes project context, management summary and risks in the monthly workbook', async () => {
+    const query = jest.fn()
+      .mockResolvedValueOnce([{
+        name: '凤凰文旅灯光项目',
+        venue: '凤凰广场',
+        address: '测试路 1 号',
+        status: 'active',
+      }])
+      .mockResolvedValue([])
+    const ds = {
+      options: { type: 'postgres' },
+      query,
+    } as unknown as jest.Mocked<DataSource>
+    const service = new ReportsExportService(ds)
+
+    const buffer = await service.exportMonthlyOperationsWorkbook(PROJECT_ID, '2026-06-01', '2026-06-30')
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer)
+
+    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(expect.arrayContaining([
+      '项目概况',
+      '管理摘要',
+      '核心指标',
+      '风险清单',
+      '运营建议',
+    ]))
+    expect(workbook.getWorksheet('项目概况')?.getCell('B2').text).toBe('凤凰文旅灯光项目')
+  })
+
   it('generates the monthly DOCX report from the same monthly workbook data', async () => {
     const ds = {
       options: { type: 'postgres' },
@@ -135,5 +165,10 @@ describe('ReportsExportService', () => {
 
     expect(Buffer.isBuffer(buffer)).toBe(true)
     expect(buffer.subarray(0, 2).toString()).toBe('PK')
+    const zip = await JSZip.loadAsync(buffer)
+    const documentXml = await zip.file('word/document.xml')?.async('string')
+    expect(documentXml).toContain('项目概况')
+    expect(documentXml).toContain('管理摘要')
+    expect(documentXml).toContain('风险清单')
   })
 })
