@@ -41,6 +41,12 @@ export class ProjectsController {
     return this.svc.findAll(req.user.role === UserRole.ADMIN ? undefined : req.user.projectIds)
   }
 
+  @Get('overview')
+  @ApiOperation({ summary: '获取多项目运营概览' })
+  overview(@Request() req: AuthenticatedRequest) {
+    return this.svc.findOverview(req.user.role === UserRole.ADMIN ? undefined : req.user.projectIds)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '获取项目详情' })
   findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {

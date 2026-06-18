@@ -1,24 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Edit3, Map, List, Plus, RefreshCw, Save } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  Boxes,
+  Building2,
+  CheckCircle2,
+  ClipboardList,
+  Edit3,
+  ExternalLink,
+  Grid2X2,
+  List,
+  Map,
+  MapPin,
+  Package,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Settings2,
+  TicketCheck,
+  Wrench,
+} from 'lucide-react';
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 import { apiClient } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
-import styles from '../CommonAdmin.module.css';
+import styles from './Projects.module.css';
 
-// Fix leaflet icon issue in React
 type LeafletDefaultIconPrototype = L.Icon.Default & { _getIconUrl?: unknown };
 delete (L.Icon.Default.prototype as LeafletDefaultIconPrototype)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl,
-  iconUrl,
-  shadowUrl,
-});
+L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
 interface Project {
   id: string;
@@ -26,13 +42,22 @@ interface Project {
   venue?: string;
   address?: string;
   managerId?: string;
+  managerName?: string;
   status?: string;
   latitude?: number;
   longitude?: number;
   createdAt?: string;
+  updatedAt?: string;
+  deviceCount?: number;
+  orderCount?: number;
+  openOrderCount?: number;
+  overtimeOrderCount?: number;
+  partCount?: number;
+  lowStockCount?: number;
+  inspectionPlanCount?: number;
 }
 
-type ProjectResponse = Project[] | { items?: Project[] };
+type ViewMode = 'cards' | 'list' | 'map';
 
 const STATUS_LABELS: Record<string, string> = {
   active: '运行中',
@@ -49,19 +74,29 @@ const emptyForm = {
   longitude: '',
 };
 
-function normalizeProjects(res: ProjectResponse) {
-  return Array.isArray(res) ? res : res.items || [];
+function number(value?: number) {
+  return Number(value || 0);
+}
+
+function statusClass(status?: string) {
+  if (status === 'closed') return styles.statusClosed;
+  if (status === 'maintenance') return styles.statusMaintenance;
+  return styles.statusActive;
 }
 
 export default function Projects() {
+  const navigate = useNavigate();
   const { user, currentProjectId, setCurrentProject } = useAuthStore();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('');
+  const [selectedId, setSelectedId] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [notice, setNotice] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const isAdmin = user?.role === 'admin';
 
@@ -69,17 +104,18 @@ export default function Projects() {
     setLoading(true);
     setError('');
     try {
-      const res = await apiClient.get<ProjectResponse>('/projects');
-      const list = normalizeProjects(res);
-      setProjects(list);
-      const nextId = selectedId || currentProjectId || list[0]?.id || '';
-      setSelectedId(nextId);
+      const list = await apiClient.get<Project[]>('/projects/overview');
+      setProjects(Array.isArray(list) ? list : []);
+      setSelectedId(previous => {
+        if (previous && list.some(project => project.id === previous)) return previous;
+        return currentProjectId || list[0]?.id || '';
+      });
     } catch (err) {
-      setError(getErrorMessage(err, '项目列表加载失败'));
+      setError(getErrorMessage(err, '项目概览加载失败'));
     } finally {
       setLoading(false);
     }
-  }, [currentProjectId, selectedId]);
+  }, [currentProjectId]);
 
   useEffect(() => {
     fetchProjects();
@@ -90,260 +126,354 @@ export default function Projects() {
     [projects, selectedId],
   );
 
+  const filteredProjects = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    return projects.filter(project => {
+      const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+      const matchesKeyword = !keyword || [project.name, project.venue, project.address, project.managerName]
+        .some(value => value?.toLowerCase().includes(keyword));
+      return matchesStatus && matchesKeyword;
+    });
+  }, [projects, query, statusFilter]);
+
+  const totals = useMemo(() => ({
+    activeProjects: projects.filter(project => project.status === 'active').length,
+    devices: projects.reduce((sum, project) => sum + number(project.deviceCount), 0),
+    openOrders: projects.reduce((sum, project) => sum + number(project.openOrderCount), 0),
+    risks: projects.reduce((sum, project) => sum + number(project.overtimeOrderCount) + number(project.lowStockCount), 0),
+  }), [projects]);
+
   useEffect(() => {
-    if (selectedProject) {
-      setForm({
-        name: selectedProject.name || '',
-        venue: selectedProject.venue || '',
-        address: selectedProject.address || '',
-        status: selectedProject.status || 'active',
-        latitude: selectedProject.latitude ? String(selectedProject.latitude) : '',
-        longitude: selectedProject.longitude ? String(selectedProject.longitude) : '',
-      });
-    } else {
+    if (!selectedProject) {
       setForm(emptyForm);
+      return;
     }
+    setForm({
+      name: selectedProject.name || '',
+      venue: selectedProject.venue || '',
+      address: selectedProject.address || '',
+      status: selectedProject.status || 'active',
+      latitude: selectedProject.latitude == null ? '' : String(selectedProject.latitude),
+      longitude: selectedProject.longitude == null ? '' : String(selectedProject.longitude),
+    });
   }, [selectedProject]);
+
+  const selectProject = (project: Project, makeCurrent = false) => {
+    setSelectedId(project.id);
+    setNotice('');
+    if (makeCurrent) setCurrentProject(project.id);
+  };
 
   const handleNewProject = () => {
     setSelectedId('');
     setForm(emptyForm);
+    setNotice('');
   };
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      window.alert('请填写项目名称');
+      setError('请填写项目名称');
+      return;
+    }
+
+    const latitude = form.latitude === '' ? undefined : Number(form.latitude);
+    const longitude = form.longitude === '' ? undefined : Number(form.longitude);
+    if (latitude != null && (latitude < -90 || latitude > 90)) {
+      setError('纬度必须在 -90 到 90 之间');
+      return;
+    }
+    if (longitude != null && (longitude < -180 || longitude > 180)) {
+      setError('经度必须在 -180 到 180 之间');
       return;
     }
 
     setSaving(true);
     setError('');
+    setNotice('');
     try {
       const payload = {
         name: form.name.trim(),
         venue: form.venue.trim() || undefined,
         address: form.address.trim() || undefined,
         status: form.status,
-        latitude: form.latitude ? parseFloat(form.latitude) : undefined,
-        longitude: form.longitude ? parseFloat(form.longitude) : undefined,
+        latitude,
+        longitude,
       };
-
       const saved = selectedProject
         ? await apiClient.put<Project>(`/projects/${selectedProject.id}`, payload)
         : await apiClient.post<Project>('/projects', payload);
-
       setCurrentProject(saved.id);
       setSelectedId(saved.id);
+      setNotice(selectedProject ? '项目资料已更新' : '新项目已创建，并已切换为当前项目');
       await fetchProjects();
     } catch (err) {
-      const message = getErrorMessage(err, '保存项目失败');
-      setError(message);
-      window.alert(message);
+      setError(getErrorMessage(err, '保存项目失败'));
     } finally {
       setSaving(false);
     }
   };
 
+  const openModule = (path: string) => {
+    if (!selectedProject) return;
+    setCurrentProject(selectedProject.id);
+    navigate(path);
+  };
+
+  const renderProjectCard = (project: Project) => {
+    const current = currentProjectId === project.id;
+    const riskCount = number(project.overtimeOrderCount) + number(project.lowStockCount);
+    return (
+      <article
+        key={project.id}
+        className={`${styles.projectCard} ${selectedId === project.id ? styles.selectedCard : ''}`}
+        onClick={() => selectProject(project)}
+      >
+        <div className={styles.cardHeader}>
+          <div className={styles.projectIdentity}>
+            <div className={styles.projectIcon}><Building2 size={21} /></div>
+            <div>
+              <div className={styles.projectNameRow}>
+                <h3>{project.name}</h3>
+                {current && <span className={styles.currentBadge}>当前</span>}
+              </div>
+              <p>{project.venue || '未填写场馆/区域'}</p>
+            </div>
+          </div>
+          <span className={`${styles.statusBadge} ${statusClass(project.status)}`}>
+            {STATUS_LABELS[project.status || 'active'] || project.status}
+          </span>
+        </div>
+        <div className={styles.locationLine}>
+          <MapPin size={14} />
+          <span>{project.address || '未填写项目地址'}</span>
+        </div>
+        <div className={styles.cardStats}>
+          <div><strong>{number(project.deviceCount)}</strong><span>设备</span></div>
+          <div><strong>{number(project.openOrderCount)}</strong><span>待办工单</span></div>
+          <div><strong>{number(project.inspectionPlanCount)}</strong><span>巡检计划</span></div>
+          <div className={riskCount > 0 ? styles.riskStat : ''}><strong>{riskCount}</strong><span>风险提醒</span></div>
+        </div>
+        <div className={styles.cardFooter}>
+          <span>{project.managerName ? `负责人：${project.managerName}` : '暂未指定负责人'}</span>
+          <button
+            type="button"
+            onClick={event => {
+              event.stopPropagation();
+              selectProject(project, true);
+            }}
+          >
+            {current ? <CheckCircle2 size={15} /> : <ExternalLink size={15} />}
+            {current ? '正在管理' : '进入项目'}
+          </button>
+        </div>
+      </article>
+    );
+  };
+
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
+      <header className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>项目管理</h1>
-          <p className={styles.pageSubtitle}>维护文旅项目、场馆位置和运行状态；所有工单、设备、巡检与备件数据都会按项目隔离。</p>
+          <span className={styles.eyebrow}>MULTI-PROJECT OPERATIONS</span>
+          <h1>项目管理中心</h1>
+          <p>统一管理多个景区、剧场、水秀、主题乐园或城市亮化项目，业务数据按项目独立隔离。</p>
         </div>
-        <div className={styles.actions}>
-          <div style={{ display: 'flex', background: '#F3F4F6', padding: 4, borderRadius: 8, marginRight: 8 }}>
-            <button
-              onClick={() => setViewMode('list')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: 'none', background: viewMode === 'list' ? 'white' : 'transparent', borderRadius: 6, cursor: 'pointer', boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontWeight: viewMode === 'list' ? 600 : 400 }}
-            >
-              <List size={16} /> 列表
-            </button>
-            <button
-              onClick={() => setViewMode('map')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: 'none', background: viewMode === 'map' ? 'white' : 'transparent', borderRadius: 6, cursor: 'pointer', boxShadow: viewMode === 'map' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontWeight: viewMode === 'map' ? 600 : 400 }}
-            >
-              <Map size={16} /> 地图
-            </button>
-          </div>
-          <button className={styles.secondaryBtn} onClick={fetchProjects} disabled={loading}>
+        <div className={styles.headerActions}>
+          <button className={styles.secondaryButton} onClick={fetchProjects} disabled={loading}>
             <RefreshCw size={16} /> 刷新
           </button>
           {isAdmin && (
-            <button className={styles.primaryBtn} onClick={handleNewProject}>
+            <button className={styles.primaryButton} onClick={handleNewProject}>
               <Plus size={16} /> 新建项目
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {error && <div className={styles.error}>{error}</div>}
+      {notice && <div className={styles.notice}>{notice}</div>}
 
-      <div className={styles.wideGrid}>
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>项目列表</h2>
-            <span className={styles.muted}>共 {projects.length} 个项目</span>
+      <section className={styles.summaryGrid}>
+        <div className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.green}`}><Building2 size={21} /></div>
+          <div><span>项目总数</span><strong>{projects.length}</strong><small>{totals.activeProjects} 个正在运行</small></div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.blue}`}><Settings2 size={21} /></div>
+          <div><span>设备资产</span><strong>{totals.devices}</strong><small>跨项目设备总量</small></div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.amber}`}><TicketCheck size={21} /></div>
+          <div><span>待办工单</span><strong>{totals.openOrders}</strong><small>所有项目未闭环</small></div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${totals.risks > 0 ? styles.red : styles.green}`}><AlertTriangle size={21} /></div>
+          <div><span>运营风险</span><strong>{totals.risks}</strong><small>超时工单 + 低库存</small></div>
+        </div>
+      </section>
+
+      <section className={styles.workspace}>
+        <div className={styles.projectBrowser}>
+          <div className={styles.browserToolbar}>
+            <div className={styles.searchBox}>
+              <Search size={16} />
+              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索项目、场馆、地址或负责人" />
+            </div>
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="项目状态筛选">
+              <option value="all">全部状态</option>
+              <option value="active">运行中</option>
+              <option value="maintenance">维护期</option>
+              <option value="closed">已关闭</option>
+            </select>
+            <div className={styles.viewSwitch}>
+              <button className={viewMode === 'cards' ? styles.activeView : ''} onClick={() => setViewMode('cards')} title="卡片视图"><Grid2X2 size={16} /></button>
+              <button className={viewMode === 'list' ? styles.activeView : ''} onClick={() => setViewMode('list')} title="列表视图"><List size={16} /></button>
+              <button className={viewMode === 'map' ? styles.activeView : ''} onClick={() => setViewMode('map')} title="地图视图"><Map size={16} /></button>
+            </div>
+          </div>
+
+          <div className={styles.browserMeta}>
+            <div>
+              <h2>项目资产</h2>
+              <p>当前显示 {filteredProjects.length} / {projects.length} 个项目</p>
+            </div>
           </div>
 
           {loading ? (
-            <div className={styles.empty}>加载中...</div>
-          ) : projects.length === 0 ? (
-            <div className={styles.empty}>暂无项目，请先创建一个项目用于现场运维。</div>
+            <div className={styles.empty}>正在加载项目概览...</div>
+          ) : filteredProjects.length === 0 ? (
+            <div className={styles.empty}>没有符合条件的项目。</div>
           ) : viewMode === 'map' ? (
-            <div style={{ height: '600px', width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-              <MapContainer center={[30.2741, 120.1551]} zoom={5} style={{ height: '100%', width: '100%' }}>
+            <div className={styles.mapWrap}>
+              <MapContainer center={[34.3, 108.9]} zoom={4} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {projects.filter(p => p.latitude && p.longitude).map(project => (
+                {filteredProjects.filter(project => project.latitude != null && project.longitude != null).map(project => (
                   <Marker
                     key={project.id}
-                    position={[project.latitude!, project.longitude!]}
-                    eventHandlers={{ click: () => { setSelectedId(project.id); setCurrentProject(project.id); } }}
+                    position={[project.latitude as number, project.longitude as number]}
+                    eventHandlers={{ click: () => selectProject(project) }}
                   >
                     <Popup>
                       <strong>{project.name}</strong><br />
-                      {project.address}<br />
-                      状态: {STATUS_LABELS[project.status || 'active'] || project.status}
+                      {project.venue || project.address || '暂无位置说明'}<br />
+                      待办工单：{number(project.openOrderCount)}
                     </Popup>
                   </Marker>
                 ))}
               </MapContainer>
             </div>
-          ) : (
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
+          ) : viewMode === 'list' ? (
+            <div className={styles.tableWrap}>
+              <table>
                 <thead>
-                  <tr>
-                    <th>项目名称</th>
-                    <th>场馆</th>
-                    <th>地址</th>
-                    <th>状态</th>
-                    <th>创建时间</th>
-                  </tr>
+                  <tr><th>项目</th><th>状态</th><th>设备</th><th>全部工单</th><th>待办</th><th>风险</th><th>操作</th></tr>
                 </thead>
                 <tbody>
-                  {projects.map(project => (
-                    <tr
-                      key={project.id}
-                      onClick={() => {
-                        setSelectedId(project.id);
-                        setCurrentProject(project.id);
-                      }}
-                      style={{ cursor: 'pointer', background: selectedId === project.id ? '#EFF6FF' : '' }}
-                    >
-                      <td><strong>{project.name}</strong></td>
-                      <td>{project.venue || '-'}</td>
-                      <td>{project.address || '-'}</td>
-                      <td>
-                        <span className={`${styles.badge} ${project.status === 'closed' ? styles.dangerBadge : project.status === 'maintenance' ? styles.warningBadge : styles.successBadge}`}>
-                          {STATUS_LABELS[project.status || 'active'] || project.status}
-                        </span>
-                      </td>
-                      <td>{project.createdAt ? new Date(project.createdAt).toLocaleDateString('zh-CN') : '-'}</td>
+                  {filteredProjects.map(project => (
+                    <tr key={project.id} className={selectedId === project.id ? styles.selectedRow : ''} onClick={() => selectProject(project)}>
+                      <td><strong>{project.name}</strong><span>{project.venue || project.address || '-'}</span></td>
+                      <td><span className={`${styles.statusBadge} ${statusClass(project.status)}`}>{STATUS_LABELS[project.status || 'active']}</span></td>
+                      <td>{number(project.deviceCount)}</td>
+                      <td>{number(project.orderCount)}</td>
+                      <td>{number(project.openOrderCount)}</td>
+                      <td>{number(project.overtimeOrderCount) + number(project.lowStockCount)}</td>
+                      <td><button onClick={event => { event.stopPropagation(); selectProject(project, true); }}>进入</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          ) : (
+            <div className={styles.projectGrid}>{filteredProjects.map(renderProjectCard)}</div>
           )}
         </div>
 
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>{selectedProject ? '编辑项目' : '新建项目'}</h2>
-            {selectedProject && <span className={styles.badge}>{currentProjectId === selectedProject.id ? '当前项目' : '可切换'}</span>}
+        <aside className={styles.detailPanel}>
+          <div className={styles.detailHeader}>
+            <div>
+              <span>{selectedProject ? 'PROJECT DETAIL' : 'NEW PROJECT'}</span>
+              <h2>{selectedProject ? '项目详情与配置' : '创建新项目'}</h2>
+            </div>
+            {selectedProject && (
+              <span className={`${styles.statusBadge} ${statusClass(selectedProject.status)}`}>
+                {STATUS_LABELS[selectedProject.status || 'active']}
+              </span>
+            )}
           </div>
 
-          {!isAdmin && (
-            <div className={styles.error}>当前账号不是管理员，只能查看项目，不能创建或编辑。</div>
+          {selectedProject && (
+            <>
+              <div className={styles.detailStats}>
+                <button onClick={() => openModule('/devices')}><Settings2 size={18} /><strong>{number(selectedProject.deviceCount)}</strong><span>设备</span></button>
+                <button onClick={() => openModule('/orders')}><TicketCheck size={18} /><strong>{number(selectedProject.openOrderCount)}</strong><span>待办</span></button>
+                <button onClick={() => openModule('/parts')}><Package size={18} /><strong>{number(selectedProject.lowStockCount)}</strong><span>低库存</span></button>
+                <button onClick={() => openModule('/inspections')}><ClipboardList size={18} /><strong>{number(selectedProject.inspectionPlanCount)}</strong><span>巡检</span></button>
+              </div>
+              <div className={styles.quickActions}>
+                <button onClick={() => openModule('/dashboard')}><Boxes size={15} />项目概览</button>
+                <button onClick={() => openModule('/orders')}><Wrench size={15} />工单运维</button>
+                <button onClick={() => openModule('/reports')}><ExternalLink size={15} />查看报表</button>
+              </div>
+            </>
           )}
 
+          {!isAdmin && <div className={styles.readonly}>当前账号只有查看权限，项目资料由管理员维护。</div>}
+
           <div className={styles.formGrid}>
-            <div className={styles.formGroup}>
-              <label>项目名称 *</label>
-              <input
-                className={styles.input}
-                value={form.name}
-                onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))}
-                placeholder="例如：西湖夜游灯光项目"
-                disabled={!isAdmin}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>运行状态</label>
-              <select
-                className={styles.select}
-                value={form.status}
-                onChange={event => setForm(prev => ({ ...prev, status: event.target.value }))}
-                disabled={!isAdmin}
-              >
+            <label className={styles.fullField}>
+              <span>项目名称 *</span>
+              <input value={form.name} onChange={event => setForm(previous => ({ ...previous, name: event.target.value }))} placeholder="例如：凤凰古城夜游灯光项目" disabled={!isAdmin} />
+            </label>
+            <label>
+              <span>运行状态</span>
+              <select value={form.status} onChange={event => setForm(previous => ({ ...previous, status: event.target.value }))} disabled={!isAdmin}>
                 <option value="active">运行中</option>
                 <option value="maintenance">维护期</option>
                 <option value="closed">已关闭</option>
               </select>
-            </div>
-            <div className={styles.formGroup}>
-              <label>场馆/区域</label>
-              <input
-                className={styles.input}
-                value={form.venue}
-                onChange={event => setForm(prev => ({ ...prev, venue: event.target.value }))}
-                placeholder="例如：主舞台 / 水秀区"
-                disabled={!isAdmin}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>地址</label>
-              <input
-                className={styles.input}
-                value={form.address}
-                onChange={event => setForm(prev => ({ ...prev, address: event.target.value }))}
-                placeholder="项目详细地址"
-                disabled={!isAdmin}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>经度 (Longitude)</label>
-              <input
-                className={styles.input}
-                type="number"
-                step="0.000001"
-                value={form.longitude}
-                onChange={event => setForm(prev => ({ ...prev, longitude: event.target.value }))}
-                placeholder="例如：120.1551"
-                disabled={!isAdmin}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>纬度 (Latitude)</label>
-              <input
-                className={styles.input}
-                type="number"
-                step="0.000001"
-                value={form.latitude}
-                onChange={event => setForm(prev => ({ ...prev, latitude: event.target.value }))}
-                placeholder="例如：30.2741"
-                disabled={!isAdmin}
-              />
-            </div>
+            </label>
+            <label>
+              <span>场馆 / 运维区域</span>
+              <input value={form.venue} onChange={event => setForm(previous => ({ ...previous, venue: event.target.value }))} placeholder="主舞台、水秀区、古城街区" disabled={!isAdmin} />
+            </label>
+            <label className={styles.fullField}>
+              <span>项目详细地址</span>
+              <input value={form.address} onChange={event => setForm(previous => ({ ...previous, address: event.target.value }))} placeholder="省 / 市 / 景区 / 具体位置" disabled={!isAdmin} />
+            </label>
+            <label>
+              <span>经度</span>
+              <input type="number" step="0.000001" value={form.longitude} onChange={event => setForm(previous => ({ ...previous, longitude: event.target.value }))} placeholder="120.155100" disabled={!isAdmin} />
+            </label>
+            <label>
+              <span>纬度</span>
+              <input type="number" step="0.000001" value={form.latitude} onChange={event => setForm(previous => ({ ...previous, latitude: event.target.value }))} placeholder="30.274100" disabled={!isAdmin} />
+            </label>
           </div>
 
-          <div className={styles.actions} style={{ marginTop: 16 }}>
-            <button className={styles.secondaryBtn} onClick={() => selectedProject && setCurrentProject(selectedProject.id)} disabled={!selectedProject}>
-              <Building2 size={16} /> 设为当前项目
-            </button>
+          <div className={styles.detailFooter}>
+            {selectedProject && (
+              <button
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setCurrentProject(selectedProject.id);
+                  setNotice(`已切换到：${selectedProject.name}`);
+                }}
+              >
+                <Building2 size={16} /> 设为当前项目
+              </button>
+            )}
             {isAdmin && (
-              <button className={styles.primaryBtn} onClick={handleSave} disabled={saving}>
+              <button className={styles.primaryButton} onClick={handleSave} disabled={saving}>
                 {selectedProject ? <Edit3 size={16} /> : <Save size={16} />}
-                {saving ? '保存中...' : '保存项目'}
+                {saving ? '保存中...' : selectedProject ? '保存修改' : '创建项目'}
               </button>
             )}
           </div>
-        </div>
-      </div>
+        </aside>
+      </section>
     </div>
   );
 }

@@ -90,6 +90,7 @@ describe('web app route smoke tests', () => {
     ['/maintenance', '维修记录台账'],
     ['/inspections', '巡检管理'],
     ['/reports', '报表与数据'],
+    ['/projects', '项目管理中心'],
     ['/toolbox', '专业工具箱'],
     ['/clients', '客户端下载中心'],
   ])('renders %s without a blank page', async (path, heading) => {

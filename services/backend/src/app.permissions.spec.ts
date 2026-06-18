@@ -131,6 +131,7 @@ describe('backend API permission matrix', () => {
     expectRoles(ProjectsController, 'create', [UserRole.ADMIN])
     expectRoles(ProjectsController, 'update', [UserRole.ADMIN])
     expectNoRoles(ProjectsController, 'findAll')
+    expectNoRoles(ProjectsController, 'overview')
     expectNoRoles(ProjectsController, 'findOne')
 
     expectRoles(UsersController, 'create', [UserRole.ADMIN])

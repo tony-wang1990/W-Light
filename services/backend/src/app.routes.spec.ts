@@ -78,6 +78,7 @@ describe('backend API route mapping', () => {
     expectExactRoutes(ProjectsController, [
       [RequestMethod.POST, 'projects'],
       [RequestMethod.GET, 'projects'],
+      [RequestMethod.GET, 'projects/overview'],
       [RequestMethod.GET, 'projects/:id'],
       [RequestMethod.PUT, 'projects/:id'],
     ])
