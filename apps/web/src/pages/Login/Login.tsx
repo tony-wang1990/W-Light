@@ -18,15 +18,29 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e: FormEvent) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!phone || !password) return;
+    const formData = new FormData(e.currentTarget);
+    const submittedApiUrl = String(formData.get('apiUrl') || apiUrl).trim();
+    const submittedPhone = String(formData.get('phone') || phone).trim();
+    const submittedPassword = String(formData.get('password') || password);
+
+    if (!submittedApiUrl || !submittedPhone || !submittedPassword) {
+      setErrorMsg('请输入服务器地址、账号和密码');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg('');
     try {
-      setApiBaseUrl(apiUrl);
-      const res = await apiClient.post<LoginResponse>('/auth/login', { phone, password });
+      setApiUrl(submittedApiUrl);
+      setPhone(submittedPhone);
+      setPassword(submittedPassword);
+      setApiBaseUrl(submittedApiUrl);
+      const res = await apiClient.post<LoginResponse>('/auth/login', {
+        phone: submittedPhone,
+        password: submittedPassword,
+      });
       useAuthStore.getState().setAuth(res.accessToken, res.user);
       setLoading(false);
       navigate('/dashboard');
@@ -92,9 +106,11 @@ export default function Login() {
               <label htmlFor="apiUrl">服务器地址</label>
               <input
                 id="apiUrl"
+                name="apiUrl"
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
+                autoComplete="url"
                 placeholder="https://你的域名/v1"
                 required
               />
@@ -103,9 +119,11 @@ export default function Login() {
               <label htmlFor="phone">账号</label>
               <input
                 id="phone"
+                name="phone"
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                autoComplete="username"
                 placeholder="请输入账号或手机号"
                 required
               />
@@ -114,9 +132,11 @@ export default function Login() {
               <label htmlFor="password">密码</label>
               <input
                 id="password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 placeholder="请输入密码"
                 required
               />
@@ -127,7 +147,7 @@ export default function Login() {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={loading || !phone || !password || !apiUrl}
+              disabled={loading}
             >
               {loading ? '登录中...' : '登录控制台'}
             </button>
