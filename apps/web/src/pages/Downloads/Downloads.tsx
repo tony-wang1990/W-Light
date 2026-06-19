@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import {
   Activity,
   AlertTriangle,
-  CalendarRange,
   Download,
   DollarSign,
   FileSpreadsheet,
@@ -205,27 +204,14 @@ export default function Downloads() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}>REPORT EXPORTS</span>
-          <h1 className={styles.title}>数据下载中心</h1>
-          <p className={styles.subtitle}>从明细数据到管理月报，一处完成导出与归档。</p>
-        </div>
-        <div className={styles.exportCount}>
-          <strong>{DOWNLOAD_EXPORTS.length + 2}</strong>
-          <span>种导出格式</span>
-        </div>
+        <h1 className={styles.title}>数据下载中心</h1>
+        <p className={styles.subtitle}>一站式统一导出各种报表模板，月底汇总和日常台账都在这里完成。</p>
       </header>
 
       {downloadError && <div className={styles.error}>{downloadError}</div>}
 
       <section className={styles.filterCard}>
-        <div className={styles.sectionHeading}>
-          <div className={`${styles.iconBox} ${styles.blue}`}><CalendarRange size={21} /></div>
-          <div>
-            <h2>报表统计范围</h2>
-            <p>日期会应用于工单、绩效、消耗和趋势类报表；库存与设备台账始终导出当前数据。</p>
-          </div>
-        </div>
+        <h2>全局时间范围设定</h2>
         <div className={styles.filterFields}>
           <label>
             <span>开始日期</span>
@@ -235,50 +221,37 @@ export default function Downloads() {
             <span>结束日期</span>
             <input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} />
           </label>
+          <p>注：时间范围仅对工单、消耗、绩效等时间敏感的报表生效。</p>
         </div>
       </section>
 
-      <section>
-        <div className={styles.listHeading}>
-          <div>
-            <h2>Excel 数据表</h2>
-            <p>适合筛选、二次统计、台账留存和财务核对。</p>
-          </div>
-          <span>{DOWNLOAD_EXPORTS.length} 份模板</span>
-        </div>
-        <div className={styles.grid}>
-          {DOWNLOAD_EXPORTS.map(item => (
-            <article className={styles.reportCard} key={item.key}>
-              <div className={styles.cardTop}>
-                <div className={`${styles.iconBox} ${styles[item.accent]}`}>{item.icon}</div>
-                <span className={styles.fileType}>XLSX</span>
-              </div>
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-              <button
-                className={styles.downloadButton}
-                onClick={() => downloadExcel(item)}
-                disabled={Boolean(activeDownload)}
-              >
-                <Download size={16} />
-                {activeDownload === item.key ? '正在生成...' : '下载 Excel'}
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
+      <div className={styles.grid}>
+        {DOWNLOAD_EXPORTS.map(item => (
+          <article className={styles.reportCard} key={item.key}>
+            <div className={styles.cardTitle}>
+              <span className={styles.cardIcon}>{item.icon}</span>
+              <h2>{item.title}</h2>
+            </div>
+            <p>{item.desc}</p>
+            <button
+              className={styles.downloadButton}
+              onClick={() => downloadExcel(item)}
+              disabled={Boolean(activeDownload)}
+            >
+              <Download size={15} />
+              {activeDownload === item.key ? '正在生成...' : '下载 Excel 表格'}
+            </button>
+          </article>
+        ))}
+      </div>
 
       <section className={styles.monthlyCard}>
         <div className={styles.monthlyIntro}>
-          <div className={`${styles.iconBox} ${styles.green}`}><FileText size={23} /></div>
-          <div>
-            <span className={styles.eyebrow}>MANAGEMENT REPORT</span>
-            <h2>月度综合总结报告</h2>
-            <p>
-              自动整理项目概况、管理摘要、核心指标、风险清单、故障排行、人员绩效、
-              备件消耗、每日走势和整改建议。
-            </p>
-          </div>
+          <h2><FileText size={20} /> 月度综合总结报告</h2>
+          <p>
+            自动整理项目概况、管理摘要、核心指标、风险清单、故障排行、人员绩效、
+            备件消耗、每日走势和整改建议。PDF 适合直接汇报，Word/DOCX 适合二次编辑。
+          </p>
         </div>
         <div className={styles.monthlyActions}>
           <label>
@@ -286,28 +259,20 @@ export default function Downloads() {
             <input type="month" value={month} onChange={event => setMonth(event.target.value)} />
           </label>
           <button
-            className={`${styles.formatButton} ${styles.pdfButton}`}
+            className={styles.primaryReportButton}
             onClick={() => downloadMonthlyReport('pdf')}
             disabled={Boolean(activeDownload)}
           >
-            <span className={styles.formatBadge}>PDF</span>
-            <span>
-              <strong>{activeDownload === 'monthly-pdf' ? '正在生成...' : '下载汇报版'}</strong>
-              <small>适合直接查看与汇报</small>
-            </span>
-            <Download size={17} />
+            <Download size={15} />
+            {activeDownload === 'monthly-pdf' ? '正在生成...' : '下载 PDF 报告'}
           </button>
           <button
-            className={`${styles.formatButton} ${styles.wordButton}`}
+            className={styles.secondaryReportButton}
             onClick={() => downloadMonthlyReport('docx')}
             disabled={Boolean(activeDownload)}
           >
-            <span className={styles.formatBadge}>DOCX</span>
-            <span>
-              <strong>{activeDownload === 'monthly-docx' ? '正在生成...' : '下载可编辑版'}</strong>
-              <small>适合补充说明与签批</small>
-            </span>
-            <Download size={17} />
+            <Download size={15} />
+            {activeDownload === 'monthly-docx' ? '正在生成...' : '下载 Word/DOCX'}
           </button>
         </div>
       </section>

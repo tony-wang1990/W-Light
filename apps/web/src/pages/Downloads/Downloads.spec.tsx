@@ -47,13 +47,13 @@ describe('downloads center', () => {
     const user = userEvent.setup();
     render(<Downloads />);
 
-    await user.click(screen.getByRole('button', { name: /下载汇报版/ }));
+    await user.click(screen.getByRole('button', { name: /下载 PDF 报告/ }));
     expect(downloadMock).toHaveBeenLastCalledWith(
       expect.stringMatching(/^\/reports\/export\/monthly-report\.pdf\?year=\d{4}&month=\d{2}$/),
       expect.stringMatching(/^w-light-monthly-report-\d{4}-\d{2}\.pdf$/),
     );
 
-    await user.click(screen.getByRole('button', { name: /下载可编辑版/ }));
+    await user.click(screen.getByRole('button', { name: /下载 Word\/DOCX/ }));
     expect(downloadMock).toHaveBeenLastCalledWith(
       expect.stringMatching(/^\/reports\/export\/monthly-report\.docx\?year=\d{4}&month=\d{2}$/),
       expect.stringMatching(/^w-light-monthly-report-\d{4}-\d{2}\.docx$/),
