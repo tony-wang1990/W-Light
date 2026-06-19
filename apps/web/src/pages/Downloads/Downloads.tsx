@@ -267,7 +267,7 @@ export default function Downloads() {
             {activeDownload === 'monthly-pdf' ? '正在生成...' : '下载 PDF 报告'}
           </button>
           <button
-            className={styles.secondaryReportButton}
+            className={styles.primaryReportButton}
             onClick={() => downloadMonthlyReport('docx')}
             disabled={Boolean(activeDownload)}
           >
