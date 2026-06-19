@@ -23,7 +23,8 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
-  if (url.pathname.startsWith('/v1/') || url.pathname.startsWith('/downloads/')) return
+  const isClientArtifact = url.pathname.startsWith('/downloads/') && url.pathname !== '/downloads/'
+  if (url.pathname.startsWith('/v1/') || isClientArtifact) return
 
   if (request.mode === 'navigate') {
     event.respondWith(

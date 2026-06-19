@@ -86,13 +86,30 @@ describe('web app route smoke tests', () => {
   })
 
   it.each([
-    ['/orders', '工单调度中心'],
-    ['/maintenance', '维修记录台账'],
-    ['/inspections', '巡检管理'],
-    ['/reports', '报表与数据'],
+    ['/dashboard', '控制台概览'],
+    ['/dashboard/', '控制台概览'],
     ['/projects', '项目管理中心'],
+    ['/projects/', '项目管理中心'],
+    ['/devices', '设备台账'],
+    ['/devices/', '设备台账'],
+    ['/orders', '工单调度中心'],
+    ['/orders/', '工单调度中心'],
+    ['/maintenance', '维修记录台账'],
+    ['/maintenance/', '维修记录台账'],
+    ['/parts', '备件库存管理'],
+    ['/parts/', '备件库存管理'],
+    ['/inspections', '巡检管理'],
+    ['/inspections/', '巡检管理'],
+    ['/reports', '报表与数据'],
+    ['/reports/', '报表与数据'],
+    ['/downloads', '数据下载中心'],
+    ['/downloads/', '数据下载中心'],
+    ['/users', '用户权限管理'],
+    ['/users/', '用户权限管理'],
     ['/toolbox', '专业工具箱'],
+    ['/toolbox/', '专业工具箱'],
     ['/clients', '客户端下载中心'],
+    ['/clients/', '客户端下载中心'],
   ])('renders %s without a blank page', async (path, heading) => {
     window.history.pushState({}, '', path)
     render(<App />)
@@ -101,5 +118,12 @@ describe('web app route smoke tests', () => {
     expect(screen.getByText('W-Light')).toBeInTheDocument()
     expect(screen.getByTitle('工单调度中心')).toBeInTheDocument()
     expect(screen.queryByText('Internal server error')).not.toBeInTheDocument()
+  })
+
+  it('redirects an unknown route to the authenticated dashboard', async () => {
+    window.history.pushState({}, '', '/route-that-does-not-exist')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: '控制台概览' })).toBeInTheDocument()
   })
 })

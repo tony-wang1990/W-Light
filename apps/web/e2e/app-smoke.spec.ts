@@ -122,6 +122,21 @@ async function mockApi(page: Page) {
       return response(route, [{ id: PROJECT_ID, name: 'W-LightOps Sample Project' }])
     }
 
+    if (request.method() === 'GET' && path === '/projects/overview') {
+      return response(route, [{
+        id: PROJECT_ID,
+        name: 'W-LightOps Sample Project',
+        status: 'active',
+        deviceCount: 0,
+        orderCount: 0,
+        openOrderCount: 0,
+        overtimeOrderCount: 0,
+        partCount: 0,
+        lowStockCount: 0,
+        inspectionPlanCount: 0,
+      }])
+    }
+
     if (request.method() === 'GET' && path === '/reports/operations-summary') {
       return response(route, operationsSummary())
     }
@@ -370,6 +385,36 @@ test('login and key operations pages render without server errors', async ({ pag
 
   expect(pageErrors).toEqual([])
   expect(consoleErrors).toEqual([])
+})
+
+test('every admin route supports direct navigation, trailing slash and refresh', async ({ page }) => {
+  await mockApi(page)
+  await login(page)
+
+  const routes = [
+    ['/dashboard', '控制台概览'],
+    ['/projects', '项目管理中心'],
+    ['/devices', '设备台账'],
+    ['/orders', '工单调度中心'],
+    ['/maintenance', '维修记录台账'],
+    ['/parts', '备件库存管理'],
+    ['/inspections', '巡检管理'],
+    ['/reports', '报表与数据'],
+    ['/downloads', '数据下载中心'],
+    ['/users', '用户权限管理'],
+    ['/toolbox', '专业工具箱'],
+    ['/clients', '客户端下载中心'],
+  ] as const
+
+  for (const [path, heading] of routes) {
+    for (const target of [path, `${path}/`]) {
+      await page.goto(target)
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible()
+      await page.reload()
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible()
+      await expect(page.getByText('W-Light 客户端下载')).toHaveCount(0)
+    }
+  }
 })
 
 test('order workflow can be assigned, accepted, logged and archived from the UI', async ({ page }) => {

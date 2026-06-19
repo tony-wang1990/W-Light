@@ -132,14 +132,14 @@ macOS/Linux 使用同样思路，把 `.dmg` 或 `.AppImage` 放到：
 浏览器访问：
 
 ```text
-http://服务器IP:3005/downloads/
+http://服务器IP:3005/clients
 ```
 
 ## 6. 用户安装与登录
 
 Windows：
 
-1. 打开 `http://服务器IP:3005/downloads/`。
+1. 打开 `http://服务器IP:3005/clients`。
 2. 下载 `W-Light-Setup-latest.exe`。
 3. 双击安装，按向导完成安装。
 4. 打开桌面上的 `W-Light`。
@@ -148,7 +148,7 @@ Windows：
 
 Mac：
 
-1. 打开 `http://服务器IP:3005/downloads/`。
+1. 打开 `http://服务器IP:3005/clients`。
 2. 下载 `W-Light-latest.dmg`。
 3. 打开 DMG，把 `W-Light` 拖到 `Applications`。
 4. 第一次打开如果被 Gatekeeper 拦截，右键应用选择“打开”。

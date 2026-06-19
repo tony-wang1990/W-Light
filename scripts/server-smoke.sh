@@ -191,6 +191,21 @@ check_plain() {
   fi
 }
 
+check_spa_route() {
+  local path="$1"
+  local body
+  section "SPA route ${path}"
+  if ! body="$(curl -fsSL --max-time "$TIMEOUT_SECONDS" "${BASE_URL}${path}")"; then
+    fail "${BASE_URL}${path}"
+    return
+  fi
+  if [[ "$body" == *'<div id="root">'* && "$body" != *'W-Light 客户端下载'* ]]; then
+    ok "${BASE_URL}${path}"
+  else
+    fail "${BASE_URL}${path} did not return the Web application shell"
+  fi
+}
+
 check_json() {
   local title="$1"
   local path="$2"
@@ -213,6 +228,22 @@ echo "Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 check_plain "Web root" "${BASE_URL}/"
 check_plain "Client download page" "${BASE_URL}/clients"
+for route in \
+  /dashboard /dashboard/ \
+  /projects /projects/ \
+  /devices /devices/ \
+  /orders /orders/ \
+  /maintenance /maintenance/ \
+  /parts /parts/ \
+  /inspections /inspections/ \
+  /reports /reports/ \
+  /downloads /downloads/ \
+  /users /users/ \
+  /toolbox /toolbox/ \
+  /clients /clients/
+do
+  check_spa_route "$route"
+done
 check_json "API health" "/health"
 check_json "API readiness" "/health/ready"
 

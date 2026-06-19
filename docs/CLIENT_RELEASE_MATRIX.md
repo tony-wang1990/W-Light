@@ -27,7 +27,7 @@ http://服务器IP:3005/v1
 部署后访问：
 
 ```text
-http://服务器IP:3005/downloads/
+http://服务器IP:3005/clients
 ```
 
 下载中心会展示：
