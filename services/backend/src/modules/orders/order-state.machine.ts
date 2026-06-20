@@ -11,6 +11,28 @@ export const SLA_COMPLETE_HOURS: Record<OrderPriority, number> = {
   [OrderPriority.P3]: 168,
 }
 
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  [OrderStatus.PENDING]: '待派单',
+  [OrderStatus.ASSIGNED]: '已派单',
+  [OrderStatus.PROCESSING]: '处理中',
+  [OrderStatus.SUSPENDED]: '已挂起',
+  [OrderStatus.REVIEWING]: '待验收',
+  [OrderStatus.CLOSED]: '已关闭',
+  [OrderStatus.REJECTED]: '已取消',
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  assign: '派单或改派',
+  accept: '接单',
+  reject: '拒单',
+  suspend: '挂起',
+  resume: '恢复',
+  submit: '提交验收',
+  'accept check': '验收通过',
+  'reject check': '验收退回',
+  cancel: '取消',
+}
+
 type OrderPatch = Partial<Pick<
   WorkOrder,
   | 'status'
@@ -35,7 +57,9 @@ export class OrderStateMachine {
 
   private assertStatus(order: WorkOrder, expectedStatuses: OrderStatus[], action: string) {
     if (!expectedStatuses.includes(order.status)) {
-      throw new BadRequestException(`Order ${order.orderNo} is ${order.status}, cannot ${action}`)
+      throw new BadRequestException(
+        `工单 ${order.orderNo} 当前状态为“${STATUS_LABELS[order.status] || order.status}”，不能执行“${ACTION_LABELS[action] || action}”操作`,
+      )
     }
   }
 
@@ -54,7 +78,7 @@ export class OrderStateMachine {
     }, patch)
 
     if (!result.affected) {
-      throw new ConflictException(`Order ${order.orderNo} was changed by another operator, please refresh`)
+      throw new ConflictException(`工单 ${order.orderNo} 已被其他人员修改，请刷新后重试`)
     }
 
     const updatedOrder = await this.orderRepo.findOneOrFail({
@@ -69,7 +93,7 @@ export class OrderStateMachine {
 
   async assign(order: WorkOrder, assigneeId: string): Promise<WorkOrder> {
     const slaHours = SLA_COMPLETE_HOURS[order.priority]
-    return this.transition(order, [OrderStatus.PENDING], 'assign', {
+    return this.transition(order, [OrderStatus.PENDING, OrderStatus.ASSIGNED], 'assign', {
       status: OrderStatus.ASSIGNED,
       assigneeId,
       assignedAt: new Date(),
