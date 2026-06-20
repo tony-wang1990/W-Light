@@ -3,9 +3,9 @@
   "file": "W-Light-Setup-latest.exe",
   "version": "0.9.0-internal.0",
   "sourceArtifact": "W-Light-Setup-0.9.0-internal.0-x64.exe",
-  "builtAt": "2026-06-20T14:54:53Z",
-  "publishedAt": "2026-06-20T14:54:54Z",
-  "commit": "efa27a5",
-  "sha256": "db81d52683b931f51cbaf5f79a1292401c90c131ee9693f353da6be7f95a99c1",
-  "sizeBytes": 101883766
+  "builtAt": "2026-06-20T15:16:29Z",
+  "publishedAt": "2026-06-20T15:16:30Z",
+  "commit": "0d7b697",
+  "sha256": "0744e35062c6581802105de09508feac703beb04e3b0d21aa9febb4340ff00be",
+  "sizeBytes": 101883765
 }
