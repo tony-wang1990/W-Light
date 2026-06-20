@@ -15,6 +15,7 @@ export interface OfflineQueueItem {
   body?: unknown
   pendingMedia?: UploadedMedia[]
   attachmentField?: string
+  projectId?: string
   createdAt: string
   attemptCount: number
   lastTriedAt?: string
@@ -133,6 +134,7 @@ export function enqueueOfflineRequest(input: {
     body: input.body,
     pendingMedia: input.pendingMedia,
     attachmentField: input.attachmentField,
+    projectId: secureStorage.getString('current_project_id'),
     createdAt: new Date().toISOString(),
     attemptCount: 0,
   }
@@ -167,15 +169,18 @@ async function prepareQueuedItem(item: OfflineQueueItem): Promise<OfflineQueueIt
 }
 
 async function sendQueuedItem(item: OfflineQueueItem) {
+  const config = item.projectId
+    ? { headers: { 'X-Project-Id': item.projectId } }
+    : undefined
   switch (item.method) {
     case 'post':
-      return apiClient.post(item.endpoint, item.body)
+      return apiClient.post(item.endpoint, item.body, config)
     case 'put':
-      return apiClient.put(item.endpoint, item.body)
+      return apiClient.put(item.endpoint, item.body, config)
     case 'patch':
-      return apiClient.patch(item.endpoint, item.body)
+      return apiClient.patch(item.endpoint, item.body, config)
     case 'delete':
-      return apiClient.delete(item.endpoint)
+      return apiClient.delete(item.endpoint, config)
     default:
       throw new Error(`Unsupported offline method: ${item.method}`)
   }

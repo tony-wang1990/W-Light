@@ -137,12 +137,15 @@ export default function Orders() {
     const url = `${apiBaseUrl}/sse/orders?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId)}`;
     const eventSource = new EventSource(url);
 
-    eventSource.onmessage = () => {
+    const refreshFromEvent = () => {
       // Refresh the orders list silently when an event arrives
       fetchOrders();
     };
+    eventSource.addEventListener('order_updated', refreshFromEvent);
+    eventSource.onmessage = refreshFromEvent;
 
     return () => {
+      eventSource.removeEventListener('order_updated', refreshFromEvent);
       eventSource.close();
     };
   }, [fetchOrders]);

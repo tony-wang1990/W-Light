@@ -11,6 +11,7 @@ const UNSAFE_PRODUCTION_SECRETS = new Set([
   'redis_dev_pwd',
   'lightops_dev_pwd',
 ])
+const DESKTOP_APP_ORIGIN = 'wlight://app'
 
 function splitOrigins(value?: string) {
   return (value || '')
@@ -59,9 +60,10 @@ async function bootstrap() {
     }),
   )
 
-  const allowedOrigins = splitOrigins(process.env.APP_ORIGINS || process.env.APP_ORIGIN)
+  const configuredOrigins = splitOrigins(process.env.APP_ORIGINS || process.env.APP_ORIGIN)
+  const allowedOrigins = [...new Set([DESKTOP_APP_ORIGIN, ...configuredOrigins])]
   app.enableCors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : process.env.NODE_ENV === 'production' ? false : true,
+    origin: process.env.NODE_ENV === 'production' ? allowedOrigins : true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Project-Id'],
   })

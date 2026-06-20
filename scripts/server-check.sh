@@ -179,7 +179,7 @@ check_env_security() {
   if [[ -n "${APP_ORIGINS:-${APP_ORIGIN:-}}" ]]; then
     ok "APP_ORIGINS/APP_ORIGIN configured"
   else
-    warn "APP_ORIGINS is empty; same-origin Web works, but Android/Windows API calls may need explicit origins"
+    ok "APP_ORIGINS is empty; same-origin Web, Android, and the packaged wlight:// Windows client remain supported"
   fi
 
   if [[ "${ENABLE_SWAGGER:-false}" == "true" && "${NODE_ENV:-}" == "production" ]]; then

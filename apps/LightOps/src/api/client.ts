@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import {
   API_BASE_URL_STORAGE_KEY,
   DEFAULT_API_BASE_URL,
@@ -13,6 +13,7 @@ import {
   setCachedApiResponse,
 } from '../offline/offlineCache'
 import { secureStorage } from '../storage/secureStorage'
+import { notifySessionExpired } from '../auth/sessionEvents'
 
 const storage = secureStorage
 
@@ -37,7 +38,7 @@ axiosClient.interceptors.request.use(
 
     config.baseURL = getApiBaseUrl()
     if (token) config.headers['Authorization'] = `Bearer ${token}`
-    if (projectId) config.headers['X-Project-Id'] = projectId
+    if (projectId && !config.headers['X-Project-Id']) config.headers['X-Project-Id'] = projectId
 
     return config
   },
@@ -46,15 +47,40 @@ axiosClient.interceptors.request.use(
 
 // ─── Response Interceptor ─────────────────────────────────────────────────────
 let isRefreshing = false
-let refreshSubscribers: Array<(token: string) => void> = []
+type RefreshSubscriber = {
+  resolve: (token: string) => void
+  reject: (error: Error) => void
+}
+let refreshSubscribers: RefreshSubscriber[] = []
 
-function subscribeTokenRefresh(cb: (token: string) => void) {
-  refreshSubscribers.push(cb)
+function waitForTokenRefresh() {
+  return new Promise<string>((resolve, reject) => {
+    refreshSubscribers.push({ resolve, reject })
+  })
 }
 
 function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach(cb => cb(token))
+  refreshSubscribers.forEach(subscriber => subscriber.resolve(token))
   refreshSubscribers = []
+}
+
+function onTokenRefreshFailed(error: Error) {
+  refreshSubscribers.forEach(subscriber => subscriber.reject(error))
+  refreshSubscribers = []
+}
+
+function expireSession() {
+  storage.delete('access_token')
+  storage.delete('refresh_token')
+  notifySessionExpired()
+}
+
+function getResponseErrorMessage(error: unknown) {
+  const axiosError = error as AxiosError<{ msg?: string | string[]; message?: string | string[]; error?: string }>
+  const payload = axiosError.response?.data
+  const message = payload?.msg ?? payload?.message ?? payload?.error
+  if (Array.isArray(message)) return message.join('；')
+  return message || (error instanceof Error ? error.message : '') || '网络请求失败'
 }
 
 axiosClient.interceptors.response.use(
@@ -76,45 +102,43 @@ axiosClient.interceptors.response.use(
       originalRequest._retry = true
 
       if (isRefreshing) {
-        return new Promise(resolve => {
-          subscribeTokenRefresh(token => {
-            originalRequest.headers['Authorization'] = `Bearer ${token}`
-            resolve(axiosClient(originalRequest))
-          })
-        })
+        const token = await waitForTokenRefresh()
+        originalRequest.headers['Authorization'] = `Bearer ${token}`
+        return axiosClient(originalRequest)
       }
 
       isRefreshing = true
       const refreshToken = storage.getString('refresh_token')
 
       if (!refreshToken) {
-        // 没有 refresh token，清除并跳登录（通过事件总线通知 RootNavigator）
-        storage.delete('access_token')
-        storage.delete('refresh_token')
+        const expiredError = new Error('登录已过期，请重新登录')
+        expireSession()
+        onTokenRefreshFailed(expiredError)
         isRefreshing = false
-        return Promise.reject(new Error('登录已过期，请重新登录'))
+        return Promise.reject(expiredError)
       }
 
       try {
         const response = await axios.post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken }, {
           timeout: 30000,
         })
-        const { accessToken } = response.data.data || response.data
+        const { accessToken, refreshToken: nextRefreshToken } = response.data.data || response.data
         storage.set('access_token', accessToken)
+        if (nextRefreshToken) storage.set('refresh_token', nextRefreshToken)
         onTokenRefreshed(accessToken)
         originalRequest.headers['Authorization'] = `Bearer ${accessToken}`
         return axiosClient(originalRequest)
       } catch {
-        storage.delete('access_token')
-        storage.delete('refresh_token')
-        return Promise.reject(new Error('登录已过期，请重新登录'))
+        const expiredError = new Error('登录已过期，请重新登录')
+        expireSession()
+        onTokenRefreshFailed(expiredError)
+        return Promise.reject(expiredError)
       } finally {
         isRefreshing = false
       }
     }
 
-    const message = error.response?.data?.msg || error.message || '网络请求失败'
-    return Promise.reject(new Error(message))
+    return Promise.reject(new Error(getResponseErrorMessage(error)))
   },
 )
 

@@ -29,6 +29,23 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
   throw "Java is required. Install JDK 17 and set JAVA_HOME before building Android."
 }
 
+$sdkCandidates = @(
+  $env:ANDROID_HOME,
+  $env:ANDROID_SDK_ROOT,
+  (Join-Path $env:LOCALAPPDATA "Android\Sdk"),
+  "C:\Android\Sdk"
+) | Where-Object { $_ -and (Test-Path $_) }
+
+if (-not $env:ANDROID_HOME -and $sdkCandidates.Count -gt 0) {
+  $env:ANDROID_HOME = $sdkCandidates[0]
+}
+if (-not $env:ANDROID_SDK_ROOT -and $env:ANDROID_HOME) {
+  $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+}
+if (-not $env:ANDROID_HOME) {
+  throw "Android SDK is required. Set ANDROID_HOME or install it under %LOCALAPPDATA%\Android\Sdk."
+}
+
 Set-Location $RootDir
 
 if (-not $SkipChecks) {

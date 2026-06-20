@@ -2,7 +2,7 @@ import axios, { AxiosRequestConfig } from 'axios';
 import { getCurrentProjectId, useAuthStore } from '../store/authStore';
 
 export const WEB_API_BASE_URL_STORAGE_KEY = 'wlight-web-api-base-url';
-const DEFAULT_DESKTOP_API_URL = 'http://127.0.0.1:3005/v1';
+const DEFAULT_DESKTOP_API_URL = 'https://w-light.199060.xyz/v1';
 
 function defaultApiBaseUrl() {
   return ['file:', 'wlight:'].includes(window.location.protocol) ? DEFAULT_DESKTOP_API_URL : '/v1';

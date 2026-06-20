@@ -14,6 +14,7 @@ import {
   normalizeApiBaseUrl,
 } from '../../config/api'
 import { getErrorMessage } from '../../utils/error'
+import appPackage from '../../../package.json'
 
 const storage = secureStorage
 
@@ -151,7 +152,7 @@ export function LoginScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            © 2026 W-Light - 文旅灯光运维一体化平台 v1.0
+            © 2026 W-Light - 文旅灯光运维一体化平台 v{appPackage.version}
           </Text>
         </View>
       </ScrollView>
