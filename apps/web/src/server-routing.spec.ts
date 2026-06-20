@@ -12,6 +12,7 @@ describe('production server routing contract', () => {
     expect(nginxConfig).toMatch(/location = \/downloads\s*\{\s*try_files \/index\.html =404;/);
     expect(nginxConfig).toMatch(/location = \/downloads\/\s*\{\s*try_files \/index\.html =404;/);
     expect(nginxConfig).toMatch(/location \^~ \/downloads\/\s*\{[\s\S]*?try_files \$uri =404;/);
+    expect(nginxConfig).toMatch(/location \^~ \/downloads\/\s*\{[\s\S]*?Access-Control-Allow-Origin "\*"/);
   });
 
   it('does not redirect SPA routes to matching physical directories', () => {

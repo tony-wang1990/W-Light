@@ -3,6 +3,7 @@ import {
   WEB_API_BASE_URL_STORAGE_KEY,
   getApiBaseUrl,
   getAuthRequestHeaders,
+  getServerOrigin,
   normalizeApiBaseUrl,
   setApiBaseUrl,
 } from './client'
@@ -26,6 +27,11 @@ describe('web api client helpers', () => {
 
     expect(setApiBaseUrl('/v1')).toBe('/v1')
     expect(localStorage.getItem(WEB_API_BASE_URL_STORAGE_KEY)).toBeNull()
+  })
+
+  it('derives the download server origin from an absolute desktop API URL', () => {
+    expect(getServerOrigin('https://w-light.199060.xyz/v1')).toBe('https://w-light.199060.xyz')
+    expect(getServerOrigin('/v1')).toBe(window.location.origin)
   })
 
   it('builds authorization and project headers from the current auth store', () => {

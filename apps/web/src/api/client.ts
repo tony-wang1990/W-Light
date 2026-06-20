@@ -21,6 +21,13 @@ export function getApiBaseUrl() {
   return normalizeApiBaseUrl(localStorage.getItem(WEB_API_BASE_URL_STORAGE_KEY) || '');
 }
 
+export function getServerOrigin(apiBaseUrl = getApiBaseUrl()) {
+  if (/^https?:\/\//i.test(apiBaseUrl)) {
+    return new URL(apiBaseUrl).origin;
+  }
+  return window.location.origin;
+}
+
 export function setApiBaseUrl(value: string) {
   const normalized = normalizeApiBaseUrl(value);
   if (normalized === defaultApiBaseUrl()) {

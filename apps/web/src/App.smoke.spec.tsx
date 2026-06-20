@@ -48,6 +48,7 @@ const { PROJECT_ID, apiGetMock, apiPostMock, apiPutMock, apiDeleteMock, apiDownl
 vi.mock('./api/client', () => {
   return {
     getApiBaseUrl: vi.fn(() => '/v1'),
+    getServerOrigin: vi.fn(() => window.location.origin),
     apiClient: {
       get: apiGetMock,
       post: apiPostMock,

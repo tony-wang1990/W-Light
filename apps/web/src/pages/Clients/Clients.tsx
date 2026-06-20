@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Copy, Download, Monitor, RefreshCw, Smartphone, TabletSmartphone } from 'lucide-react';
-import { getApiBaseUrl } from '../../api/client';
+import { getApiBaseUrl, getServerOrigin } from '../../api/client';
 import styles from '../CommonAdmin.module.css';
 
 interface ClientMetadata {
@@ -42,6 +42,11 @@ function resolveServerAddress() {
   if (configured.startsWith('http')) return configured;
   if (window.location.protocol === 'file:') return 'http://服务器IP:3005/v1';
   return `${window.location.origin}/v1`;
+}
+
+function resolveDownloadHref(path: string) {
+  if (!path.startsWith('/')) return path;
+  return `${getServerOrigin()}${path}`;
 }
 
 function formatBytes(value?: number) {
@@ -131,11 +136,11 @@ export default function Clients() {
       try {
         let metadata: ClientMetadata | undefined;
         if (item.metadataHref) {
-          const metadataResponse = await fetch(item.metadataHref, { cache: 'no-store' });
+          const metadataResponse = await fetch(resolveDownloadHref(item.metadataHref), { cache: 'no-store' });
           if (metadataResponse.ok) metadata = await metadataResponse.json() as ClientMetadata;
         }
 
-        const downloadHref = metadata?.file ? `/downloads/${metadata.file}` : item.href;
+        const downloadHref = resolveDownloadHref(metadata?.file ? `/downloads/${metadata.file}` : item.href);
         const response = await fetch(downloadHref, { method: 'HEAD', cache: 'no-store' });
         setStatuses(prev => ({
           ...prev,
@@ -206,8 +211,12 @@ export default function Clients() {
         {clientItems.map(item => {
           const status = statuses[item.key];
           const metadata = status?.metadata;
-          const downloadHref = metadata?.file ? `/downloads/${metadata.file}` : item.href;
-          const checksumHref = metadata?.file ? `/downloads/${metadata.file}.sha256` : item.checksumHref;
+          const downloadHref = item.href
+            ? resolveDownloadHref(metadata?.file ? `/downloads/${metadata.file}` : item.href)
+            : undefined;
+          const checksumHref = item.checksumHref
+            ? resolveDownloadHref(metadata?.file ? `/downloads/${metadata.file}.sha256` : item.checksumHref)
+            : undefined;
           const isAvailable = status?.state === 'available';
 
           return (
