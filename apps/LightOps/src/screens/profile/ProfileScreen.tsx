@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Switch } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import {
@@ -15,18 +16,22 @@ import {
 } from '../../offline/offlineQueue'
 import { API_BASE_URL_STORAGE_KEY, DEFAULT_API_BASE_URL, isValidApiBaseUrl, normalizeApiBaseUrl } from '../../config/api'
 import { secureStorage } from '../../storage/secureStorage'
+import appPackage from '../../../package.json'
+import { projectsApi, type Project } from '../../api/projects.api'
 
 type SettingsPanelKey = 'sync' | 'server' | 'about'
 type SettingsPanel = SettingsPanelKey | null
 
 export function ProfileScreen() {
-  const { user, logout } = useAuthStore()
+  const { user, currentProjectId, setCurrentProject, logout } = useAuthStore()
+  const queryClient = useQueryClient()
   const [queueSummary, setQueueSummary] = useState<OfflineQueueSummary>(() => getOfflineQueueSummary())
   const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>(() => getOfflineQueue())
   const [syncing, setSyncing] = useState(false)
   const [activePanel, setActivePanel] = useState<SettingsPanel>(null)
   const [autoSyncEnabled, setAutoSyncEnabledState] = useState(() => isOfflineAutoSyncEnabled())
   const [serverUrl, setServerUrl] = useState(() => secureStorage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL)
+  const [projects, setProjects] = useState<Project[]>([])
 
   const refreshQueueSummary = useCallback(() => {
     setQueueSummary(getOfflineQueueSummary())
@@ -36,8 +41,16 @@ export function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       refreshQueueSummary()
+      projectsApi.list().then(setProjects).catch(() => setProjects([]))
     }, [refreshQueueSummary]),
   )
+
+  const handleProjectChange = (projectId: string) => {
+    if (projectId === currentProjectId) return
+    queryClient.clear()
+    setCurrentProject(projectId)
+    Alert.alert('项目已切换', '工单、设备、巡检、备件和离线数据将按新项目重新加载。')
+  }
 
   const ROLE_LABELS: Record<string, string> = {
     admin: '🔑 系统管理员',
@@ -202,6 +215,26 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        {projects.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>当前项目</Text>
+            <View style={styles.projectList}>
+              {projects.map(project => (
+                <TouchableOpacity
+                  key={project.id}
+                  style={[styles.projectChip, currentProjectId === project.id && styles.projectChipActive]}
+                  onPress={() => handleProjectChange(project.id)}
+                >
+                  <Text style={[styles.projectName, currentProjectId === project.id && styles.projectNameActive]}>
+                    {project.name}
+                  </Text>
+                  {!!project.venue && <Text style={styles.projectVenue}>{project.venue}</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Menu */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>设置</Text>
@@ -267,7 +300,7 @@ export function ProfileScreen() {
           <View style={styles.section}>
             <View style={styles.settingsPanel}>
               <Text style={styles.panelTitle}>关于 W-Light</Text>
-              <Text style={styles.panelText}>版本：v1.0.0</Text>
+              <Text style={styles.panelText}>版本：v{appPackage.version}</Text>
               <Text style={styles.panelText}>角色：{user?.role || '-'}</Text>
               <Text style={styles.panelText}>当前服务器：{normalizeApiBaseUrl(secureStorage.getString(API_BASE_URL_STORAGE_KEY) || DEFAULT_API_BASE_URL)}</Text>
               <Text style={styles.panelText}>定位：文旅灯光运维闭环、移动工单、设备台账和灯光师工具箱。</Text>
@@ -280,7 +313,7 @@ export function ProfileScreen() {
           <Text style={styles.logoutText}>退出登录</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>W-Light v1.0.0 · 文旅灯光运维一体化平台</Text>
+        <Text style={styles.version}>W-Light v{appPackage.version} · 文旅灯光运维一体化平台</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -336,6 +369,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   tagText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
+  projectList: { gap: spacing.sm },
+  projectChip: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  projectChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '18',
+  },
+  projectName: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
+  projectNameActive: { color: colors.primary },
+  projectVenue: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 3 },
   // Offline sync
   syncCard: {
     backgroundColor: colors.surface,

@@ -26,6 +26,8 @@ class MockEventSource {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   close = vi.fn();
+  addEventListener = vi.fn();
+  removeEventListener = vi.fn();
   constructor(public url: string) {}
 }
 

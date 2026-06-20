@@ -62,7 +62,7 @@ export class OrderStateMachine {
       relations: ['device', 'reporter', 'assignee', 'project'],
     })
 
-    this.eventEmitter.emit('order.updated', updatedOrder)
+    this.eventEmitter.emit('order.updated', { ...updatedOrder, eventAction: action })
 
     return updatedOrder
   }

@@ -27,7 +27,7 @@ export class OrdersService {
   ) {}
 
   async create(dto: CreateOrderDto, reporterId: string, projectId: string): Promise<WorkOrder> {
-    return this.dataSource.transaction(async manager => {
+    const savedOrder = await this.dataSource.transaction(async manager => {
       const orderNo = await this.generateOrderNo(manager)
       const repo = manager.getRepository(WorkOrder)
       const order = repo.create({
@@ -39,10 +39,10 @@ export class OrdersService {
         status: OrderStatus.PENDING,
         isOvertime: false,
       })
-      const savedOrder = await repo.save(order)
-      this.eventEmitter.emit('order.updated', savedOrder)
-      return savedOrder
+      return repo.save(order)
     })
+    this.eventEmitter.emit('order.updated', { ...savedOrder, eventAction: 'create' })
+    return savedOrder
   }
 
   async findAll(
