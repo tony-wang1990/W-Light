@@ -79,10 +79,11 @@ describe('backend API permission matrix', () => {
   it('guards project-scoped work order flows and restricts state transitions', () => {
     expectClassGuards(OrdersController, ['JwtAuthGuard', 'ProjectAccessGuard', 'RolesGuard'])
 
-    for (const method of ['create', 'findAll', 'getSummary', 'getOverdue', 'findOne', 'getRepairLogs']) {
+    for (const method of ['findAll', 'getSummary', 'getOverdue', 'findOne', 'getRepairLogs']) {
       expectNoRoles(OrdersController, method)
     }
 
+    expectRoles(OrdersController, 'create', [UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR])
     expectRoles(OrdersController, 'assign', [UserRole.ADMIN])
     expectRoles(OrdersController, 'accept', [UserRole.ADMIN, UserRole.ENGINEER])
     expectRoles(OrdersController, 'reject', [UserRole.ADMIN, UserRole.ENGINEER])
@@ -142,15 +143,19 @@ describe('backend API permission matrix', () => {
 
     expectRoles(ReportsController, 'backup', [UserRole.ADMIN])
     expectRoles(ReportsController, 'restoreBackup', [UserRole.ADMIN])
+    for (const method of ['weeklyTrend', 'deviceStatus', 'partsRank', 'operationsSummary']) {
+      expectRoles(ReportsController, method, [
+        UserRole.ADMIN,
+        UserRole.ENGINEER,
+        UserRole.INSPECTOR,
+        UserRole.VIEWER,
+      ])
+    }
     for (const method of [
       'orderStats',
       'faultAnalysis',
       'engineerPerformance',
       'repairCost',
-      'weeklyTrend',
-      'deviceStatus',
-      'partsRank',
-      'operationsSummary',
       'exportOrders',
       'exportDevices',
       'exportPartsInventory',

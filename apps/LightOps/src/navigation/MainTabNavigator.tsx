@@ -7,7 +7,6 @@ import { OrdersStack } from './OrdersStack'
 import { ToolboxStack } from './ToolboxStack'
 import { RecordsStack } from './RecordsStack'
 import { ProfileStack } from './ProfileStack'
-import { useAuthStore } from '../store/authStore'
 
 const Tab = createBottomTabNavigator()
 
@@ -37,9 +36,6 @@ const tabLabels: Record<string, string> = {
 }
 
 export function MainTabNavigator() {
-  const { user } = useAuthStore()
-  const canViewRecords = user?.role === 'admin' || user?.role === 'engineer'
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -58,9 +54,7 @@ export function MainTabNavigator() {
       <Tab.Screen name="Home" component={HomeStack} />
       <Tab.Screen name="Orders" component={OrdersStack} />
       <Tab.Screen name="Toolbox" component={ToolboxStack} />
-      {canViewRecords && (
-        <Tab.Screen name="Records" component={RecordsStack} />
-      )}
+      <Tab.Screen name="Records" component={RecordsStack} />
       <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   )

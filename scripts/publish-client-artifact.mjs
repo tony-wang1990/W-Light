@@ -97,6 +97,7 @@ function fail(message) {
 }
 
 function rootVersion() {
+  if (process.env.W_LIGHT_RELEASE_VERSION) return process.env.W_LIGHT_RELEASE_VERSION
   try {
     return JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8')).version || 'unknown'
   } catch {

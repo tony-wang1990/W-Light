@@ -63,6 +63,9 @@ async function main() {
       if (request.method() === 'GET' && apiPath === '/projects') {
         return json(route, [{ id: projectId, name: '客户端测试项目' }])
       }
+      if (request.method() === 'GET' && apiPath === '/projects/overview') {
+        return json(route, [])
+      }
       if (request.method() === 'GET' && apiPath === '/reports/operations-summary') {
         return json(route, {
           overview: {
@@ -94,6 +97,12 @@ async function main() {
       if (request.method() === 'GET' && apiPath === '/inspections/stats') {
         return json(route, { totalPlans: 0, todayRecords: 0 })
       }
+      if (request.method() === 'GET' && apiPath === '/inspections/plans') {
+        return json(route, [])
+      }
+      if (request.method() === 'GET' && apiPath === '/inspections/records') {
+        return json(route, { items: [], total: 0 })
+      }
       if (request.method() === 'GET' && apiPath === '/users') {
         return json(route, [])
       }
@@ -101,6 +110,9 @@ async function main() {
         return json(route, { items: [], total: 0, page: 1, pageSize: 200, totalPages: 0 })
       }
       if (request.method() === 'GET' && apiPath === '/devices') {
+        return json(route, { items: [], total: 0 })
+      }
+      if (request.method() === 'GET' && apiPath === '/parts') {
         return json(route, { items: [], total: 0 })
       }
       if (request.method() === 'POST' && apiPath === '/orders') {
@@ -116,6 +128,22 @@ async function main() {
       }
       return json(route, {})
     })
+    await page.route('https://mock.wlight.test/downloads/**', async route => {
+      const request = route.request()
+      const url = new URL(request.url())
+      if (url.pathname.endsWith('.json')) {
+        const isAndroid = url.pathname.includes('android')
+        return json(route, {
+          file: isAndroid ? 'w-light-latest.apk' : 'W-Light-Setup-latest.exe',
+          version: '0.9.0-build.electron-test',
+          commit: 'electron-test',
+          sizeBytes: 1024,
+          sha256: 'a'.repeat(64),
+          publishedAt: new Date().toISOString(),
+        })
+      }
+      return route.fulfill({ status: 200, body: '' })
+    })
 
     await page.waitForLoadState('domcontentloaded')
     const inputs = page.locator('input')
@@ -124,6 +152,32 @@ async function main() {
     await inputs.nth(2).fill('WLight@2026')
     await page.locator('button[type="submit"]').click()
     await page.waitForURL(/#\/dashboard(?:\/)?$/)
+
+    const routes = [
+      '/dashboard',
+      '/projects',
+      '/devices',
+      '/orders',
+      '/maintenance',
+      '/parts',
+      '/inspections',
+      '/reports',
+      '/downloads',
+      '/users',
+      '/toolbox',
+      '/clients',
+    ]
+    for (const routePath of routes) {
+      await page.locator(`a[href="#${routePath}"]`).click()
+      await page.waitForURL(new RegExp(`#${routePath.replace('/', '\\/')}(?:\\/)?$`))
+      await page.reload()
+      await page.waitForLoadState('domcontentloaded')
+      const bodyText = await page.locator('body').innerText()
+      if (bodyText.includes('Internal server error') || bodyText.includes('W-Light 客户端下载')) {
+        throw new Error(`Electron route failed after refresh: ${routePath}`)
+      }
+    }
+
     const ordersLink = page.locator('a').filter({ hasText: /工单调度/ })
     if (await ordersLink.count() === 0) {
       const links = await page.locator('a').evaluateAll(items => items.map(item => ({

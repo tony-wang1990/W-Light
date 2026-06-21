@@ -42,7 +42,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANDROID_DIR="${ROOT_DIR}/apps/LightOps/android"
 APK_PATH="${ANDROID_DIR}/app/build/outputs/apk/release/app-release.apk"
 DOWNLOAD_DIR="${ROOT_DIR}/deploy/downloads"
-APP_VERSION="$(node -e "console.log(require('${ROOT_DIR}/package.json').version)" 2>/dev/null || echo unknown)"
+APP_VERSION="${W_LIGHT_RELEASE_VERSION:-$(node -e "console.log(require('${ROOT_DIR}/package.json').version)" 2>/dev/null || echo unknown)}"
 
 if ! command -v java >/dev/null 2>&1; then
   echo "Java is required. Install JDK 17 and set JAVA_HOME before building Android." >&2

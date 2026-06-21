@@ -22,6 +22,13 @@ const QUICK_ACTIONS = [
   { icon: '📊', label: '数据驾驶舱', route: 'AdminDashboard', color: '#6A5ACD', role: 'admin' },
 ]
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: '🔑 管理员',
+  engineer: '🔧 维修工程师',
+  inspector: '🔎 巡检员',
+  viewer: '👁 只读用户',
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const { user } = useAuthStore()
@@ -96,7 +103,7 @@ export function HomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{greeting()}，{user?.name || '灯光师'} 👋</Text>
-            <Text style={styles.roleTag}>{user?.role === 'admin' ? '🔑 管理员' : '🔧 维修工程师'}</Text>
+            <Text style={styles.roleTag}>{ROLE_LABELS[user?.role || ''] || user?.role}</Text>
           </View>
           <TouchableOpacity style={styles.notificationBtn} onPress={() => navigation.navigate('Notifications')}>
             <Text style={styles.notificationIcon}>🔔</Text>
@@ -144,7 +151,10 @@ export function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>快捷操作</Text>
           <View style={styles.quickGrid}>
-            {QUICK_ACTIONS.filter(a => a.role === 'all' || a.role === user?.role).map((action, i) => (
+            {QUICK_ACTIONS.filter(action =>
+              (action.role === 'all' || action.role === user?.role) &&
+              !(user?.role === 'viewer' && action.route === 'OrderCreate'),
+            ).map((action, i) => (
               <TouchableOpacity
                 key={i}
                 style={styles.quickCard}

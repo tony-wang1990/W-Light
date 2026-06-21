@@ -27,7 +27,7 @@ export const MENU_ITEMS = [
   { path: '/maintenance', label: '维修台账', title: '维修记录台账', icon: FileText },
   { path: '/inspections', label: '巡检管理', icon: ClipboardList, roles: ['admin', 'engineer', 'inspector'] },
   { path: '/devices', label: '设备台账', title: '设备台账管理', icon: Settings2, roles: ['admin', 'engineer', 'inspector', 'viewer'] },
-  { path: '/parts', label: '备件库存', title: '备件库存管理', icon: Package, roles: ['admin', 'engineer'] },
+  { path: '/parts', label: '备件库存', title: '备件库存管理', icon: Package, roles: ['admin', 'engineer', 'inspector', 'viewer'] },
   { path: '/reports', label: '报表数据', title: '报表与数据', icon: BarChart3, roles: ['admin', 'viewer'] },
   { path: '/downloads', label: '数据下载', title: '数据下载中心', icon: Download, roles: ['admin', 'viewer'] },
   { path: '/projects', label: '项目管理', icon: Building2, roles: ['admin'] },
@@ -50,11 +50,11 @@ type ProjectListResponse = ProjectOption[] | { items?: ProjectOption[] };
 
 function roleLabel(role?: string) {
   switch (role) {
-    case 'admin': return 'Admin';
-    case 'engineer': return 'Engineer';
-    case 'inspector': return 'Inspector';
-    case 'viewer': return 'Viewer';
-    default: return role || 'User';
+    case 'admin': return '管理员';
+    case 'engineer': return '维修工程师';
+    case 'inspector': return '巡检员';
+    case 'viewer': return '只读用户';
+    default: return role || '用户';
   }
 }
 

@@ -6,7 +6,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
-$appVersion = ((Get-Content -LiteralPath (Join-Path (Get-Location) 'package.json') -Raw) | ConvertFrom-Json).version
+$appVersion = if ($env:W_LIGHT_RELEASE_VERSION) {
+  $env:W_LIGHT_RELEASE_VERSION
+} else {
+  ((Get-Content -LiteralPath (Join-Path (Get-Location) 'package.json') -Raw) | ConvertFrom-Json).version
+}
 
 function Invoke-Checked {
   param(

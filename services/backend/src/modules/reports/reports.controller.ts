@@ -44,21 +44,25 @@ export class ReportsController {
   }
 
   @Get('weekly-trend')
+  @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR, UserRole.VIEWER)
   weeklyTrend(@Request() req) {
     return this.svc.weeklyTrend(req.projectId)
   }
 
   @Get('device-status')
+  @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR, UserRole.VIEWER)
   deviceStatus(@Request() req) {
     return this.svc.deviceStatusDistribution(req.projectId)
   }
 
   @Get('parts-rank')
+  @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR, UserRole.VIEWER)
   partsRank(@Request() req) {
     return this.svc.partsConsumptionRank(req.projectId)
   }
 
   @Get('operations-summary')
+  @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR, UserRole.VIEWER)
   operationsSummary(
     @Request() req,
     @Query('startDate') startDate?: string,

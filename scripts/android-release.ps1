@@ -23,7 +23,11 @@ $RootDir = Resolve-Path (Join-Path $PSScriptRoot "..")
 $AndroidDir = Join-Path $RootDir "apps/LightOps/android"
 $ApkPath = Join-Path $AndroidDir "app/build/outputs/apk/release/app-release.apk"
 $DownloadDir = Join-Path $RootDir "deploy/downloads"
-$AppVersion = ((Get-Content -LiteralPath (Join-Path $RootDir "package.json") -Raw) | ConvertFrom-Json).version
+$AppVersion = if ($env:W_LIGHT_RELEASE_VERSION) {
+  $env:W_LIGHT_RELEASE_VERSION
+} else {
+  ((Get-Content -LiteralPath (Join-Path $RootDir "package.json") -Raw) | ConvertFrom-Json).version
+}
 
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
   throw "Java is required. Install JDK 17 and set JAVA_HOME before building Android."

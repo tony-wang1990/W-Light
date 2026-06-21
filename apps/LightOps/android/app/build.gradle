@@ -85,7 +85,7 @@ def hasReleaseSigning = releaseSigningValue('W_LIGHT_UPLOAD_STORE_FILE') &&
         releaseSigningValue('W_LIGHT_UPLOAD_KEY_PASSWORD')
 
 def rootPackage = new JsonSlurper().parseText(file("../../../../package.json").getText("UTF-8"))
-def releaseVersionName = rootPackage.version.toString()
+def releaseVersionName = System.getenv("W_LIGHT_RELEASE_VERSION") ?: rootPackage.version.toString()
 def releaseVersionCode = (System.getenv("W_LIGHT_VERSION_CODE") ?: new Date().format("yyyyMMdd")).toInteger()
 
 android {

@@ -59,6 +59,8 @@ function downloadCsv(parts: Part[]) {
 
 export default function Parts() {
   const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const canOutbound = isAdmin || user?.role === 'engineer';
   const [searchTerm, setSearchTerm] = useState('');
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export default function Parts() {
           <button className={styles.exportBtn} onClick={() => downloadCsv(parts)} disabled={parts.length === 0}>
             <Download size={18} /> 导出明细
           </button>
-          {user?.role === 'admin' && (
+          {isAdmin && (
             <button className={styles.addBtn} onClick={handleAddPart}>
               <Plus size={18} /> 新增备件
             </button>
@@ -211,23 +213,29 @@ export default function Parts() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button className={styles.secondaryBtn} style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => handleStockOp(part, 'in')}>
-                          <ArrowDownToLine size={14} color="#059669" /> 入库
-                        </button>
-                        <button className={styles.secondaryBtn} style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => handleStockOp(part, 'out')} disabled={Number(part.stock || 0) <= 0}>
-                          <ArrowUpFromLine size={14} color="#DC2626" /> 出库
-                        </button>
+                        {isAdmin && (
+                          <button className={styles.secondaryBtn} style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => handleStockOp(part, 'in')}>
+                            <ArrowDownToLine size={14} color="#059669" /> 入库
+                          </button>
+                        )}
+                        {canOutbound && (
+                          <button className={styles.secondaryBtn} style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => handleStockOp(part, 'out')} disabled={Number(part.stock || 0) <= 0}>
+                            <ArrowUpFromLine size={14} color="#DC2626" /> 出库
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button className={styles.actionBtn} style={{ background: 'none', color: '#6B7280' }} onClick={() => handleEditPart(part)}>
-                          <Edit size={16} />
-                        </button>
-                        <button className={styles.actionBtn} style={{ background: 'none', color: '#DC2626' }} onClick={() => handleDeletePart(part.id)}>
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      {isAdmin && (
+                        <div style={{ display: 'flex', gap: 12 }}>
+                          <button className={styles.actionBtn} style={{ background: 'none', color: '#6B7280' }} onClick={() => handleEditPart(part)}>
+                            <Edit size={16} />
+                          </button>
+                          <button className={styles.actionBtn} style={{ background: 'none', color: '#DC2626' }} onClick={() => handleDeletePart(part.id)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

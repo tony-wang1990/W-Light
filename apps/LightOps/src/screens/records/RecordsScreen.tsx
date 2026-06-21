@@ -20,6 +20,7 @@ import { colors, spacing, fontSize, radius } from '../../theme'
 import { Device, SparePart } from '../../types'
 import type { InspectionPlan, InspectionRecord } from '../../api/inspections.api'
 import { getErrorMessage } from '../../utils/error'
+import { useAuthStore } from '../../store/authStore'
 
 type TabKey = 'devices' | 'parts' | 'inspections'
 
@@ -47,6 +48,7 @@ const INSPECTION_STATUS_LABEL: Record<string, { label: string; color: string }> 
 
 export function RecordsScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const { user } = useAuthStore()
   const route = useRoute<RouteProp<{ RecordsList: { initialTab?: TabKey } | undefined }, 'RecordsList'>>()
   const [tab, setTab] = useState<TabKey>(route.params?.initialTab ?? 'devices')
   const [keyword, setKeyword] = useState('')
@@ -121,7 +123,7 @@ export function RecordsScreen() {
             <Text style={styles.title}>设备台账</Text>
             <Text style={styles.subtitle}>设备档案 · 备件库存 · 巡检计划</Text>
           </View>
-          {tab === 'devices' && (
+          {tab === 'devices' && user?.role === 'admin' && (
             <TouchableOpacity style={styles.headerAction} onPress={() => navigation.navigate('DeviceCreate')}>
               <Text style={styles.headerActionText}>＋</Text>
             </TouchableOpacity>
@@ -339,6 +341,7 @@ function PartCard({ part }: { part: SparePart }) {
 // ── Inspections Tab — 真实 API 联调版本 ──────────────────────────────────────
 function InspectionsTab() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const { user } = useAuthStore()
   const [plans, setPlans] = React.useState<InspectionPlan[]>([])
   const [expandedPlanId, setExpandedPlanId] = React.useState<string | null>(null)
   const [records, setRecords] = React.useState<InspectionRecord[]>([])
@@ -474,9 +477,11 @@ function InspectionsTab() {
               )}
             </View>
             <View style={styles.inspectionActions}>
-              <TouchableOpacity style={styles.inspectionBtn} onPress={() => handleRecord(p.id)}>
-                <Text style={styles.inspectionBtnText}>记录</Text>
-              </TouchableOpacity>
+              {user?.role !== 'viewer' && (
+                <TouchableOpacity style={styles.inspectionBtn} onPress={() => handleRecord(p.id)}>
+                  <Text style={styles.inspectionBtnText}>记录</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.inspectionGhostBtn} onPress={() => handleToggleRecords(p.id)}>
                 <Text style={styles.inspectionGhostBtnText}>
                   {expandedPlanId === p.id ? '收起' : '历史'}

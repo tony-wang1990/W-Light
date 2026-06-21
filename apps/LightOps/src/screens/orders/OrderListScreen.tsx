@@ -11,6 +11,7 @@ import { takeLastOfflineCacheHit, type OfflineCacheHit } from '../../offline/off
 import { colors, spacing, fontSize, radius } from '../../theme'
 import type { WorkOrder } from '../../types'
 import type { OrdersStackParamList } from '../../navigation/types'
+import { useAuthStore } from '../../store/authStore'
 
 const STATUS_FILTERS = [
   { label: '全部', value: '', countKey: 'total' },
@@ -22,6 +23,7 @@ const STATUS_FILTERS = [
 
 export function OrderListScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
+  const { user } = useAuthStore()
   const route = useRoute<RouteProp<OrdersStackParamList, 'OrderList'>>()
   const routeDeviceId = route.params?.deviceId
   const routeTitle = route.params?.title
@@ -114,12 +116,14 @@ export function OrderListScreen() {
           <Text style={styles.headerTitle}>{routeTitle || '工单管理'}</Text>
           {routeDeviceId && <Text style={styles.headerSubTitle}>设备维修历史</Text>}
         </View>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => navigation.navigate('OrderCreate')}
-        >
-          <Text style={styles.createButtonText}>+ 报修</Text>
-        </TouchableOpacity>
+        {user?.role !== 'viewer' && (
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => navigation.navigate('OrderCreate')}
+          >
+            <Text style={styles.createButtonText}>+ 报修</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search */}

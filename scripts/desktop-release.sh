@@ -5,7 +5,7 @@ TARGET="current"
 PUBLISH_WEB="0"
 export CSC_IDENTITY_AUTO_DISCOVERY="false"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_VERSION="$(node -e "console.log(require('${ROOT_DIR}/package.json').version)" 2>/dev/null || echo unknown)"
+APP_VERSION="${W_LIGHT_RELEASE_VERSION:-$(node -e "console.log(require('${ROOT_DIR}/package.json').version)" 2>/dev/null || echo unknown)}"
 
 for arg in "$@"; do
   case "$arg" in

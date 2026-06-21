@@ -4,6 +4,8 @@ import { DataSource, Repository } from 'typeorm'
 import * as bcrypt from 'bcryptjs'
 import request = require('supertest')
 import { DeviceCategory } from './modules/devices/entities/device.entity'
+import { InspectionFrequency } from './modules/inspections/entities/inspection-plan.entity'
+import { InspectionStatus } from './modules/inspections/entities/inspection-record.entity'
 import { OrderCategory, OrderPriority, OrderStatus } from './modules/orders/entities/order.entity'
 import { Project } from './modules/projects/entities/project.entity'
 import { User, UserRole } from './modules/users/entities/user.entity'
@@ -407,5 +409,165 @@ describe('App HTTP e2e flow', () => {
       .expect(({ body }) => {
         expect(body.message).toContain('只有管理员或维修工程师')
       })
+  })
+
+  it('runs device, parts, inspection, notification and report interactions through real routes', async () => {
+    const inspectorPhone = '13800000123'
+    const inspector = await request(app.getHttpServer())
+      .post('/v1/users')
+      .set(auth())
+      .send({
+        name: '全端巡检测试员',
+        phone: inspectorPhone,
+        password: PASSWORD,
+        role: UserRole.INSPECTOR,
+        projectIds: [PROJECT_ID],
+      })
+      .expect(201)
+      .then(res => res.body)
+    const inspectorToken = await login(inspectorPhone)
+
+    const device = await request(app.getHttpServer())
+      .post('/v1/devices')
+      .set(auth())
+      .send({
+        deviceNo: 'FULL-E2E-DEVICE',
+        name: '全端交互测试灯具',
+        qrCode: 'FULL-E2E-QR',
+        category: DeviceCategory.LIGHT,
+        location: '测试区域 A',
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    await request(app.getHttpServer())
+      .put(`/v1/devices/${device.id}`)
+      .set(auth())
+      .send({ location: '测试区域 B' })
+      .expect(200)
+
+    await request(app.getHttpServer())
+      .get('/v1/devices/scan/FULL-E2E-QR')
+      .set(auth(inspectorToken))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.device.id).toBe(device.id)
+        expect(body.device.location).toBe('测试区域 B')
+      })
+
+    const part = await request(app.getHttpServer())
+      .post('/v1/parts')
+      .set(auth())
+      .send({
+        name: '全端测试保险丝',
+        model: 'FUSE-E2E',
+        unit: '只',
+        stock: 2,
+        minStock: 1,
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    await request(app.getHttpServer())
+      .post(`/v1/parts/${part.id}/inbound`)
+      .set(auth())
+      .send({ quantity: 3, note: '全端入库测试' })
+      .expect(201)
+
+    await request(app.getHttpServer())
+      .post(`/v1/parts/${part.id}/outbound`)
+      .set(auth(engineerToken))
+      .send({ quantity: 1, note: '全端出库测试' })
+      .expect(201)
+
+    await request(app.getHttpServer())
+      .get(`/v1/parts/${part.id}/logs`)
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.length).toBeGreaterThanOrEqual(2)
+      })
+
+    const plan = await request(app.getHttpServer())
+      .post('/v1/inspections/plans')
+      .set(auth())
+      .send({
+        name: '全端巡检交互计划',
+        frequency: InspectionFrequency.DAILY,
+        deviceIds: [device.id],
+        assigneeId: inspector.id,
+        nextInspectionAt: new Date(Date.now() - 60_000).toISOString(),
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    await request(app.getHttpServer())
+      .get('/v1/inspections/today')
+      .set(auth(inspectorToken))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.some((item: { id: string }) => item.id === plan.id)).toBe(true)
+      })
+
+    const inspectionRecord = await request(app.getHttpServer())
+      .post('/v1/inspections/records')
+      .set(auth(inspectorToken))
+      .send({
+        planId: plan.id,
+        status: InspectionStatus.ABNORMAL,
+        resultDesc: '巡检发现灯具频闪',
+        createOrder: true,
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    expect(inspectionRecord.orderId).toEqual(expect.any(String))
+
+    await request(app.getHttpServer())
+      .get(`/v1/orders/${inspectionRecord.orderId}`)
+      .set(auth())
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.deviceId).toBe(device.id)
+        expect(body.status).toBe(OrderStatus.PENDING)
+      })
+
+    await request(app.getHttpServer())
+      .post('/v1/orders')
+      .set(auth(viewerToken))
+      .send({
+        category: OrderCategory.FAULT,
+        priority: OrderPriority.P2,
+        faultDesc: '只读账号不应创建工单',
+      })
+      .expect(403)
+
+    await request(app.getHttpServer())
+      .get('/v1/reports/operations-summary')
+      .set(auth(viewerToken))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.overview).toBeDefined()
+      })
+
+    await request(app.getHttpServer())
+      .get('/v1/reports/export/orders.xlsx')
+      .set(auth())
+      .expect(200)
+      .expect('Content-Type', /spreadsheetml/)
+
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const notifications = await request(app.getHttpServer())
+      .get('/v1/notifications')
+      .set(auth(engineerToken))
+      .expect(200)
+      .then(res => res.body)
+
+    expect(Array.isArray(notifications.items)).toBe(true)
+
+    await request(app.getHttpServer())
+      .put('/v1/notifications/read-all')
+      .set(auth(engineerToken))
+      .expect(200)
   })
 })

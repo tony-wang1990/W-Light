@@ -45,6 +45,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate unique client version
+        run: node scripts/prepare-client-version.mjs
+
       - name: Build and publish Android package metadata
         run: bash scripts/android-release.sh --publish-web --skip-checks
 
@@ -80,6 +83,10 @@ jobs:
       - name: Install dependencies
         shell: pwsh
         run: pnpm install --frozen-lockfile
+
+      - name: Generate unique client version
+        shell: pwsh
+        run: node scripts/prepare-client-version.mjs
 
       - name: Build and publish Windows package metadata
         shell: pwsh

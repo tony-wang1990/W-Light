@@ -23,6 +23,7 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR)
   @ApiOperation({ summary: '创建工单（报修）' })
   create(@Body() dto: CreateOrderDto, @Request() req) {
     return this.ordersService.create(dto, req.user.id, req.projectId)
