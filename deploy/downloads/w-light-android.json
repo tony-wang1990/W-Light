@@ -6,9 +6,9 @@
   "file": "w-light-latest.apk",
   "version": "0.9.0-internal.0",
   "sourceArtifact": "app-release.apk",
-  "builtAt": "2026-06-20T15:23:35Z",
-  "publishedAt": "2026-06-20T15:23:38Z",
-  "commit": "0d7b697",
-  "sha256": "874da8727d5c371eae0c76dcbc6daf0fb7477801e78107fb99b7ca56d6df4df2",
-  "sizeBytes": 87496496
+  "builtAt": "2026-06-21T02:23:10Z",
+  "publishedAt": "2026-06-21T02:23:11Z",
+  "commit": "83fb15e",
+  "sha256": "46a2c0cc3a92b6076917ee0a70e1fca487842507a9ce52104696f3219f0b6d9f",
+  "sizeBytes": 87496512
 }
