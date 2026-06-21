@@ -31,6 +31,7 @@ function createPagedQueryBuilder() {
 describe('OrdersService', () => {
   let orderRepo: any
   let repairLogRepo: any
+  let userRepo: any
   let stateMachine: jest.Mocked<OrderStateMachine>
   let dataSource: jest.Mocked<DataSource>
   let partsService: jest.Mocked<PartsService>
@@ -42,6 +43,9 @@ describe('OrdersService', () => {
       createQueryBuilder: jest.fn(),
     }
     repairLogRepo = {}
+    userRepo = {
+      findOne: jest.fn(),
+    }
     stateMachine = {} as jest.Mocked<OrderStateMachine>
     dataSource = {
       options: { type: 'postgres' },
@@ -55,7 +59,7 @@ describe('OrdersService', () => {
       emit: jest.fn(),
     } as any
 
-    service = new OrdersService(orderRepo, repairLogRepo, stateMachine, dataSource, partsService, eventEmitter)
+    service = new OrdersService(orderRepo, repairLogRepo, userRepo, stateMachine, dataSource, partsService, eventEmitter)
   })
 
   it('uses entity property paths for paged ordering to avoid TypeORM databaseName errors', async () => {
@@ -193,5 +197,41 @@ describe('OrdersService', () => {
       PROJECT_ID,
       UserRole.ENGINEER,
     )).rejects.toThrow(ForbiddenException)
+  })
+
+  it('allows assigning an active engineer in the current project', async () => {
+    const order = { id: ORDER_ID, projectId: PROJECT_ID, status: OrderStatus.PENDING } as WorkOrder
+    jest.spyOn(service, 'findOne').mockResolvedValue(order)
+    userRepo.findOne.mockResolvedValue({
+      id: ENGINEER_ID,
+      role: UserRole.ENGINEER,
+      isActive: true,
+      projectIds: [PROJECT_ID],
+    })
+    stateMachine.assign = jest.fn().mockResolvedValue({
+      ...order,
+      assigneeId: ENGINEER_ID,
+      status: OrderStatus.ASSIGNED,
+    })
+
+    const result = await service.assign(ORDER_ID, { assigneeId: ENGINEER_ID }, PROJECT_ID)
+
+    expect(stateMachine.assign).toHaveBeenCalledWith(order, ENGINEER_ID)
+    expect(result.assigneeId).toBe(ENGINEER_ID)
+  })
+
+  it.each([
+    [{ id: ENGINEER_ID, role: UserRole.INSPECTOR, isActive: true, projectIds: [PROJECT_ID] }, '只有管理员或维修工程师'],
+    [{ id: ENGINEER_ID, role: UserRole.ENGINEER, isActive: false, projectIds: [PROJECT_ID] }, '不存在或账号已停用'],
+    [{ id: ENGINEER_ID, role: UserRole.ENGINEER, isActive: true, projectIds: [] }, '不属于当前项目'],
+  ])('rejects an invalid assignee before changing order state', async (assignee, message) => {
+    const order = { id: ORDER_ID, projectId: PROJECT_ID, status: OrderStatus.PENDING } as WorkOrder
+    jest.spyOn(service, 'findOne').mockResolvedValue(order)
+    userRepo.findOne.mockResolvedValue(assignee)
+    stateMachine.assign = jest.fn()
+
+    await expect(service.assign(ORDER_ID, { assigneeId: ENGINEER_ID }, PROJECT_ID))
+      .rejects.toThrow(message)
+    expect(stateMachine.assign).not.toHaveBeenCalled()
   })
 })

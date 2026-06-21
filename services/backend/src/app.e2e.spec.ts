@@ -322,4 +322,90 @@ describe('App HTTP e2e flow', () => {
         expect(body[OrderStatus.CLOSED]).toBe(1)
       })
   })
+
+  it('lets a newly created project engineer log in and accept an assigned order', async () => {
+    const engineerPhone = '13800000121'
+    const createdEngineer = await request(app.getHttpServer())
+      .post('/v1/users')
+      .set(auth())
+      .send({
+        name: '新建接单测试工程师',
+        phone: engineerPhone,
+        password: PASSWORD,
+        role: UserRole.ENGINEER,
+        projectIds: [PROJECT_ID],
+        skillTags: ['灯具维修'],
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    expect(createdEngineer.passwordHash).toBeUndefined()
+    expect(createdEngineer.projectIds).toContain(PROJECT_ID)
+
+    const newEngineerToken = await login(engineerPhone)
+    const order = await request(app.getHttpServer())
+      .post('/v1/orders')
+      .set(auth())
+      .send({
+        category: OrderCategory.FAULT,
+        priority: OrderPriority.P2,
+        faultDesc: '验证新建账号在 Android 与 Web 共用接口接单',
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    await request(app.getHttpServer())
+      .put(`/v1/orders/${order.id}/assign`)
+      .set(auth())
+      .send({ assigneeId: createdEngineer.id })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status).toBe(OrderStatus.ASSIGNED)
+        expect(body.assigneeId).toBe(createdEngineer.id)
+      })
+
+    await request(app.getHttpServer())
+      .put(`/v1/orders/${order.id}/accept`)
+      .set(auth(newEngineerToken))
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.status).toBe(OrderStatus.PROCESSING)
+        expect(body.assigneeId).toBe(createdEngineer.id)
+      })
+  })
+
+  it('rejects assigning repair orders to an incompatible account', async () => {
+    const inspector = await request(app.getHttpServer())
+      .post('/v1/users')
+      .set(auth())
+      .send({
+        name: '巡检角色测试账号',
+        phone: '13800000122',
+        password: PASSWORD,
+        role: UserRole.INSPECTOR,
+        projectIds: [PROJECT_ID],
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    const order = await request(app.getHttpServer())
+      .post('/v1/orders')
+      .set(auth())
+      .send({
+        category: OrderCategory.FAULT,
+        priority: OrderPriority.P2,
+        faultDesc: '验证无效派单对象会在派单阶段被阻止',
+      })
+      .expect(201)
+      .then(res => res.body)
+
+    await request(app.getHttpServer())
+      .put(`/v1/orders/${order.id}/assign`)
+      .set(auth())
+      .send({ assigneeId: inspector.id })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toContain('只有管理员或维修工程师')
+      })
+  })
 })

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, EntityManager, Repository } from 'typeorm'
 import { EventEmitter2 } from '@nestjs/event-emitter'
@@ -20,6 +20,8 @@ export class OrdersService {
     private readonly orderRepo: Repository<WorkOrder>,
     @InjectRepository(RepairLog)
     private readonly repairLogRepo: Repository<RepairLog>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly stateMachine: OrderStateMachine,
     private readonly dataSource: DataSource,
     private readonly partsService: PartsService,
@@ -109,6 +111,16 @@ export class OrdersService {
 
   async assign(id: string, dto: AssignOrderDto, projectId: string): Promise<WorkOrder> {
     const order = await this.findOne(id, projectId)
+    const assignee = await this.userRepo.findOne({ where: { id: dto.assigneeId } })
+    if (!assignee || !assignee.isActive) {
+      throw new BadRequestException('所选维修负责人不存在或账号已停用')
+    }
+    if (![UserRole.ADMIN, UserRole.ENGINEER].includes(assignee.role)) {
+      throw new BadRequestException('只有管理员或维修工程师可以接收维修工单')
+    }
+    if (assignee.role !== UserRole.ADMIN && !assignee.projectIds?.includes(projectId)) {
+      throw new BadRequestException('所选维修工程师不属于当前项目')
+    }
     return this.stateMachine.assign(order, dto.assigneeId)
   }
 

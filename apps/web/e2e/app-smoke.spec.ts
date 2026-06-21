@@ -417,6 +417,21 @@ test('every admin route supports direct navigation, trailing slash and refresh',
   }
 })
 
+test('new order modal accepts keyboard input and enables submission', async ({ page }) => {
+  await mockApi(page)
+  await login(page)
+
+  await page.locator('a[href="/orders"]').click()
+  await page.getByRole('button', { name: /新增报修/ }).click()
+
+  const textarea = page.locator('textarea[name="faultDesc"]')
+  await textarea.click()
+  await textarea.fill('Web 与 Windows 客户端新增工单输入回归测试')
+
+  await expect(textarea).toHaveValue('Web 与 Windows 客户端新增工单输入回归测试')
+  await expect(page.getByRole('button', { name: /确定派发/ })).toBeEnabled()
+})
+
 test('order workflow can be assigned, accepted, logged and archived from the UI', async ({ page }) => {
   await mockOrderWorkflowApi(page)
   await login(page)

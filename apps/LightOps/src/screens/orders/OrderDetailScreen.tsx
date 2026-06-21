@@ -18,7 +18,7 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { getErrorMessage } from '../../utils/error'
 
-const ASSIGNABLE_ROLES: User['role'][] = ['admin', 'engineer', 'inspector']
+const ASSIGNABLE_ROLES: User['role'][] = ['admin', 'engineer']
 
 const ROLE_LABELS: Record<User['role'], string> = {
   admin: '管理员',
