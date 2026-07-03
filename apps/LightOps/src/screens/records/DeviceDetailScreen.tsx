@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { devicesApi } from '../../api/devices.api'
 import { colors, spacing, fontSize, radius } from '../../theme'
 import type { RecordsStackParamList } from '../../navigation/types'
+import { useAuthStore } from '../../store/authStore'
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   normal:      { label: '正常', color: colors.success },
@@ -25,6 +26,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export function DeviceDetailScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>()
   const route = useRoute<RouteProp<RecordsStackParamList, 'DeviceDetail'>>()
+  const { user } = useAuthStore()
   const { deviceId } = route.params
 
   const { data: device, isLoading } = useQuery({
@@ -52,6 +54,8 @@ export function DeviceDetailScreen() {
   const health = device.healthScore ?? 100
   const healthColor = health > 70 ? colors.success : health > 40 ? colors.warning : colors.danger
   const healthWidth = `${Math.max(0, Math.min(100, health))}%` as `${number}%`
+  const isAdmin = user?.role === 'admin'
+  const canCreateOrder = user?.role !== 'viewer'
 
   return (
     <View style={styles.container}>
@@ -60,9 +64,13 @@ export function DeviceDetailScreen() {
           <Text style={styles.backText}>‹ 返回</Text>
         </TouchableOpacity>
         <Text style={styles.topTitle}>设备详情</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('DeviceCreate', { deviceId: device.id })}>
-          <Text style={styles.reportBtn}>编辑</Text>
-        </TouchableOpacity>
+        {isAdmin ? (
+          <TouchableOpacity onPress={() => navigation.navigate('DeviceCreate', { deviceId: device.id })}>
+            <Text style={styles.reportBtn}>编辑</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.topBarSpacer} />
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -123,16 +131,18 @@ export function DeviceDetailScreen() {
 
         {/* Actions */}
         <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => navigation.getParent()?.navigate('Orders', {
-              screen: 'OrderCreate',
-              params: { deviceId: device.id },
-            })}
-          >
-            <Text style={styles.actionBtnIcon}>📋</Text>
-            <Text style={styles.actionBtnText}>报修工单</Text>
-          </TouchableOpacity>
+          {canCreateOrder && (
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => navigation.getParent()?.navigate('Orders', {
+                screen: 'OrderCreate',
+                params: { deviceId: device.id },
+              })}
+            >
+              <Text style={styles.actionBtnIcon}>📋</Text>
+              <Text style={styles.actionBtnText}>报修工单</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => navigation.getParent()?.navigate('Orders', {
@@ -178,6 +188,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
   topTitle: { fontSize: fontSize.base, fontWeight: '700', color: colors.textPrimary },
   reportBtn: { fontSize: fontSize.sm, color: colors.primary, fontWeight: '600' },
+  topBarSpacer: { width: 36 },
 
   // Hero
   heroCard: {

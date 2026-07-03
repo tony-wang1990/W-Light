@@ -192,6 +192,7 @@ export function OrderDetailScreen() {
 
   const isAssignee = order.assigneeId === user?.id
   const isAdmin = user?.role === 'admin'
+  const canMaintainOrder = isAdmin || isAssignee
 
   return (
     <View style={styles.container}>
@@ -401,29 +402,35 @@ export function OrderDetailScreen() {
             </TouchableOpacity>
           </>
         )}
-        {isAssignee && order.status === 'processing' && (
+        {order.status === 'processing' && (
           <>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnSecondary]}
-              onPress={() => navigation.navigate('OrderRepair', { orderId: order.id })}
-            >
-              <Text style={styles.actionBtnTextSec}>+ 添加记录</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnDanger]}
-              onPress={() => confirmAction('suspend', '挂起工单', '确认暂时挂起此工单？')}
-            >
-              <Text style={styles.actionBtnText}>挂起</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnPrimary]}
-              onPress={() => confirmAction('submit', '提交验收', '确认已完成维修，提交给管理员验收？')}
-            >
-              <Text style={styles.actionBtnText}>📤 提交验收</Text>
-            </TouchableOpacity>
+            {canMaintainOrder && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnSecondary]}
+                  onPress={() => navigation.navigate('OrderRepair', { orderId: order.id })}
+                >
+                  <Text style={styles.actionBtnTextSec}>+ 添加记录</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnDanger]}
+                  onPress={() => confirmAction('suspend', '挂起工单', '确认暂时挂起此工单？')}
+                >
+                  <Text style={styles.actionBtnText}>挂起</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {isAssignee && (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                onPress={() => confirmAction('submit', '提交验收', '确认已完成维修，提交给管理员验收？')}
+              >
+                <Text style={styles.actionBtnText}>📤 提交验收</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
-        {isAssignee && order.status === 'suspended' && (
+        {canMaintainOrder && order.status === 'suspended' && (
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnPrimary]}
             onPress={() => confirmAction('resume', '恢复工单', '确认恢复处理此工单？')}
@@ -447,6 +454,14 @@ export function OrderDetailScreen() {
               <Text style={styles.actionBtnText}>✅ 通过验收</Text>
             </TouchableOpacity>
           </>
+        )}
+        {canMaintainOrder && order.status === 'reviewing' && (
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnSecondary]}
+            onPress={() => navigation.navigate('OrderRepair', { orderId: order.id })}
+          >
+            <Text style={styles.actionBtnTextSec}>+ 补充记录</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
