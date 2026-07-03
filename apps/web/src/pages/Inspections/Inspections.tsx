@@ -103,8 +103,9 @@ export default function Inspections() {
     setLoading(true);
     setError('');
     try {
+      const planEndpoint = isAdmin ? '/inspections/plans' : '/inspections/today';
       const [planRes, recordRes, deviceRes, userRes] = await Promise.all([
-        apiClient.get<InspectionPlan[] | { items?: InspectionPlan[] }>('/inspections/plans'),
+        apiClient.get<InspectionPlan[] | { items?: InspectionPlan[] }>(planEndpoint),
         apiClient.get<{ items?: InspectionRecord[] }>('/inspections/records?pageSize=50'),
         apiClient.get<DeviceOption[] | { items?: DeviceOption[] }>('/devices?pageSize=500'),
         apiClient.get<UserOption[] | { items?: UserOption[] }>('/users?pageSize=200'),
@@ -114,13 +115,15 @@ export default function Inspections() {
       setRecords(recordRes.items || []);
       setDevices(normalizeList(deviceRes));
       setUsers(normalizeList(userRes));
-      setSelectedPlanId(current => current || nextPlans[0]?.id || '');
+      setSelectedPlanId(current => (
+        current && nextPlans.some(plan => plan.id === current) ? current : nextPlans[0]?.id || ''
+      ));
     } catch (err) {
       setError(getErrorMessage(err, '巡检数据加载失败，请检查后端服务和当前项目权限'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     fetchAll();

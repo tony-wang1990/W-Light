@@ -46,6 +46,7 @@ interface MockOrder {
   submittedAt?: string
   closedAt?: string
   assigneeName?: string
+  assigneeId?: string
   assignee?: {
     id: string
     name: string
@@ -187,6 +188,12 @@ async function mockApi(page: Page) {
 
 async function mockOrderWorkflowApi(page: Page) {
   const now = '2026-06-08T09:00:00.000Z'
+  const admin = {
+    id: 'admin-1',
+    name: 'System Admin',
+    role: 'admin',
+    phone: '13800000001',
+  }
   const engineer = {
     id: ENGINEER_ID,
     name: '维修工程师',
@@ -194,10 +201,8 @@ async function mockOrderWorkflowApi(page: Page) {
     phone: '13800000002',
   }
   const reporter = {
-    id: 'reporter-1',
+    ...admin,
     name: '现场报修人',
-    role: 'admin',
-    phone: '13800000001',
   }
   const device = {
     id: 'device-1',
@@ -228,14 +233,12 @@ async function mockOrderWorkflowApi(page: Page) {
     if (request.method() === 'POST' && path === '/auth/login') {
       return response(route, {
         accessToken: 'playwright-token',
-        user: {
-          id: 'admin-1',
-          name: 'System Admin',
-          phone: '13800000001',
-          role: 'admin',
-          projectIds: [PROJECT_ID],
-        },
+        user: { ...admin, projectIds: [PROJECT_ID] },
       })
+    }
+
+    if (request.method() === 'GET' && path === '/auth/me') {
+      return response(route, { ...admin, projectIds: [PROJECT_ID] })
     }
 
     if (request.method() === 'GET' && path === '/projects') {
@@ -276,12 +279,15 @@ async function mockOrderWorkflowApi(page: Page) {
     }
 
     if (request.method() === 'PUT' && path === `/orders/${ORDER_ID}/assign`) {
+      const body = parseJsonBody<{ assigneeId?: string }>(route, {})
+      const assignee = body.assigneeId === admin.id ? admin : engineer
       order = {
         ...order,
         status: 'assigned',
         assignedAt: now,
-        assignee: engineer,
-        assigneeName: engineer.name,
+        assigneeId: assignee.id,
+        assignee,
+        assigneeName: assignee.name,
       }
       return response(route, order)
     }
@@ -442,9 +448,9 @@ test('order workflow can be assigned, accepted, logged and archived from the UI'
 
   await page.getByRole('button', { name: '派单' }).click()
   await expect(page.getByText('选择维修负责人')).toBeVisible()
-  await page.getByRole('button', { name: /维修工程师/ }).click()
+  await page.getByRole('button', { name: '指派给我' }).click()
   await expect(page.getByText('已派单').first()).toBeVisible()
-  await expect(page.getByText('维修工程师').first()).toBeVisible()
+  await expect(page.getByText('System Admin').first()).toBeVisible()
 
   await page.getByRole('button', { name: '接单', exact: true }).click()
   await expect(page.getByText('处理中').first()).toBeVisible()

@@ -41,7 +41,7 @@ export class InspectionsController {
   @Post('records')
   @Roles(UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR)
   createRecord(@Body() dto: CreateInspectionRecordDto, @Request() req) {
-    return this.svc.createRecord(dto, req.user.id, req.projectId)
+    return this.svc.createRecord(dto, req.user.id, req.projectId, req.user.role)
   }
 
   @Get('records')

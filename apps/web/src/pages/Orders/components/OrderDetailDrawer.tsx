@@ -57,6 +57,7 @@ interface WorkOrderDetail {
   faultType?: string;
   locationDesc?: string;
   device?: WorkOrderDevice | null;
+  assigneeId?: string | null;
   assignee?: UserOption | null;
   assigneeName?: string;
   reporter?: UserOption | null;
@@ -167,8 +168,14 @@ export default function OrderDetailDrawer({
   const priority = currentOrder.priority?.toUpperCase() || '';
   const statusInfo = STATUS_MAP[status] || { label: currentOrder.status || '未知', color: '#6B7280', bg: '#F3F4F6' };
   const priorityInfo = PRIORITY_MAP[priority] || { label: currentOrder.priority || '未分级', color: '#6B7280' };
-  const canAddLog = ['processing', 'reviewing'].includes(status);
   const isAdmin = user?.role === 'admin';
+  const assigneeId = currentOrder.assigneeId || currentOrder.assignee?.id || '';
+  const isAssignee = Boolean(user?.id && assigneeId === user.id);
+  const canAssigneeAction = ['admin', 'engineer'].includes(user?.role || '') && isAssignee;
+  const canAddLog = ['processing', 'reviewing'].includes(status) && (isAdmin || canAssigneeAction);
+  const canSubmit = canAssigneeAction;
+  const canSuspend = isAdmin || canAssigneeAction;
+  const canResume = isAdmin || canAssigneeAction;
 
   const fetchRepairLogs = useCallback(async () => {
     try {
@@ -441,33 +448,45 @@ export default function OrderDetailDrawer({
 
               {status === 'assigned' && (
                 <>
-                  <button className={styles.actionBtn} onClick={() => handleAction('accept', '接单')} disabled={actionDisabled}>
-                    <PlayCircle size={14} /> 接单
-                  </button>
-                  <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('reject', '拒单')} disabled={actionDisabled}>
-                    拒单
-                  </button>
-                  <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={!isAdmin || actionDisabled}>
-                    改派
-                  </button>
-                  <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={!isAdmin || actionDisabled}>
-                    取消
-                  </button>
+                  {canAssigneeAction && (
+                    <>
+                      <button className={styles.actionBtn} onClick={() => handleAction('accept', '接单')} disabled={actionDisabled}>
+                        <PlayCircle size={14} /> 接单
+                      </button>
+                      <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('reject', '拒单')} disabled={actionDisabled}>
+                        拒单
+                      </button>
+                    </>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={actionDisabled}>
+                        改派
+                      </button>
+                      <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={actionDisabled}>
+                        取消
+                      </button>
+                    </>
+                  )}
                 </>
               )}
 
               {status === 'processing' && (
                 <>
-                  <button className={`${styles.actionBtn} ${styles.greenBtn}`} onClick={() => handleAction('submit', '提交验收')} disabled={actionDisabled}>
-                    <Send size={14} /> 提交验收
-                  </button>
-                  <button className={styles.actionBtn} onClick={() => handleAction('suspend', '挂起工单')} disabled={actionDisabled}>
-                    <PauseCircle size={14} /> 挂起
-                  </button>
+                  {canSubmit && (
+                    <button className={`${styles.actionBtn} ${styles.greenBtn}`} onClick={() => handleAction('submit', '提交验收')} disabled={actionDisabled}>
+                      <Send size={14} /> 提交验收
+                    </button>
+                  )}
+                  {canSuspend && (
+                    <button className={styles.actionBtn} onClick={() => handleAction('suspend', '挂起工单')} disabled={actionDisabled}>
+                      <PauseCircle size={14} /> 挂起
+                    </button>
+                  )}
                 </>
               )}
 
-              {status === 'suspended' && (
+              {status === 'suspended' && canResume && (
                 <button className={styles.actionBtn} onClick={() => handleAction('resume', '恢复工单')} disabled={actionDisabled}>
                   <RotateCcw size={14} /> 恢复处理
                 </button>

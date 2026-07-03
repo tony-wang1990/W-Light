@@ -82,6 +82,8 @@ function cellText(row: Record<string, unknown>, key: string) {
 
 export default function Devices() {
   const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const tableColumnCount = isAdmin ? 8 : 7;
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
@@ -271,7 +273,7 @@ export default function Devices() {
           <p className={styles.pageSubtitle}>管理现场设备、二维码标签、安装位置、健康度和运行状态。</p>
         </div>
         <div className={styles.headerActions}>
-          {user?.role === 'admin' && (
+          {isAdmin && (
             <>
               <input ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportExcel} />
               <button className={styles.exportBtn} onClick={() => importInputRef.current?.click()} title="支持列：设备编号、设备名称、类型、安装位置、品牌厂商、型号">
@@ -343,14 +345,14 @@ export default function Devices() {
                 <th>运行状态</th>
                 <th>健康度</th>
                 <th>最后巡检</th>
-                <th>操作</th>
+                {isAdmin && <th>操作</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center' }}>加载中...</td></tr>
+                <tr><td colSpan={tableColumnCount} style={{ textAlign: 'center' }}>加载中...</td></tr>
               ) : devices.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#9CA3AF' }}>暂无设备数据</td></tr>
+                <tr><td colSpan={tableColumnCount} style={{ textAlign: 'center', padding: 32, color: '#9CA3AF' }}>暂无设备数据</td></tr>
               ) : devices.map(device => (
                 <tr key={device.id} onClick={(event) => handleRowClick(device, event)} style={{ cursor: 'pointer' }}>
                   <td className={styles.cellId}>{device.deviceNo}</td>
@@ -375,27 +377,29 @@ export default function Devices() {
                     <span className={styles.healthText}>{device.healthScore || 0}分</span>
                   </td>
                   <td className={styles.cellDate}>{device.lastMaintainAt ? new Date(device.lastMaintainAt).toLocaleDateString('zh-CN') : '从未'}</td>
-                  <td style={{ position: 'relative' }}>
-                    <button
-                      className={styles.actionBtn}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setActiveMenuId(activeMenuId === device.id ? null : device.id);
-                      }}
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
-                    {activeMenuId === device.id && (
-                      <div className={styles.dropdownMenu}>
-                        <button onClick={(event) => { event.stopPropagation(); handleEditDevice(device); }}>
-                          <Edit size={14} /> 编辑
-                        </button>
-                        <button className={styles.dangerBtn} onClick={(event) => { event.stopPropagation(); handleDeleteDevice(device.id); }}>
-                          <Trash2 size={14} /> 删除
-                        </button>
-                      </div>
-                    )}
-                  </td>
+                  {isAdmin && (
+                    <td style={{ position: 'relative' }}>
+                      <button
+                        className={styles.actionBtn}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setActiveMenuId(activeMenuId === device.id ? null : device.id);
+                        }}
+                      >
+                        <MoreHorizontal size={18} />
+                      </button>
+                      {activeMenuId === device.id && (
+                        <div className={styles.dropdownMenu}>
+                          <button onClick={(event) => { event.stopPropagation(); handleEditDevice(device); }}>
+                            <Edit size={14} /> 编辑
+                          </button>
+                          <button className={styles.dangerBtn} onClick={(event) => { event.stopPropagation(); handleDeleteDevice(device.id); }}>
+                            <Trash2 size={14} /> 删除
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

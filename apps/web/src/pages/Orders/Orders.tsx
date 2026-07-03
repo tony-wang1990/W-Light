@@ -94,6 +94,8 @@ function statusText(status: string) {
 
 export default function Orders() {
   const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const canCreateOrder = ['admin', 'engineer', 'inspector'].includes(user?.role || '');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -195,6 +197,11 @@ export default function Orders() {
     }, {});
   }, [orders]);
 
+  const isCurrentAssignee = (order: Order) => Boolean(user?.id && order.assigneeId === user.id);
+  const canHandleAssignedOrder = (order: Order) => (
+    ['admin', 'engineer'].includes(user?.role || '') && isCurrentAssignee(order)
+  );
+
   const renderAction = (order: Order) => {
     if (user?.role === 'viewer') {
       return (
@@ -205,33 +212,68 @@ export default function Orders() {
     }
     switch (order.status) {
       case 'pending':
+        if (!isAdmin) {
+          return (
+            <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
+              查看
+            </button>
+          );
+        }
         return (
           <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order, true); }}>
             派单
           </button>
         );
       case 'assigned':
+        if (!canHandleAssignedOrder(order)) {
+          return (
+            <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order, isAdmin); }}>
+              {isAdmin ? '改派' : '查看'}
+            </button>
+          );
+        }
         return (
           <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
             接单/拒单
           </button>
         );
       case 'processing':
+        if (!isAdmin && !canHandleAssignedOrder(order)) {
+          return (
+            <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
+              查看
+            </button>
+          );
+        }
         return (
           <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
-            记录/验收
+            {canHandleAssignedOrder(order) ? '记录/提交' : '记录/挂起'}
           </button>
         );
       case 'suspended':
+        if (!isAdmin && !canHandleAssignedOrder(order)) {
+          return (
+            <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
+              查看
+            </button>
+          );
+        }
         return (
           <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
             恢复处理
           </button>
         );
       case 'reviewing':
+        if (!isAdmin && !canHandleAssignedOrder(order)) {
+          return (
+            <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
+              查看
+            </button>
+          );
+        }
         return (
           <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
-            验收
+            {isAdmin ? '验收' : '补记录'}
           </button>
         );
       default:
@@ -327,7 +369,7 @@ export default function Orders() {
             <RefreshCw size={16} className={loading ? styles.spin : ''} />
             刷新
           </button>
-          {user?.role !== 'viewer' && (
+          {canCreateOrder && (
             <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
               <Plus size={16} /> 新增报修
             </button>

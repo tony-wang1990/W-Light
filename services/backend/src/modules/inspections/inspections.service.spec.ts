@@ -9,6 +9,7 @@ import { InspectionsService } from './inspections.service'
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 const INSPECTOR_ID = '22222222-2222-4222-8222-222222222222'
+const OTHER_INSPECTOR_ID = '22222222-2222-4222-8222-333333333333'
 const PLAN_ID = '33333333-3333-4333-8333-333333333333'
 const DEVICE_ID = '44444444-4444-4444-8444-444444444444'
 const ORDER_ID = '55555555-5555-4555-8555-555555555555'
@@ -101,5 +102,24 @@ describe('InspectionsService', () => {
       nextInspectionAt: new Date('2026-06-14T02:00:00.000Z'),
     }))
     jest.useRealTimers()
+  })
+
+  it('rejects records submitted by users who are not assigned to the inspection plan', async () => {
+    planRepo.findOne = jest.fn().mockResolvedValue({
+      id: PLAN_ID,
+      projectId: PROJECT_ID,
+      name: 'Assigned inspection plan',
+      frequency: InspectionFrequency.DAILY,
+      assigneeId: OTHER_INSPECTOR_ID,
+    } as InspectionPlan)
+
+    await expect(service.createRecord({
+      planId: PLAN_ID,
+      status: InspectionStatus.NORMAL,
+      resultDesc: 'Trying to record another user plan',
+    }, INSPECTOR_ID, PROJECT_ID)).rejects.toThrow('该巡检计划已指派给其他人员')
+
+    expect(recordRepo.save).toBeUndefined()
+    expect(ordersService.create).not.toHaveBeenCalled()
   })
 })

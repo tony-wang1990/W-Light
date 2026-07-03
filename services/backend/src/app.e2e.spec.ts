@@ -509,6 +509,19 @@ describe('App HTTP e2e flow', () => {
         expect(body.some((item: { id: string }) => item.id === plan.id)).toBe(true)
       })
 
+    await request(app.getHttpServer())
+      .post('/v1/inspections/records')
+      .set(auth(engineerToken))
+      .send({
+        planId: plan.id,
+        status: InspectionStatus.NORMAL,
+        resultDesc: '非责任人不应提交该巡检计划',
+      })
+      .expect(403)
+      .expect(({ body }) => {
+        expect(body.message).toContain('已指派给其他人员')
+      })
+
     const inspectionRecord = await request(app.getHttpServer())
       .post('/v1/inspections/records')
       .set(auth(inspectorToken))

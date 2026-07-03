@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, FileText, RefreshCw, Search, Wrench } from 'lucide-react';
 import { apiClient } from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import styles from '../CommonAdmin.module.css';
 
@@ -47,6 +48,8 @@ function normalizeList<T>(res: ListResponse<T>): T[] {
 }
 
 export default function Maintenance() {
+  const { user } = useAuthStore();
+  const canExportReports = ['admin', 'viewer'].includes(user?.role || '');
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [logs, setLogs] = useState<RepairLog[]>([]);
@@ -124,9 +127,11 @@ export default function Maintenance() {
           <button className={styles.secondaryBtn} onClick={fetchOrders} disabled={loading}>
             <RefreshCw size={16} /> 刷新
           </button>
-          <button className={styles.primaryBtn} onClick={exportOrders}>
-            <Download size={16} /> 导出台账 Excel
-          </button>
+          {canExportReports && (
+            <button className={styles.primaryBtn} onClick={exportOrders}>
+              <Download size={16} /> 导出台账 Excel
+            </button>
+          )}
         </div>
       </div>
 

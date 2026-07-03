@@ -349,11 +349,13 @@ function InspectionsTab() {
   const [loading, setLoading] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)
 
-  const load = async (silent = false) => {
+  const load = React.useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     else setRefreshing(true)
     try {
-      const data = await inspectionsApi.getPlans()
+      const data = user?.role === 'admin'
+        ? await inspectionsApi.getPlans()
+        : await inspectionsApi.getTodayPlans()
       setPlans(data)
     } catch (e) {
       console.error('InspectionsTab load failed', e)
@@ -361,9 +363,9 @@ function InspectionsTab() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [user?.role])
 
-  React.useEffect(() => { load() }, [])
+  React.useEffect(() => { load() }, [load])
 
   const loadRecords = async (planId: string) => {
     setRecordsLoading(true)

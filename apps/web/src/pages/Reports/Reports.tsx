@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { DatabaseBackup, Download, RefreshCw, Upload } from 'lucide-react';
 import { apiClient } from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errors';
 import styles from '../CommonAdmin.module.css';
 
@@ -48,6 +49,8 @@ function money(value?: number) {
 }
 
 export default function Reports() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const [startDate, setStartDate] = useState(daysAgo(30));
   const [endDate, setEndDate] = useState(today());
   const [summary, setSummary] = useState<OperationsSummary | null>(null);
@@ -187,15 +190,17 @@ export default function Reports() {
             <label>结束日期</label>
             <input className={styles.input} type="date" value={endDate} onChange={event => setEndDate(event.target.value)} />
           </div>
-          <div className={styles.actions} style={{ alignSelf: 'flex-end' }}>
-            <button className={styles.secondaryBtn} onClick={downloadBackup}>
-              <DatabaseBackup size={16} /> 下载项目备份
-            </button>
-            <input ref={restoreInputRef} type="file" accept=".json,application/json" onChange={handleRestoreBackup} style={{ display: 'none' }} />
-            <button className={styles.secondaryBtn} onClick={openRestorePicker} disabled={restoring}>
-              <Upload size={16} /> {restoring ? '恢复中...' : '恢复备份'}
-            </button>
-          </div>
+          {isAdmin && (
+            <div className={styles.actions} style={{ alignSelf: 'flex-end' }}>
+              <button className={styles.secondaryBtn} onClick={downloadBackup}>
+                <DatabaseBackup size={16} /> 下载项目备份
+              </button>
+              <input ref={restoreInputRef} type="file" accept=".json,application/json" onChange={handleRestoreBackup} style={{ display: 'none' }} />
+              <button className={styles.secondaryBtn} onClick={openRestorePicker} disabled={restoring}>
+                <Upload size={16} /> {restoring ? '恢复中...' : '恢复备份'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

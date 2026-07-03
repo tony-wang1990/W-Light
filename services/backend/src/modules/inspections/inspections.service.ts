@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository } from 'typeorm'
 import { OrdersService } from '../orders/orders.service'
@@ -7,6 +7,7 @@ import { InspectionFrequency, InspectionPlan } from './entities/inspection-plan.
 import { InspectionRecord, InspectionStatus } from './entities/inspection-record.entity'
 import { CreateInspectionPlanDto, UpdateInspectionPlanDto } from './dto/inspection-plan.dto'
 import { CreateInspectionRecordDto } from './dto/inspection-record.dto'
+import { UserRole } from '../users/entities/user.entity'
 
 type InspectionPlanWriteDto = (CreateInspectionPlanDto | UpdateInspectionPlanDto) & {
   projectId?: string
@@ -55,10 +56,18 @@ export class InspectionsService {
     return next
   }
 
-  async createRecord(dto: CreateInspectionRecordDto, inspectorId: string, projectId: string) {
+  async createRecord(
+    dto: CreateInspectionRecordDto,
+    inspectorId: string,
+    projectId: string,
+    role: UserRole = UserRole.INSPECTOR,
+  ) {
     const { createOrder, ...recordDto } = dto
     const plan = dto.planId ? await this.planRepo.findOne({ where: { id: dto.planId, projectId } }) : null
     if (dto.planId && !plan) throw new NotFoundException('巡检计划不存在')
+    if (plan?.assigneeId && plan.assigneeId !== inspectorId && role !== UserRole.ADMIN) {
+      throw new ForbiddenException('该巡检计划已指派给其他人员')
+    }
     const shouldCreateOrder = createOrder && dto.status === InspectionStatus.ABNORMAL
     let orderId = dto.orderId
 
