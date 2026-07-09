@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
@@ -59,5 +59,12 @@ export class ProjectsController {
   @ApiOperation({ summary: '更新项目' })
   update(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
     return this.svc.update(id, dto)
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '彻底删除项目' })
+  remove(@Param('id') id: string) {
+    return this.svc.remove(id)
   }
 }

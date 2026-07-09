@@ -81,6 +81,7 @@ describe('backend API route mapping', () => {
       [RequestMethod.GET, 'projects/overview'],
       [RequestMethod.GET, 'projects/:id'],
       [RequestMethod.PUT, 'projects/:id'],
+      [RequestMethod.DELETE, 'projects/:id'],
     ])
     expectExactRoutes(UsersController, [
       [RequestMethod.POST, 'users'],
@@ -98,6 +99,7 @@ describe('backend API route mapping', () => {
       [RequestMethod.GET, 'orders/summary'],
       [RequestMethod.GET, 'orders/overdue'],
       [RequestMethod.GET, 'orders/:id'],
+      [RequestMethod.DELETE, 'orders/:id'],
       [RequestMethod.PUT, 'orders/:id/assign'],
       [RequestMethod.PUT, 'orders/:id/accept'],
       [RequestMethod.PUT, 'orders/:id/reject'],

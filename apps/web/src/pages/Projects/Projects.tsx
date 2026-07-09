@@ -19,6 +19,7 @@ import {
   Search,
   Settings2,
   TicketCheck,
+  Trash2,
   Wrench,
 } from 'lucide-react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
@@ -92,6 +93,7 @@ export default function Projects() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
@@ -205,11 +207,38 @@ export default function Projects() {
       setCurrentProject(saved.id);
       setSelectedId(saved.id);
       setNotice(selectedProject ? '项目资料已更新' : '新项目已创建，并已切换为当前项目');
+      window.dispatchEvent(new Event('wlight:projects-changed'));
       await fetchProjects();
     } catch (err) {
       setError(getErrorMessage(err, '保存项目失败'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!selectedProject || deleting) return;
+    const ok = window.confirm(`确定彻底删除项目“${selectedProject.name}”吗？该项目下的设备、工单、维修记录、备件和巡检数据都会删除，此操作不可恢复。`);
+    if (!ok) return;
+
+    setDeleting(true);
+    setError('');
+    setNotice('');
+    try {
+      const deletedId = selectedProject.id;
+      await apiClient.delete(`/projects/${deletedId}`);
+      const remaining = projects.filter(project => project.id !== deletedId);
+      const nextProject = remaining[0];
+      setProjects(remaining);
+      setSelectedId(nextProject?.id || '');
+      if (nextProject) setCurrentProject(nextProject.id);
+      setNotice('项目已删除');
+      window.dispatchEvent(new Event('wlight:projects-changed'));
+      await fetchProjects();
+    } catch (err) {
+      setError(getErrorMessage(err, '删除项目失败'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -463,6 +492,11 @@ export default function Projects() {
                 }}
               >
                 <Building2 size={16} /> 设为当前项目
+              </button>
+            )}
+            {isAdmin && selectedProject && (
+              <button className={styles.dangerButton} onClick={handleDeleteProject} disabled={deleting || saving}>
+                <Trash2 size={16} /> {deleting ? '删除中...' : '删除项目'}
               </button>
             )}
             {isAdmin && (

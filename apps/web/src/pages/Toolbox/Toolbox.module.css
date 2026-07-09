@@ -536,23 +536,49 @@
   font-weight: 700;
 }
 
+.colorInput {
+  width: 100%;
+  min-height: 42px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.subTitle {
+  margin: 4px 0 -4px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .paletteGrid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 8px;
 }
 
 .paletteGrid button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 9px;
+  min-height: 48px;
+  border-radius: 8px;
 }
 
 .paletteGrid span {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: 1px solid rgba(0, 0, 0, 0.12);
+  flex: 0 0 auto;
+}
+
+.paletteGrid em {
+  margin-left: auto;
+  color: #6B7280;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .searchBox {

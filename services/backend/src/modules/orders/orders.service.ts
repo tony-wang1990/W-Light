@@ -115,10 +115,10 @@ export class OrdersService {
     if (!assignee || !assignee.isActive) {
       throw new BadRequestException('所选维修负责人不存在或账号已停用')
     }
-    if (![UserRole.ADMIN, UserRole.ENGINEER].includes(assignee.role)) {
-      throw new BadRequestException('只有管理员或维修工程师可以接收维修工单')
+    if (assignee.role !== UserRole.ENGINEER) {
+      throw new BadRequestException('只有维修工程师可以接收维修工单')
     }
-    if (assignee.role !== UserRole.ADMIN && !assignee.projectIds?.includes(projectId)) {
+    if (!assignee.projectIds?.includes(projectId)) {
       throw new BadRequestException('所选维修工程师不属于当前项目')
     }
     return this.stateMachine.assign(order, dto.assigneeId)
@@ -161,6 +161,10 @@ export class OrdersService {
     if (order.assigneeId !== userId) {
       throw new ForbiddenException('只有负责该工单的工程师才能提交验收')
     }
+    const repairLogCount = await this.repairLogRepo.count({ where: { orderId: id } })
+    if (repairLogCount <= 0) {
+      throw new BadRequestException('提交验收前必须先添加至少一条维修记录')
+    }
     if (repairCost !== undefined) order.repairCost = repairCost
     return this.stateMachine.submit(order)
   }
@@ -180,6 +184,33 @@ export class OrdersService {
     return this.stateMachine.cancel(order, reason)
   }
 
+  async remove(id: string, projectId: string): Promise<{ deleted: true }> {
+    const order = await this.findOne(id, projectId)
+    await this.dataSource.transaction(async manager => {
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('spare_part_logs')
+        .where('"orderId" = :id', { id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from(RepairLog)
+        .where('"orderId" = :id', { id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .update('inspection_records')
+        .set({ orderId: null })
+        .where('"orderId" = :id', { id })
+        .execute()
+      await manager.delete(WorkOrder, { id, projectId })
+    })
+    this.eventEmitter.emit('order.updated', { ...order, eventAction: 'delete' })
+    return { deleted: true }
+  }
+
   async addRepairLog(
     orderId: string,
     engineerId: string,
@@ -190,11 +221,11 @@ export class OrdersService {
     return this.dataSource.transaction(async manager => {
       const order = await manager.getRepository(WorkOrder).findOne({ where: { id: orderId, projectId } })
       if (!order) throw new NotFoundException(`工单 ${orderId} 不存在`)
-      if (role !== UserRole.ADMIN && order.assigneeId !== engineerId) {
-        throw new ForbiddenException('只有负责人或管理员才能添加维修记录')
+      if (role !== UserRole.ENGINEER || order.assigneeId !== engineerId) {
+        throw new ForbiddenException('只有负责该工单的维修工程师才能添加维修记录')
       }
-      if (![OrderStatus.PROCESSING, OrderStatus.REVIEWING].includes(order.status)) {
-        throw new ForbiddenException('工单不在处理中或待验收状态，无法添加维修记录')
+      if (order.status !== OrderStatus.PROCESSING) {
+        throw new ForbiddenException('工单不在处理中，无法添加维修记录')
       }
 
       const partUsages = []

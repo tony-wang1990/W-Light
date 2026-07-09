@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, Repository } from 'typeorm'
+import { User } from '../users/entities/user.entity'
 import { Project } from './entities/project.entity'
 
 export interface ProjectOverview extends Project {
@@ -80,5 +81,68 @@ export class ProjectsService {
   async update(id: string, dto: Partial<Project>): Promise<Project> {
     const p = await this.findOne(id)
     return this.repo.save(Object.assign(p, dto))
+  }
+
+  async remove(id: string): Promise<{ deleted: true }> {
+    await this.findOne(id)
+    await this.repo.manager.transaction(async manager => {
+      const ordersInProject = '(SELECT id FROM work_orders WHERE "projectId" = :projectId)'
+      const partsInProject = '(SELECT id FROM spare_parts WHERE "projectId" = :projectId)'
+      const plansInProject = '(SELECT id FROM inspection_plans WHERE "projectId" = :projectId)'
+
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('spare_part_logs')
+        .where(`"orderId" IN ${ordersInProject} OR "partId" IN ${partsInProject}`, { projectId: id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('repair_logs')
+        .where(`"orderId" IN ${ordersInProject}`, { projectId: id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('inspection_records')
+        .where(`"orderId" IN ${ordersInProject} OR "planId" IN ${plansInProject}`, { projectId: id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('work_orders')
+        .where('"projectId" = :projectId', { projectId: id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('inspection_plans')
+        .where('"projectId" = :projectId', { projectId: id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('spare_parts')
+        .where('"projectId" = :projectId', { projectId: id })
+        .execute()
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from('devices')
+        .where('"projectId" = :projectId', { projectId: id })
+        .execute()
+
+      const userRepo = manager.getRepository(User)
+      const users = await userRepo.find()
+      const changedUsers = users.filter(user => Array.isArray(user.projectIds) && user.projectIds.includes(id))
+      for (const user of changedUsers) {
+        user.projectIds = user.projectIds.filter(projectId => projectId !== id)
+      }
+      if (changedUsers.length > 0) await userRepo.save(changedUsers)
+
+      await manager.delete(Project, { id })
+    })
+    return { deleted: true }
   }
 }
