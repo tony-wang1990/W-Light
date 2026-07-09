@@ -9,7 +9,7 @@
     "prepare:web": "cross-env ELECTRON=true corepack pnpm --filter web run build && node scripts/prepare-web.mjs",
     "dev": "electron .",
     "dist": "corepack pnpm run prepare:web && electron-builder",
-    "dist:win": "corepack pnpm run prepare:web && electron-builder --win nsis",
+    "dist:win": "corepack pnpm run prepare:web && electron-builder --win portable",
     "dist:mac": "corepack pnpm run prepare:web && electron-builder --mac dmg",
     "dist:linux": "corepack pnpm run prepare:web && electron-builder --linux AppImage"
   },
@@ -17,7 +17,12 @@
     "appId": "com.wlight.desktop",
     "productName": "W-Light",
     "asar": true,
+    "npmRebuild": false,
     "publish": null,
+    "extraMetadata": {
+      "dependencies": {},
+      "devDependencies": {}
+    },
     "directories": {
       "output": "dist"
     },
@@ -31,7 +36,7 @@
       "signAndEditExecutable": false,
       "target": [
         {
-          "target": "nsis",
+          "target": "portable",
           "arch": [
             "x64"
           ]
@@ -76,7 +81,7 @@
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
-    "electron": "^42.3.0",
-    "electron-builder": "^26.8.1"
+    "electron": "42.3.0",
+    "electron-builder": "26.8.1"
   }
 }

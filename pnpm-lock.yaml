@@ -164,10 +164,10 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
       electron:
-        specifier: ^42.3.0
+        specifier: 42.3.0
         version: 42.3.0
       electron-builder:
-        specifier: ^26.8.1
+        specifier: 26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
 
   apps/web:
@@ -9382,7 +9382,7 @@ snapshots:
       fs-extra: 10.1.0
       isbinaryfile: 4.0.10
       minimist: 1.2.8
-      plist: 3.1.0
+      plist: 3.1.1
     transitivePeerDependencies:
       - supports-color
 
@@ -9405,7 +9405,7 @@ snapshots:
       dir-compare: 4.2.0
       fs-extra: 11.3.5
       minimatch: 9.0.9
-      plist: 3.1.0
+      plist: 3.1.1
     transitivePeerDependencies:
       - supports-color
 
@@ -10651,9 +10651,7 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - '@babel/preset-env'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.87': {}
 
@@ -11122,7 +11120,7 @@ snapshots:
   '@types/plist@3.0.5':
     dependencies:
       '@types/node': 20.19.41
-      xmlbuilder: 11.0.1
+      xmlbuilder: 15.1.1
     optional: true
 
   '@types/prop-types@15.7.15': {}
@@ -11479,8 +11477,7 @@ snapshots:
 
   '@xmldom/xmldom@0.8.13': {}
 
-  '@xmldom/xmldom@0.9.10':
-    optional: true
+  '@xmldom/xmldom@0.9.10': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -15729,7 +15726,6 @@ snapshots:
       '@xmldom/xmldom': 0.9.10
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
-    optional: true
 
   pluralize@8.0.0: {}
 
