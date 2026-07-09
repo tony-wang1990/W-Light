@@ -445,6 +445,15 @@ export default function Projects() {
                 <button onClick={() => openModule('/dashboard')}><Boxes size={15} />项目概览</button>
                 <button onClick={() => openModule('/orders')}><Wrench size={15} />工单运维</button>
                 <button onClick={() => openModule('/reports')}><ExternalLink size={15} />查看报表</button>
+                {isAdmin && (
+                  <button
+                    className={styles.quickDangerButton}
+                    onClick={handleDeleteProject}
+                    disabled={deleting || saving}
+                  >
+                    <Trash2 size={15} /> {deleting ? '删除中...' : '删除项目'}
+                  </button>
+                )}
               </div>
             </>
           )}

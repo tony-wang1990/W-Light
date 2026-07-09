@@ -32,15 +32,12 @@ export type ToolboxStackParamList = {
   Dmx: undefined;
   FixtureLibrary: undefined;
   PowerCalc: undefined;
+  CableDrop: undefined;
+  ArtNet: undefined;
   BeamAngle: undefined;
   Bpm: undefined;
   Ltc: undefined;
   RgbColor: undefined;
-  LightLayout: undefined;
-  Theory: undefined;
-  Diagnosis: undefined;
-  MaMacros: undefined;
-  Terms: undefined;
   Lux: undefined;
 };
 
