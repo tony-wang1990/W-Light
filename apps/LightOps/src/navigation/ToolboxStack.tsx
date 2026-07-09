@@ -6,16 +6,13 @@ import { ToolboxScreen } from '../screens/toolbox/ToolboxScreen';
 import { DmxScreen } from '../screens/toolbox/DmxScreen';
 import { FixtureLibraryScreen } from '../screens/toolbox/FixtureLibraryScreen';
 import { PowerCalcScreen } from '../screens/toolbox/PowerCalcScreen';
+import { CableDropScreen } from '../screens/toolbox/CableDropScreen';
+import { ArtNetScreen } from '../screens/toolbox/ArtNetScreen';
 import { BeamAngleScreen } from '../screens/toolbox/BeamAngleScreen';
 import { BpmScreen } from '../screens/toolbox/BpmScreen';
-import { DiagnosisScreen } from '../screens/toolbox/DiagnosisScreen';
-import { MaMacrosScreen } from '../screens/toolbox/MaMacrosScreen';
-import { TermsScreen } from '../screens/toolbox/TermsScreen';
 import { LuxScreen } from '../screens/toolbox/LuxScreen';
 import { LtcScreen } from '../screens/toolbox/LtcScreen';
 import { RgbColorScreen } from '../screens/toolbox/RgbColorScreen';
-import { LightLayoutScreen } from '../screens/toolbox/LightLayoutScreen';
-import { TheoryScreen } from '../screens/toolbox/TheoryScreen';
 
 const Stack = createNativeStackNavigator<ToolboxStackParamList>();
 
@@ -30,16 +27,13 @@ export function ToolboxStack() {
       <Stack.Screen name="Dmx" component={DmxScreen} />
       <Stack.Screen name="FixtureLibrary" component={FixtureLibraryScreen} />
       <Stack.Screen name="PowerCalc" component={PowerCalcScreen} />
+      <Stack.Screen name="CableDrop" component={CableDropScreen} />
+      <Stack.Screen name="ArtNet" component={ArtNetScreen} />
       <Stack.Screen name="BeamAngle" component={BeamAngleScreen} />
       <Stack.Screen name="Bpm" component={BpmScreen} />
       <Stack.Screen name="Ltc" component={LtcScreen} />
-      <Stack.Screen name="Diagnosis" component={DiagnosisScreen} />
-      <Stack.Screen name="MaMacros" component={MaMacrosScreen} />
-      <Stack.Screen name="Terms" component={TermsScreen} />
       <Stack.Screen name="Lux" component={LuxScreen} />
       <Stack.Screen name="RgbColor" component={RgbColorScreen} />
-      <Stack.Screen name="LightLayout" component={LightLayoutScreen} />
-      <Stack.Screen name="Theory" component={TheoryScreen} />
     </Stack.Navigator>
   );
 }

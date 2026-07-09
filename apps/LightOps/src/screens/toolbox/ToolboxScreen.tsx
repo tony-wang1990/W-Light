@@ -19,6 +19,8 @@ const TOOLS: ToolCard[] = [
   { icon: 'DMX', name: 'DMX 地址码', desc: '灯具链路地址规划', route: 'Dmx', color: '#6BCB77' },
   { icon: '库', name: '灯库制作', desc: '通道表和模式整理', route: 'FixtureLibrary', color: '#2DD4BF' },
   { icon: 'W', name: '功率计算', desc: '负载统计和电流估算', route: 'PowerCalc', color: '#4D96FF' },
+  { icon: 'V', name: '电缆压降', desc: '线长线径和末端电压', route: 'CableDrop', color: '#00A6A6' },
+  { icon: 'NET', name: 'Art-Net 地址', desc: 'Universe 与节点 IP', route: 'ArtNet', color: '#7C3AED' },
   { icon: 'Lux', name: '照度计算', desc: '距离和照度换算', route: 'Lux', color: '#F9C74F' },
   { icon: 'RGB', name: 'RGB 配色', desc: '调色和色温记录', route: 'RgbColor', color: '#F8961E' },
 ]

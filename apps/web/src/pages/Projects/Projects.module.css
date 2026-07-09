@@ -536,6 +536,17 @@
   color: #475467;
 }
 
+.quickActions .quickDangerButton {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #dc2626;
+}
+
+.quickActions .quickDangerButton:hover {
+  border-color: #fca5a5;
+  background: #ffe4e6;
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -81,6 +81,9 @@ export const ordersApi = {
   cancel: (id: string, reason: string): Promise<WorkOrder> =>
     apiClient.put(`/orders/${id}/cancel`, { reason }),
 
+  delete: (id: string): Promise<void> =>
+    apiClient.delete(`/orders/${id}`),
+
   addRepairLog: (orderId: string, data: RepairLogPayload): Promise<RepairLog> =>
     apiClient.post(`/orders/${orderId}/repair-logs`, data),
 
