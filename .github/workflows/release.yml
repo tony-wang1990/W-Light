@@ -43,7 +43,7 @@ jobs:
           corepack prepare pnpm@9.15.9 --activate
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
 
       - name: Generate unique client version
         run: node scripts/prepare-client-version.mjs
@@ -82,7 +82,7 @@ jobs:
 
       - name: Install dependencies
         shell: pwsh
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
 
       - name: Generate unique client version
         shell: pwsh
