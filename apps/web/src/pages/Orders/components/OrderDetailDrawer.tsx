@@ -8,11 +8,12 @@ import {
   RotateCcw,
   Send,
   ShieldCheck,
+  Trash2,
   User,
   UserCheck,
   X,
 } from 'lucide-react';
-import { apiClient } from '../../../api/client';
+import { apiClient, getServerOrigin } from '../../../api/client';
 import { useAuthStore } from '../../../store/authStore';
 import { getErrorMessage } from '../../../utils/errors';
 import styles from './OrderDetailDrawer.module.css';
@@ -22,6 +23,7 @@ interface OrderDetailDrawerProps {
   initialAssignOpen?: boolean;
   onClose: () => void;
   onUpdated: (order?: WorkOrderDetail) => void | Promise<void>;
+  onDeleted?: (orderId: string) => void | Promise<void>;
 }
 
 interface UserOption {
@@ -85,6 +87,7 @@ interface RepairLog {
   stepType?: string;
   stepDesc?: string;
   description?: string;
+  photoUrls?: string[];
   partUsages?: RepairPartUsage[];
   outsourceVendor?: string;
   outsourceCost?: number | string;
@@ -132,11 +135,20 @@ function formatDate(value?: string | Date | null) {
   return new Date(value).toLocaleString('zh-CN');
 }
 
+function resolveMediaUrl(url?: string) {
+  if (!url) return '';
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (url.startsWith('/v1/')) return `${getServerOrigin()}${url}`;
+  if (url.startsWith('/')) return `${getServerOrigin()}${url}`;
+  return url;
+}
+
 export default function OrderDetailDrawer({
   order,
   initialAssignOpen = false,
   onClose,
   onUpdated,
+  onDeleted,
 }: OrderDetailDrawerProps) {
   const [currentOrder, setCurrentOrder] = useState<WorkOrderDetail>(order);
   const [repairLogs, setRepairLogs] = useState<RepairLog[]>([]);
@@ -171,9 +183,9 @@ export default function OrderDetailDrawer({
   const isAdmin = user?.role === 'admin';
   const assigneeId = currentOrder.assigneeId || currentOrder.assignee?.id || '';
   const isAssignee = Boolean(user?.id && assigneeId === user.id);
-  const canAssigneeAction = ['admin', 'engineer'].includes(user?.role || '') && isAssignee;
-  const canAddLog = ['processing', 'reviewing'].includes(status) && (isAdmin || canAssigneeAction);
-  const canSubmit = canAssigneeAction;
+  const canAssigneeAction = user?.role === 'engineer' && isAssignee;
+  const canAddLog = status === 'processing' && user?.role === 'engineer' && isAssignee;
+  const canSubmit = canAssigneeAction && repairLogs.length > 0;
   const canSuspend = isAdmin || canAssigneeAction;
   const canResume = isAdmin || canAssigneeAction;
 
@@ -201,7 +213,7 @@ export default function OrderDetailDrawer({
 
     try {
       const res = await apiClient.get<UserOption[] | { items?: UserOption[] }>('/users?pageSize=200');
-      setUsers(normalizeList(res).filter(user => ['admin', 'engineer'].includes(user.role || '')));
+      setUsers(normalizeList(res).filter(user => user.role === 'engineer'));
     } catch {
       setUsers([]);
     }
@@ -283,23 +295,6 @@ export default function OrderDetailDrawer({
     }
   };
 
-  const handleAssignSelf = async () => {
-    setAssignLoading(true);
-    setError('');
-    try {
-      const me = await apiClient.get<UserOption>('/auth/me');
-      await apiClient.put(`/orders/${orderId}/assign`, { assigneeId: me.id });
-      setShowAssignPicker(false);
-      await refreshCurrentOrder();
-    } catch (err) {
-      const message = getErrorMessage(err, '指派给自己失败');
-      setError(message);
-      window.alert(message);
-    } finally {
-      setAssignLoading(false);
-    }
-  };
-
   const handleAddRepairLog = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!logForm.stepDesc.trim() || !canAddLog) return;
@@ -336,6 +331,27 @@ export default function OrderDetailDrawer({
       window.alert(message);
     } finally {
       setSubmittingLog(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!isAdmin || actionLoading) return;
+    const orderLabel = currentOrder.orderNo || currentOrder.id;
+    const ok = window.confirm(`确定彻底删除工单 ${orderLabel} 吗？删除后维修记录和相关备件流水也会移除，此操作不可恢复。`);
+    if (!ok) return;
+
+    setActionLoading('delete');
+    setError('');
+    try {
+      await apiClient.delete(`/orders/${orderId}`);
+      await onDeleted?.(orderId);
+      onClose();
+    } catch (err) {
+      const message = getErrorMessage(err, '删除工单失败');
+      setError(message);
+      window.alert(message);
+    } finally {
+      setActionLoading('');
     }
   };
 
@@ -437,9 +453,6 @@ export default function OrderDetailDrawer({
                   <button className={styles.assignBtn} onClick={() => setShowAssignPicker(!showAssignPicker)} disabled={!isAdmin || actionDisabled}>
                     <UserCheck size={14} /> 指派工程师
                   </button>
-                  <button className={styles.actionBtn} onClick={handleAssignSelf} disabled={actionDisabled}>
-                    指派给我
-                  </button>
                   <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={() => handleAction('cancel', '取消工单')} disabled={!isAdmin || actionDisabled}>
                     取消
                   </button>
@@ -502,6 +515,12 @@ export default function OrderDetailDrawer({
                   </button>
                 </>
               )}
+
+              {isAdmin && (
+                <button className={`${styles.actionBtn} ${styles.redBtn}`} onClick={handleDeleteOrder} disabled={actionDisabled}>
+                  <Trash2 size={14} /> 彻底删除
+                </button>
+              )}
             </div>
 
             {isAdmin && showAssignPicker && (
@@ -555,6 +574,25 @@ export default function OrderDetailDrawer({
                           <span>外协：{log.outsourceVendor || '-'} {log.outsourceCost ? `¥${log.outsourceCost}` : ''}</span>
                         </div>
                       )}
+                      {Array.isArray(log.photoUrls) && log.photoUrls.length > 0 && (
+                        <div className={styles.logPhotos}>
+                          {log.photoUrls.map((url, photoIdx) => {
+                            const href = resolveMediaUrl(url);
+                            return (
+                              <a
+                                key={`${url}-${photoIdx}`}
+                                className={styles.logPhotoLink}
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="查看维修照片"
+                              >
+                                <img src={href} alt={`维修照片 ${photoIdx + 1}`} className={styles.logPhotoThumb} loading="lazy" />
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                       <div className={styles.logMeta}>
                         {log.loggedAt && <span>{formatDate(log.loggedAt)}</span>}
                         {log.engineer?.name && <span>by {log.engineer.name}</span>}
@@ -567,91 +605,85 @@ export default function OrderDetailDrawer({
               <div className={styles.emptyLogs}>暂无维修记录</div>
             )}
 
-            <form className={styles.logForm} onSubmit={handleAddRepairLog}>
-              <div className={styles.logFormTitle}>
-                <MessageSquare size={14} /> 添加维修过程记录
-              </div>
-              {!canAddLog && (
-                <div className={styles.formHint}>工单进入“处理中”或“待验收”后才能补充维修记录。</div>
-              )}
-              <div className={styles.formRow}>
-                <select
-                  className={styles.formInput}
-                  value={logForm.stepType}
-                  onChange={event => setLogForm(form => ({ ...form, stepType: event.target.value }))}
-                  disabled={!canAddLog}
+            {canAddLog && (
+              <form className={styles.logForm} onSubmit={handleAddRepairLog}>
+                <div className={styles.logFormTitle}>
+                  <MessageSquare size={14} /> 添加维修过程记录
+                </div>
+                <div className={styles.formRow}>
+                  <select
+                    className={styles.formInput}
+                    value={logForm.stepType}
+                    onChange={event => setLogForm(form => ({ ...form, stepType: event.target.value }))}
+                  >
+                    {STEP_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                  <input
+                    className={styles.formInput}
+                    value={logForm.outsourceVendor}
+                    onChange={event => setLogForm(form => ({ ...form, outsourceVendor: event.target.value }))}
+                    placeholder="外协单位（可选）"
+                  />
+                </div>
+                <textarea
+                  className={styles.logTextarea}
+                  value={logForm.stepDesc}
+                  onChange={event => setLogForm(form => ({ ...form, stepDesc: event.target.value }))}
+                  placeholder="记录排查步骤、更换配件、测试结果和现场情况"
+                  rows={4}
+                />
+                <div className={styles.formRow}>
+                  <select
+                    className={styles.formInput}
+                    value={logForm.partId}
+                    onChange={event => setLogForm(form => ({ ...form, partId: event.target.value }))}
+                  >
+                    <option value="">未使用备件</option>
+                    {parts.map(part => (
+                      <option key={part.id} value={part.id}>
+                        {part.name}{part.model ? ` · ${part.model}` : ''}（库存 {part.stock ?? '-'}{part.unit || ''}）
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    className={styles.formInput}
+                    value={logForm.partQuantity}
+                    onChange={event => setLogForm(form => ({ ...form, partQuantity: event.target.value }))}
+                    placeholder="领用数量"
+                    min={0}
+                    step="1"
+                    disabled={!logForm.partId}
+                  />
+                </div>
+                <div className={styles.formRow}>
+                  <input
+                    className={styles.formInput}
+                    value={logForm.partNote}
+                    onChange={event => setLogForm(form => ({ ...form, partNote: event.target.value }))}
+                    placeholder="备件使用说明（可选）"
+                    disabled={!logForm.partId}
+                  />
+                  <input
+                    type="number"
+                    className={styles.formInput}
+                    value={logForm.outsourceCost}
+                    onChange={event => setLogForm(form => ({ ...form, outsourceCost: event.target.value }))}
+                    placeholder="外协费用（可选）"
+                    min={0}
+                    step="0.01"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className={styles.submitLogBtn}
+                  disabled={submittingLog || !logForm.stepDesc.trim()}
                 >
-                  {STEP_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
-                </select>
-                <input
-                  className={styles.formInput}
-                  value={logForm.outsourceVendor}
-                  onChange={event => setLogForm(form => ({ ...form, outsourceVendor: event.target.value }))}
-                  placeholder="外协单位（可选）"
-                  disabled={!canAddLog}
-                />
-              </div>
-              <textarea
-                className={styles.logTextarea}
-                value={logForm.stepDesc}
-                onChange={event => setLogForm(form => ({ ...form, stepDesc: event.target.value }))}
-                placeholder="记录排查步骤、更换配件、测试结果和现场情况"
-                rows={4}
-                disabled={!canAddLog}
-              />
-              <div className={styles.formRow}>
-                <select
-                  className={styles.formInput}
-                  value={logForm.partId}
-                  onChange={event => setLogForm(form => ({ ...form, partId: event.target.value }))}
-                  disabled={!canAddLog}
-                >
-                  <option value="">未使用备件</option>
-                  {parts.map(part => (
-                    <option key={part.id} value={part.id}>
-                      {part.name}{part.model ? ` · ${part.model}` : ''}（库存 {part.stock ?? '-'}{part.unit || ''}）
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  className={styles.formInput}
-                  value={logForm.partQuantity}
-                  onChange={event => setLogForm(form => ({ ...form, partQuantity: event.target.value }))}
-                  placeholder="领用数量"
-                  min={0}
-                  step="1"
-                  disabled={!canAddLog || !logForm.partId}
-                />
-              </div>
-              <div className={styles.formRow}>
-                <input
-                  className={styles.formInput}
-                  value={logForm.partNote}
-                  onChange={event => setLogForm(form => ({ ...form, partNote: event.target.value }))}
-                  placeholder="备件使用说明（可选）"
-                  disabled={!canAddLog || !logForm.partId}
-                />
-                <input
-                  type="number"
-                  className={styles.formInput}
-                  value={logForm.outsourceCost}
-                  onChange={event => setLogForm(form => ({ ...form, outsourceCost: event.target.value }))}
-                  placeholder="外协费用（可选）"
-                  min={0}
-                  step="0.01"
-                  disabled={!canAddLog}
-                />
-              </div>
-              <button
-                type="submit"
-                className={styles.submitLogBtn}
-                disabled={submittingLog || !logForm.stepDesc.trim() || !canAddLog}
-              >
-                <Send size={14} />
-                {submittingLog ? '提交中...' : '提交记录'}
-              </button>
-            </form>
+                  <Send size={14} />
+                  {submittingLog ? '提交中...' : '提交记录'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </div>

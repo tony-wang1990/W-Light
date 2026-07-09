@@ -200,6 +200,7 @@ async function mockOrderWorkflowApi(page: Page) {
     role: 'engineer',
     phone: '13800000002',
   }
+  let currentUser = admin
   const reporter = {
     ...admin,
     name: '现场报修人',
@@ -231,14 +232,16 @@ async function mockOrderWorkflowApi(page: Page) {
     const path = url.pathname.replace(/^\/v1/, '') || '/'
 
     if (request.method() === 'POST' && path === '/auth/login') {
+      const body = parseJsonBody<{ phone?: string }>(route, {})
+      currentUser = body.phone === engineer.phone ? engineer : admin
       return response(route, {
         accessToken: 'playwright-token',
-        user: { ...admin, projectIds: [PROJECT_ID] },
+        user: { ...currentUser, projectIds: [PROJECT_ID] },
       })
     }
 
     if (request.method() === 'GET' && path === '/auth/me') {
-      return response(route, { ...admin, projectIds: [PROJECT_ID] })
+      return response(route, { ...currentUser, projectIds: [PROJECT_ID] })
     }
 
     if (request.method() === 'GET' && path === '/projects') {
@@ -279,15 +282,13 @@ async function mockOrderWorkflowApi(page: Page) {
     }
 
     if (request.method() === 'PUT' && path === `/orders/${ORDER_ID}/assign`) {
-      const body = parseJsonBody<{ assigneeId?: string }>(route, {})
-      const assignee = body.assigneeId === admin.id ? admin : engineer
       order = {
         ...order,
         status: 'assigned',
         assignedAt: now,
-        assigneeId: assignee.id,
-        assignee,
-        assigneeName: assignee.name,
+        assigneeId: engineer.id,
+        assignee: engineer,
+        assigneeName: engineer.name,
       }
       return response(route, order)
     }
@@ -351,11 +352,11 @@ async function mockOrderWorkflowApi(page: Page) {
   })
 }
 
-async function login(page: Page) {
+async function login(page: Page, phone = '13800000001') {
   await page.goto('/login')
 
   await page.getByLabel('服务器地址').fill('/v1')
-  await page.getByLabel('账号').fill('13800000001')
+  await page.getByLabel('账号').fill(phone)
   await page.getByLabel('密码').fill('WLight@2026')
   await page.getByRole('button', { name: '登录控制台' }).click()
 
@@ -448,10 +449,16 @@ test('order workflow can be assigned, accepted, logged and archived from the UI'
 
   await page.getByRole('button', { name: '派单' }).click()
   await expect(page.getByText('选择维修负责人')).toBeVisible()
-  await page.getByRole('button', { name: '指派给我' }).click()
+  await page.getByRole('button', { name: /13800000002/ }).click()
   await expect(page.getByText('已派单').first()).toBeVisible()
-  await expect(page.getByText('System Admin').first()).toBeVisible()
+  await expect(page.getByText('维修工程师').first()).toBeVisible()
 
+  await page.evaluate(() => localStorage.removeItem('wlight-web-auth'))
+  await login(page, '13800000002')
+  await page.locator('a[href="/orders"]').click()
+  await expect(page.getByText('WO-20260608-0001')).toBeVisible()
+
+  await page.getByRole('button', { name: '接单/拒单' }).click()
   await page.getByRole('button', { name: '接单', exact: true }).click()
   await expect(page.getByText('处理中').first()).toBeVisible()
 
@@ -467,6 +474,11 @@ test('order workflow can be assigned, accepted, logged and archived from the UI'
   })
   await page.getByRole('button', { name: '提交验收', exact: true }).click()
   await expect(page.getByText('待验收').first()).toBeVisible()
+
+  await page.evaluate(() => localStorage.removeItem('wlight-web-auth'))
+  await login(page)
+  await page.locator('a[href="/orders"]').click()
+  await page.getByRole('button', { name: '验收' }).click()
 
   page.once('dialog', async (dialog) => {
     await dialog.accept('验收通过')

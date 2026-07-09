@@ -85,15 +85,15 @@ describe('backend API permission matrix', () => {
 
     expectRoles(OrdersController, 'create', [UserRole.ADMIN, UserRole.ENGINEER, UserRole.INSPECTOR])
     expectRoles(OrdersController, 'assign', [UserRole.ADMIN])
-    expectRoles(OrdersController, 'accept', [UserRole.ADMIN, UserRole.ENGINEER])
-    expectRoles(OrdersController, 'reject', [UserRole.ADMIN, UserRole.ENGINEER])
+    expectRoles(OrdersController, 'accept', [UserRole.ENGINEER])
+    expectRoles(OrdersController, 'reject', [UserRole.ENGINEER])
     expectRoles(OrdersController, 'suspend', [UserRole.ADMIN, UserRole.ENGINEER])
     expectRoles(OrdersController, 'resume', [UserRole.ADMIN, UserRole.ENGINEER])
-    expectRoles(OrdersController, 'submit', [UserRole.ADMIN, UserRole.ENGINEER])
+    expectRoles(OrdersController, 'submit', [UserRole.ENGINEER])
     expectRoles(OrdersController, 'acceptCheck', [UserRole.ADMIN])
     expectRoles(OrdersController, 'rejectCheck', [UserRole.ADMIN])
     expectRoles(OrdersController, 'cancel', [UserRole.ADMIN])
-    expectRoles(OrdersController, 'addRepairLog', [UserRole.ADMIN, UserRole.ENGINEER])
+    expectRoles(OrdersController, 'addRepairLog', [UserRole.ENGINEER])
   })
 
   it('guards device, parts and inspection writes by role', () => {
@@ -131,6 +131,7 @@ describe('backend API permission matrix', () => {
 
     expectRoles(ProjectsController, 'create', [UserRole.ADMIN])
     expectRoles(ProjectsController, 'update', [UserRole.ADMIN])
+    expectRoles(ProjectsController, 'remove', [UserRole.ADMIN])
     expectNoRoles(ProjectsController, 'findAll')
     expectNoRoles(ProjectsController, 'overview')
     expectNoRoles(ProjectsController, 'findOne')

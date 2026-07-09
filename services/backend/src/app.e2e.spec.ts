@@ -407,7 +407,7 @@ describe('App HTTP e2e flow', () => {
       .send({ assigneeId: inspector.id })
       .expect(400)
       .expect(({ body }) => {
-        expect(body.message).toContain('只有管理员或维修工程师')
+        expect(body.message).toContain('只有维修工程师')
       })
   })
 

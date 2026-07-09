@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request,
+  Controller, Delete, Get, Post, Put, Body, Param, Query, UseGuards, Request,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { OrdersService } from './orders.service'
@@ -70,6 +70,13 @@ export class OrdersController {
     return this.ordersService.findOne(id, req.projectId)
   }
 
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '彻底删除工单（管理员）' })
+  remove(@Param('id') id: string, @Request() req) {
+    return this.ordersService.remove(id, req.projectId)
+  }
+
   @Put(':id/assign')
   @ApiOperation({ summary: '派单（管理员）' })
   @Roles(UserRole.ADMIN)
@@ -79,14 +86,14 @@ export class OrdersController {
 
   @Put(':id/accept')
   @ApiOperation({ summary: '接单（工程师）' })
-  @Roles(UserRole.ADMIN, UserRole.ENGINEER)
+  @Roles(UserRole.ENGINEER)
   accept(@Param('id') id: string, @Request() req) {
     return this.ordersService.accept(id, req.user.id, req.projectId)
   }
 
   @Put(':id/reject')
   @ApiOperation({ summary: '拒单（工程师）' })
-  @Roles(UserRole.ADMIN, UserRole.ENGINEER)
+  @Roles(UserRole.ENGINEER)
   reject(@Param('id') id: string, @Body() dto: RejectOrderDto, @Request() req) {
     return this.ordersService.reject(id, req.user.id, dto.reason, req.projectId)
   }
@@ -107,7 +114,7 @@ export class OrdersController {
 
   @Put(':id/submit')
   @ApiOperation({ summary: '提交验收（工程师）' })
-  @Roles(UserRole.ADMIN, UserRole.ENGINEER)
+  @Roles(UserRole.ENGINEER)
   submit(@Param('id') id: string, @Body() dto: SubmitOrderDto, @Request() req) {
     return this.ordersService.submit(id, req.user.id, dto.repairCost, req.projectId)
   }
@@ -135,7 +142,7 @@ export class OrdersController {
 
   @Post(':id/repair-logs')
   @ApiOperation({ summary: '添加维修记录' })
-  @Roles(UserRole.ADMIN, UserRole.ENGINEER)
+  @Roles(UserRole.ENGINEER)
   addRepairLog(@Param('id') id: string, @Body() dto: AddRepairLogDto, @Request() req) {
     return this.ordersService.addRepairLog(id, req.user.id, dto, req.projectId, req.user.role)
   }
