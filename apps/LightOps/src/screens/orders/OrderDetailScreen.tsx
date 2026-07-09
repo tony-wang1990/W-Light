@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, TextInput } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, TextInput, Image } from 'react-native'
 import {
   type NavigationProp,
   useNavigation,
@@ -18,7 +18,7 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { getErrorMessage } from '../../utils/error'
 
-const ASSIGNABLE_ROLES: User['role'][] = ['admin', 'engineer']
+const ASSIGNABLE_ROLES: User['role'][] = ['engineer']
 
 const ROLE_LABELS: Record<User['role'], string> = {
   admin: '管理员',
@@ -121,6 +121,11 @@ export function OrderDetailScreen() {
           updated = await ordersApi.acceptCheck(order.id); break
         case 'reject-check':
           updated = await ordersApi.rejectCheck(order.id, '验收退回，请补充维修记录或现场照片'); break
+        case 'delete':
+          await ordersApi.delete(order.id)
+          Alert.alert('已删除', '工单已彻底删除')
+          navigation.goBack()
+          return
         default: return
       }
       setOrder(updated)
@@ -192,7 +197,8 @@ export function OrderDetailScreen() {
 
   const isAssignee = order.assigneeId === user?.id
   const isAdmin = user?.role === 'admin'
-  const canMaintainOrder = isAdmin || isAssignee
+  const canMaintainOrder = isAssignee
+  const canResumeOrder = isAdmin || isAssignee
 
   return (
     <View style={styles.container}>
@@ -204,6 +210,14 @@ export function OrderDetailScreen() {
         <View style={styles.headerRight}>
           <PriorityTag priority={order.priority} />
           <StatusBadge status={order.status} />
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.headerDeleteBtn}
+              onPress={() => confirmAction('delete', '删除工单', '确定彻底删除这个工单吗？维修记录、备件流水会一并删除，此操作不可恢复。')}
+            >
+              <Text style={styles.headerDeleteText}>删除</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -247,14 +261,7 @@ export function OrderDetailScreen() {
             <Text style={styles.descText}>{order.faultDesc}</Text>
           </View>
           {order.mediaUrls && order.mediaUrls.length > 0 && (
-            <View style={styles.mediaBox}>
-              <Text style={styles.mediaTitle}>现场附件</Text>
-              {order.mediaUrls.map((url, index) => (
-                <Text key={`${url}-${index}`} style={styles.mediaText} numberOfLines={1}>
-                  附件 {index + 1}: {url}
-                </Text>
-              ))}
-            </View>
+            <AttachmentList title="现场附件" urls={order.mediaUrls} />
           )}
         </View>
 
@@ -353,14 +360,7 @@ export function OrderDetailScreen() {
                 </View>
                 <Text style={styles.logDesc}>{log.stepDesc}</Text>
                 {log.photoUrls && log.photoUrls.length > 0 && (
-                  <View style={styles.mediaBox}>
-                    <Text style={styles.mediaTitle}>维修附件</Text>
-                    {log.photoUrls.map((url, index) => (
-                      <Text key={`${log.id}-${url}-${index}`} style={styles.mediaText} numberOfLines={1}>
-                        附件 {index + 1}: {url}
-                      </Text>
-                    ))}
-                  </View>
+                  <AttachmentList title="维修附件" urls={log.photoUrls} />
                 )}
                 {log.partUsages && log.partUsages.length > 0 && (
                   <View style={styles.partsUsedBox}>
@@ -430,7 +430,7 @@ export function OrderDetailScreen() {
             )}
           </>
         )}
-        {canMaintainOrder && order.status === 'suspended' && (
+        {canResumeOrder && order.status === 'suspended' && (
           <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnPrimary]}
             onPress={() => confirmAction('resume', '恢复工单', '确认恢复处理此工单？')}
@@ -455,14 +455,6 @@ export function OrderDetailScreen() {
             </TouchableOpacity>
           </>
         )}
-        {canMaintainOrder && order.status === 'reviewing' && (
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnSecondary]}
-            onPress={() => navigation.navigate('OrderRepair', { orderId: order.id })}
-          >
-            <Text style={styles.actionBtnTextSec}>+ 补充记录</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   )
@@ -473,6 +465,32 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <View style={infoStyles.row}>
       <Text style={infoStyles.label}>{label}</Text>
       <Text style={infoStyles.value}>{value}</Text>
+    </View>
+  )
+}
+
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url)
+}
+
+function AttachmentList({ title, urls }: { title: string; urls: string[] }) {
+  return (
+    <View style={styles.mediaBox}>
+      <Text style={styles.mediaTitle}>{title}</Text>
+      <View style={styles.mediaGrid}>
+        {urls.map((url, index) => (
+          <View key={`${url}-${index}`} style={styles.mediaItem}>
+            {isImageUrl(url) ? (
+              <Image source={{ uri: url }} style={styles.mediaImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.mediaFileBadge}>附件 {index + 1}</Text>
+            )}
+            <Text style={styles.mediaText} numberOfLines={1}>
+              {url}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   )
 }
@@ -537,6 +555,16 @@ const styles = StyleSheet.create({
   },
   backText: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
   headerRight: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  headerDeleteBtn: {
+    minHeight: 28,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerDeleteText: { fontSize: fontSize.xs, color: colors.danger, fontWeight: '700' },
   body: { flex: 1 },
   orderNo: {
     fontSize: fontSize.xs,
@@ -575,7 +603,24 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   mediaTitle: { fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: '700' },
-  mediaText: { fontSize: fontSize.xs, color: colors.primary, lineHeight: 18 },
+  mediaGrid: { gap: spacing.sm },
+  mediaItem: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  mediaImage: { width: '100%', height: 148, backgroundColor: colors.borderLight },
+  mediaFileBadge: {
+    height: 44,
+    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+  },
+  mediaText: { fontSize: fontSize.xs, color: colors.primary, lineHeight: 18, padding: spacing.xs },
   logItem: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.md,

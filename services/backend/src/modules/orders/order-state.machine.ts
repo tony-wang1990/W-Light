@@ -114,6 +114,7 @@ export class OrderStateMachine {
       status: OrderStatus.PENDING,
       assigneeId: null,
       assignedAt: null,
+      slaDeadline: null,
       rejectReason: reason,
     })
   }
@@ -128,6 +129,7 @@ export class OrderStateMachine {
   async resume(order: WorkOrder): Promise<WorkOrder> {
     return this.transition(order, [OrderStatus.SUSPENDED], 'resume', {
       status: OrderStatus.PROCESSING,
+      rejectReason: null,
     })
   }
 

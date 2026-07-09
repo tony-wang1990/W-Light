@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Tests use lightweight TypeORM repository mocks. */
 
-import { ForbiddenException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { PartsService } from '../parts/parts.service'
 import { UserRole } from '../users/entities/user.entity'
@@ -42,7 +42,9 @@ describe('OrdersService', () => {
     orderRepo = {
       createQueryBuilder: jest.fn(),
     }
-    repairLogRepo = {}
+    repairLogRepo = {
+      count: jest.fn(),
+    }
     userRepo = {
       findOne: jest.fn(),
     }
@@ -221,7 +223,8 @@ describe('OrdersService', () => {
   })
 
   it.each([
-    [{ id: ENGINEER_ID, role: UserRole.INSPECTOR, isActive: true, projectIds: [PROJECT_ID] }, '只有管理员或维修工程师'],
+    [{ id: ENGINEER_ID, role: UserRole.ADMIN, isActive: true, projectIds: [PROJECT_ID] }, '只有维修工程师'],
+    [{ id: ENGINEER_ID, role: UserRole.INSPECTOR, isActive: true, projectIds: [PROJECT_ID] }, '只有维修工程师'],
     [{ id: ENGINEER_ID, role: UserRole.ENGINEER, isActive: false, projectIds: [PROJECT_ID] }, '不存在或账号已停用'],
     [{ id: ENGINEER_ID, role: UserRole.ENGINEER, isActive: true, projectIds: [] }, '不属于当前项目'],
   ])('rejects an invalid assignee before changing order state', async (assignee, message) => {
@@ -233,5 +236,38 @@ describe('OrdersService', () => {
     await expect(service.assign(ORDER_ID, { assigneeId: ENGINEER_ID }, PROJECT_ID))
       .rejects.toThrow(message)
     expect(stateMachine.assign).not.toHaveBeenCalled()
+  })
+
+  it('requires at least one repair log before submitting for acceptance', async () => {
+    const order = {
+      id: ORDER_ID,
+      projectId: PROJECT_ID,
+      assigneeId: ENGINEER_ID,
+      status: OrderStatus.PROCESSING,
+    } as WorkOrder
+    jest.spyOn(service, 'findOne').mockResolvedValue(order)
+    repairLogRepo.count.mockResolvedValue(0)
+    stateMachine.submit = jest.fn()
+
+    await expect(service.submit(ORDER_ID, ENGINEER_ID, undefined, PROJECT_ID))
+      .rejects.toThrow(BadRequestException)
+    expect(stateMachine.submit).not.toHaveBeenCalled()
+  })
+
+  it('allows the assigned engineer to submit after recording repair work', async () => {
+    const order = {
+      id: ORDER_ID,
+      projectId: PROJECT_ID,
+      assigneeId: ENGINEER_ID,
+      status: OrderStatus.PROCESSING,
+    } as WorkOrder
+    const submitted = { ...order, status: OrderStatus.REVIEWING } as WorkOrder
+    jest.spyOn(service, 'findOne').mockResolvedValue(order)
+    repairLogRepo.count.mockResolvedValue(1)
+    stateMachine.submit = jest.fn().mockResolvedValue(submitted)
+
+    await expect(service.submit(ORDER_ID, ENGINEER_ID, 120, PROJECT_ID)).resolves.toBe(submitted)
+    expect(order.repairCost).toBe(120)
+    expect(stateMachine.submit).toHaveBeenCalledWith(order)
   })
 })

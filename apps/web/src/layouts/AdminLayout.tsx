@@ -72,26 +72,38 @@ export default function AdminLayout() {
   );
   const projectOptions = projects.length > 0 ? projects : fallbackProjects;
 
+  const refreshProjects = useMemo(() => {
+    return () => {
+      if (!useAuthStore.getState().user) {
+        setProjects([]);
+        return;
+      }
+
+      apiClient.get<ProjectListResponse>('/projects')
+        .then((res) => {
+          setProjects(Array.isArray(res) ? res : res.items || []);
+        })
+        .catch(() => {
+          setProjects([]);
+        });
+    };
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
     if (!user) {
       setProjects([]);
       return;
     }
 
-    apiClient.get<ProjectListResponse>('/projects')
-      .then((res) => {
-        if (cancelled) return;
-        setProjects(Array.isArray(res) ? res : res.items || []);
-      })
-      .catch(() => {
-        if (!cancelled) setProjects([]);
-      });
+    refreshProjects();
+  }, [refreshProjects, user?.id]);
 
+  useEffect(() => {
+    window.addEventListener('wlight:projects-changed', refreshProjects);
     return () => {
-      cancelled = true;
+      window.removeEventListener('wlight:projects-changed', refreshProjects);
     };
-  }, [user?.id]);
+  }, [refreshProjects]);
 
   useEffect(() => {
     if (!user) {

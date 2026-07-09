@@ -169,6 +169,12 @@ export default function Orders() {
     }
   }, [fetchOrders, refreshSelectedOrder, selectedOrder?.id]);
 
+  const handleOrderDeleted = useCallback(async () => {
+    setSelectedOrder(null);
+    setOpenAssignOnSelect(false);
+    await fetchOrders();
+  }, [fetchOrders]);
+
   const openOrder = (order: Order, assign = false) => {
     setOpenAssignOnSelect(assign);
     setSelectedOrder(order);
@@ -199,7 +205,7 @@ export default function Orders() {
 
   const isCurrentAssignee = (order: Order) => Boolean(user?.id && order.assigneeId === user.id);
   const canHandleAssignedOrder = (order: Order) => (
-    ['admin', 'engineer'].includes(user?.role || '') && isCurrentAssignee(order)
+    user?.role === 'engineer' && isCurrentAssignee(order)
   );
 
   const renderAction = (order: Order) => {
@@ -247,7 +253,7 @@ export default function Orders() {
         }
         return (
           <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
-            {canHandleAssignedOrder(order) ? '记录/提交' : '记录/挂起'}
+            {canHandleAssignedOrder(order) ? '记录/提交' : '挂起'}
           </button>
         );
       case 'suspended':
@@ -264,7 +270,7 @@ export default function Orders() {
           </button>
         );
       case 'reviewing':
-        if (!isAdmin && !canHandleAssignedOrder(order)) {
+        if (!isAdmin) {
           return (
             <button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
               查看
@@ -273,7 +279,7 @@ export default function Orders() {
         }
         return (
           <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} onClick={(e) => { e.stopPropagation(); openOrder(order); }}>
-            {isAdmin ? '验收' : '补记录'}
+            验收
           </button>
         );
       default:
@@ -436,6 +442,7 @@ export default function Orders() {
           initialAssignOpen={openAssignOnSelect}
           onClose={() => setSelectedOrder(null)}
           onUpdated={handleOrderUpdated}
+          onDeleted={handleOrderDeleted}
         />
       )}
     </div>

@@ -85,7 +85,7 @@ export default function Login() {
             <div className={styles.featureCard}>
               <span className={styles.featureTag}>Toolbox</span>
               <h3>灯光工具</h3>
-              <p>DMX、功率、BPM、LTC、光束角和故障诊断随手可用。</p>
+              <p>DMX、功率、BPM、LTC、光束角、压降和 Art-Net 地址随手可用。</p>
             </div>
           </div>
         </div>

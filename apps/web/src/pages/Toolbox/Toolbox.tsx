@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity,
-  BookOpen,
+  Cable,
   Clock3,
   Copy,
   Cpu,
   Download,
   Library,
   Lightbulb,
+  Network,
   Palette,
   Plus,
-  Search,
-  ShieldAlert,
   SlidersHorizontal,
-  Sparkles,
   Trash2,
   Zap,
   type LucideIcon,
@@ -24,13 +22,9 @@ import {
   calcSpotSize,
   calcTotalPower,
   calculateLux,
-  DIAGNOSIS_NODES,
-  FAULT_TYPE_ROOTS,
   FIXTURE_PRESETS,
   generateLtcWav,
-  LIGHTING_TERMS,
   LTC_ROUTING_PRESETS,
-  MA_MACRO_COMMANDS,
   POWER_REFERENCES,
   TIMECODE_FRAME_RATES,
   calculateTimecodeRange,
@@ -42,19 +36,17 @@ const TOOLS = [
   { id: 'bpm', label: 'BPM 测速', icon: Activity },
   { id: 'dmx', label: 'DMX 多灯具链', icon: Cpu },
   { id: 'power', label: '功率负荷', icon: Zap },
+  { id: 'voltageDrop', label: '电缆压降', icon: Cable },
+  { id: 'artnet', label: 'Art-Net 地址', icon: Network },
   { id: 'beam', label: '光束角', icon: SlidersHorizontal },
   { id: 'lux', label: '照度计算', icon: Lightbulb },
   { id: 'color', label: 'RGB/色温', icon: Palette },
-  { id: 'diagnosis', label: '故障诊断', icon: ShieldAlert },
-  { id: 'macro', label: 'MA 宏命令', icon: BookOpen },
-  { id: 'terms', label: '行业术语', icon: Search },
   { id: 'ltc', label: 'LTC 时码', icon: Clock3 },
   { id: 'fixture', label: '灯库制作', icon: Library },
-  { id: 'layout', label: '灯位设计', icon: Sparkles },
-  { id: 'theory', label: '灯光理论', icon: BookOpen },
 ] as const;
 
 type ToolId = typeof TOOLS[number]['id'];
+type RgbValue = { r: number; g: number; b: number };
 
 interface DmxFixtureRow {
   id: string;
@@ -65,28 +57,23 @@ interface DmxFixtureRow {
   universe: string;
 }
 
-interface DiagnosisConclusion {
-  problem: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  solution: string[];
-  estimatedTime: string;
-  needsExpert?: boolean;
-}
-
-const PALETTES = [
-  { name: '水秀冷蓝', rgb: [38, 156, 255], cct: 8000 },
-  { name: '古建暖金', rgb: [255, 178, 84], cct: 3000 },
-  { name: '森林青绿', rgb: [46, 204, 113], cct: 5200 },
-  { name: '节庆玫红', rgb: [255, 64, 129], cct: 4500 },
-  { name: '月光白', rgb: [210, 228, 255], cct: 9000 },
+const PALETTES: Array<{ name: string; rgb: RgbValue; cct: number }> = [
+  { name: '水秀冷蓝', rgb: { r: 38, g: 156, b: 255 }, cct: 8000 },
+  { name: '古建暖金', rgb: { r: 255, g: 178, b: 84 }, cct: 3000 },
+  { name: '森林青绿', rgb: { r: 46, g: 204, b: 113 }, cct: 5200 },
+  { name: '节庆玫红', rgb: { r: 255, g: 64, b: 129 }, cct: 4500 },
+  { name: '月光白', rgb: { r: 210, g: 228, b: 255 }, cct: 9000 },
+  { name: '熔岩红', rgb: { r: 255, g: 48, b: 32 }, cct: 2200 },
+  { name: '琥珀黄', rgb: { r: 255, g: 198, b: 64 }, cct: 2700 },
+  { name: '湖水青', rgb: { r: 0, g: 210, b: 190 }, cct: 6200 },
+  { name: '深海蓝', rgb: { r: 18, g: 72, b: 255 }, cct: 10000 },
+  { name: '薰衣紫', rgb: { r: 145, g: 92, b: 255 }, cct: 6500 },
+  { name: '舞台白', rgb: { r: 255, g: 248, b: 235 }, cct: 4200 },
+  { name: '冷白', rgb: { r: 226, g: 241, b: 255 }, cct: 6500 },
 ];
 
-const LAYOUT_PRESETS = [
-  { name: '面光', throwM: 14, trimM: 7, targetM: 1.6, beamAngle: 25, note: '人物正面补光，避免压平层次。' },
-  { name: '侧光', throwM: 10, trimM: 5, targetM: 1.4, beamAngle: 36, note: '强化身体轮廓，适合演艺和巡游点位。' },
-  { name: '逆光', throwM: 12, trimM: 6, targetM: 1.7, beamAngle: 20, note: '拉开主体与背景，注意眩光控制。' },
-  { name: '景观洗墙', throwM: 6, trimM: 3.5, targetM: 1, beamAngle: 50, note: '大面积铺光，关注均匀度和暗区。' },
-];
+const CCT_PRESETS = [2200, 2700, 3200, 4000, 5600, 6500, 8000, 10000];
+const CABLE_SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50];
 
 const DEFAULT_FIXTURE_ATTRIBUTES = [
   'Dimmer',
@@ -112,13 +99,85 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function round(value: number, precision = 2) {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+}
+
 function toHex(value: number) {
-  return clampNumber(value, 0, 255).toString(16).padStart(2, '0').toUpperCase();
+  return Math.round(clampNumber(value, 0, 255)).toString(16).padStart(2, '0').toUpperCase();
+}
+
+function rgbToHex(rgb: RgbValue) {
+  return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
+}
+
+function rgbToCss(rgb: RgbValue) {
+  return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+}
+
+function hexToRgb(value: string): RgbValue | null {
+  const normalized = value.replace('#', '').trim();
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function cctToRgb(kelvin: number): RgbValue {
+  const temp = clampNumber(kelvin, 1000, 40000) / 100;
+  let r = 255;
+  let g = 255;
+  let b = 255;
+
+  if (temp <= 66) {
+    r = 255;
+    g = 99.4708025861 * Math.log(temp) - 161.1195681661;
+    b = temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
+  } else {
+    r = 329.698727446 * ((temp - 60) ** -0.1332047592);
+    g = 288.1221695283 * ((temp - 60) ** -0.0755148492);
+    b = 255;
+  }
+
+  return {
+    r: Math.round(clampNumber(r, 0, 255)),
+    g: Math.round(clampNumber(g, 0, 255)),
+    b: Math.round(clampNumber(b, 0, 255)),
+  };
 }
 
 function dmxDipSwitches(address: number) {
   const normalized = clampNumber(Math.floor(address), 1, 512);
   return Array.from({ length: 10 }, (_, index) => (normalized & (1 << index)) !== 0);
+}
+
+function calcVoltageDrop(params: {
+  voltage: number;
+  current: number;
+  lengthM: number;
+  sectionMm2: number;
+  phase: 'single' | 'three';
+}) {
+  const copperResistivity = 0.0175;
+  const multiplier = params.phase === 'three' ? Math.sqrt(3) : 2;
+  const dropV = multiplier * params.current * copperResistivity * params.lengthM / Math.max(params.sectionMm2, 0.1);
+  const dropPercent = params.voltage > 0 ? dropV / params.voltage * 100 : 0;
+  return {
+    dropV: round(dropV, 2),
+    dropPercent: round(dropPercent, 1),
+    endVoltage: round(params.voltage - dropV, 1),
+  };
+}
+
+function parseIpv4(ip: string) {
+  const parts = ip.split('.').map(part => Number(part.trim()));
+  if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return [2, 0, 0, 10];
+  }
+  return parts;
 }
 
 function makeFixtureRow(index: number): DmxFixtureRow {
@@ -156,16 +215,6 @@ async function copyText(text: string) {
   await navigator.clipboard.writeText(text);
 }
 
-function severityText(severity: DiagnosisConclusion['severity']) {
-  switch (severity) {
-    case 'critical': return '紧急';
-    case 'high': return '高';
-    case 'medium': return '中';
-    case 'low': return '低';
-    default: return severity;
-  }
-}
-
 export default function Toolbox() {
   const [activeTool, setActiveTool] = useState<ToolId>('bpm');
   const [bpm, setBpm] = useState(0);
@@ -181,6 +230,22 @@ export default function Toolbox() {
   const [powerBreaker, setPowerBreaker] = useState(32);
   const [powerPhase, setPowerPhase] = useState<'single' | 'three'>('single');
 
+  const [cable, setCable] = useState({
+    voltage: 220,
+    current: 16,
+    lengthM: 60,
+    sectionMm2: 2.5,
+    phase: 'single' as 'single' | 'three',
+  });
+
+  const [artnet, setArtnet] = useState({
+    net: 0,
+    subnet: 0,
+    universe: 0,
+    nodeCount: 4,
+    startIp: '2.0.0.10',
+  });
+
   const [beamMode, setBeamMode] = useState<'angle' | 'spot'>('angle');
   const [beamDistance, setBeamDistance] = useState(18);
   const [spotDiameter, setSpotDiameter] = useState(4);
@@ -190,19 +255,8 @@ export default function Toolbox() {
   const [luxDistance, setLuxDistance] = useState(12);
   const [luxBeamAngle, setLuxBeamAngle] = useState(25);
 
-  const [rgb, setRgb] = useState({ r: 38, g: 156, b: 255 });
+  const [rgb, setRgb] = useState<RgbValue>({ r: 38, g: 156, b: 255 });
   const [cct, setCct] = useState(8000);
-
-  const [macroQuery, setMacroQuery] = useState('');
-  const [macroCategory, setMacroCategory] = useState('全部');
-  const [macroVersion, setMacroVersion] = useState<'全部' | 'MA2' | 'MA3' | 'BOTH'>('全部');
-  const [termQuery, setTermQuery] = useState('');
-  const [termCategory, setTermCategory] = useState('全部');
-
-  const diagnosisTypes = useMemo(() => Object.keys(FAULT_TYPE_ROOTS), []);
-  const [diagnosisType, setDiagnosisType] = useState(diagnosisTypes[0] || '');
-  const [diagnosisNodeId, setDiagnosisNodeId] = useState(diagnosisTypes[0] ? FAULT_TYPE_ROOTS[diagnosisTypes[0]] : '');
-  const [diagnosisConclusion, setDiagnosisConclusion] = useState<DiagnosisConclusion | null>(null);
 
   const [ltc, setLtc] = useState({
     startTimecode: '01:00:00:00',
@@ -216,7 +270,6 @@ export default function Toolbox() {
 
   const [fixture, setFixture] = useState({ brand: 'Custom', model: 'Beam 330W', mode: 'Standard', channels: 16 });
   const [fixtureAttributes, setFixtureAttributes] = useState(DEFAULT_FIXTURE_ATTRIBUTES);
-  const [layout, setLayout] = useState({ throwM: 12, trimM: 6, targetM: 1.6, beamAngle: 25, fixtureCount: 6, coverageWidth: 18 });
 
   useEffect(() => () => {
     if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
@@ -224,9 +277,9 @@ export default function Toolbox() {
 
   const handleTap = () => {
     const now = Date.now();
-    if (tapsRef.current.length > 0 && now - tapsRef.current[tapsRef.current.length - 1] > 2000) {
-      tapsRef.current = [];
-    }
+    const previousTap = tapsRef.current[tapsRef.current.length - 1];
+    if (previousTap && now - previousTap > 2000) tapsRef.current = [];
+
     tapsRef.current.push(now);
     if (tapsRef.current.length > 8) tapsRef.current.shift();
 
@@ -243,7 +296,7 @@ export default function Toolbox() {
   };
 
   const dmxResult = useMemo(() => calculateDmxAddresses(
-    dmxFixtures.map((row) => ({
+    dmxFixtures.map(row => ({
       id: row.id,
       name: row.name || 'Fixture',
       channels: row.channels,
@@ -272,29 +325,26 @@ export default function Toolbox() {
   }, [beamDistance, beamMode, knownAngle, spotDiameter]);
 
   const luxValue = useMemo(() => calculateLux(lumens, luxDistance, luxBeamAngle), [lumens, luxBeamAngle, luxDistance]);
-  const hexColor = `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
-
-  const macroCategories = useMemo(() => ['全部', ...Array.from(new Set(MA_MACRO_COMMANDS.map(item => item.category)))], []);
-  const macroResults = useMemo(() => {
-    const query = macroQuery.trim().toLowerCase();
-    return MA_MACRO_COMMANDS
-      .filter(item => macroCategory === '全部' || item.category === macroCategory)
-      .filter(item => macroVersion === '全部' || item.version === macroVersion || item.version === 'BOTH')
-      .filter(item => !query || `${item.category} ${item.name} ${item.syntax} ${item.description} ${item.example} ${item.tags.join(' ')}`.toLowerCase().includes(query))
-      .slice(0, 40);
-  }, [macroCategory, macroQuery, macroVersion]);
-
-  const termCategories = useMemo(() => ['全部', ...Array.from(new Set(LIGHTING_TERMS.map(item => item.category)))], []);
-  const termResults = useMemo(() => {
-    const query = termQuery.trim().toLowerCase();
-    return LIGHTING_TERMS
-      .filter(item => termCategory === '全部' || item.category === termCategory)
-      .filter(item => !query || `${item.chinese} ${item.english} ${item.abbreviation || ''} ${item.description || ''}`.toLowerCase().includes(query))
-      .slice(0, 60);
-  }, [termCategory, termQuery]);
-
-  const currentDiagnosisNode = diagnosisNodeId ? DIAGNOSIS_NODES[diagnosisNodeId] : undefined;
-  const activeRoute = LTC_ROUTING_PRESETS[ltc.routeIndex] || LTC_ROUTING_PRESETS[0];
+  const hexColor = rgbToHex(rgb);
+  const voltageDrop = useMemo(() => calcVoltageDrop(cable), [cable]);
+  const recommendedCableSection = useMemo(() => (
+    CABLE_SECTIONS.find(section => calcVoltageDrop({ ...cable, sectionMm2: section }).dropPercent <= 3) ?? CABLE_SECTIONS[CABLE_SECTIONS.length - 1]
+  ), [cable]);
+  const artnetUniverseIndex = useMemo(() => (
+    clampNumber(Math.floor(artnet.net), 0, 127) * 256
+    + clampNumber(Math.floor(artnet.subnet), 0, 15) * 16
+    + clampNumber(Math.floor(artnet.universe), 0, 15)
+  ), [artnet.net, artnet.subnet, artnet.universe]);
+  const artnetIpList = useMemo(() => {
+    const base = parseIpv4(artnet.startIp);
+    const nodeCount = Math.floor(clampNumber(artnet.nodeCount, 1, 64));
+    return Array.from({ length: nodeCount }, (_, index) => {
+      const octets = [...base];
+      octets[3] = clampNumber((base[3] ?? 10) + index, 1, 254);
+      return octets.join('.');
+    });
+  }, [artnet.nodeCount, artnet.startIp]);
+  const activeRoute = LTC_ROUTING_PRESETS[ltc.routeIndex] ?? LTC_ROUTING_PRESETS[0];
   const timecodeRange = useMemo(() => {
     try {
       return calculateTimecodeRange(ltc.startTimecode, ltc.fps, ltc.duration);
@@ -302,25 +352,6 @@ export default function Toolbox() {
       return null;
     }
   }, [ltc.duration, ltc.fps, ltc.startTimecode]);
-
-  const layoutResult = useMemo(() => {
-    const throwDistance = Math.max(layout.throwM, 0.1);
-    const heightDiff = Math.max(layout.trimM - layout.targetM, 0.1);
-    const tiltAngle = Math.atan(heightDiff / throwDistance) * 180 / Math.PI;
-    const spot = calcSpotSize(throwDistance, clampNumber(layout.beamAngle, 1, 120));
-    const count = Math.max(Math.round(layout.fixtureCount), 1);
-    const coverageWidth = Math.max(layout.coverageWidth, 1);
-    const spacingM = coverageWidth / count;
-    const overlap = spot.diameter > 0 ? Math.round((1 - spacingM / spot.diameter) * 100) : 0;
-
-    return {
-      tiltAngle: Math.round(tiltAngle * 10) / 10,
-      spotDiameter: spot.diameter,
-      spotArea: spot.area,
-      spacingM: Math.round(spacingM * 10) / 10,
-      overlap,
-    };
-  }, [layout]);
 
   const fixtureProfile = useMemo(() => {
     const attributes = fixtureAttributes
@@ -333,7 +364,7 @@ export default function Toolbox() {
       model: fixture.model || 'Unnamed Fixture',
       mode: fixture.mode || 'Standard',
       protocol: 'DMX512',
-      channels: Array.from({ length: clampNumber(Math.floor(fixture.channels), 1, 512) }, (_, index) => ({
+      channels: Array.from({ length: Math.floor(clampNumber(fixture.channels, 1, 512)) }, (_, index) => ({
         channel: index + 1,
         attribute: attributes[index] || `Attribute ${index + 1}`,
         defaultValue: 0,
@@ -381,13 +412,18 @@ export default function Toolbox() {
     ]);
   };
 
-  const startDiagnosis = (type: string) => {
-    setDiagnosisType(type);
-    setDiagnosisNodeId(FAULT_TYPE_ROOTS[type]);
-    setDiagnosisConclusion(null);
+  const applyColor = (nextRgb: RgbValue, nextCct = cct) => {
+    setRgb(nextRgb);
+    setCct(nextCct);
+  };
+
+  const applyCct = (nextCct: number) => {
+    setCct(nextCct);
+    setRgb(cctToRgb(nextCct));
   };
 
   const generateLtc = () => {
+    if (!activeRoute) return;
     setLtcMessage('');
     try {
       const wav = generateLtcWav({
@@ -400,7 +436,7 @@ export default function Toolbox() {
         level: ltc.level,
       });
       downloadHref(wav.dataUri, wav.fileName);
-      setLtcMessage(wav.warnings.length ? wav.warnings.join('；') : `已生成 ${Math.round(wav.byteLength / 1024)} KB 立体声 WAV。`);
+      setLtcMessage(wav.warnings.length ? wav.warnings.join('；') : `已生成 ${Math.round(wav.byteLength / 1024)} KB 立体声 WAV`);
     } catch (err) {
       setLtcMessage(err instanceof Error ? err.message : 'LTC WAV 生成失败');
     }
@@ -427,7 +463,7 @@ export default function Toolbox() {
       case 'dmx':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Cpu} title="DMX 多灯具链地址计算" desc="支持多组灯具、手动 Universe/起始地址、冲突检测、512 通道溢出提醒和拨码开关参考。" />
+            <ToolHeader icon={Cpu} title="DMX 多灯具链地址计算" desc="支持多组灯具、手动 Universe、固定起始地址、冲突检测和拨码开关参考。" />
             <div className={styles.formGrid}>
               <Field label="自动分配起始地址">
                 <input type="number" min={1} max={512} value={dmxStart} onChange={event => setDmxStart(Number(event.target.value))} />
@@ -498,7 +534,7 @@ export default function Toolbox() {
             <div className={styles.tableList}>
               {dmxResult.universeUsage.map(item => (
                 <div className={styles.row} key={item.universe}>
-                  <span>Universe {item.universe}：{item.firstAddress}-{item.lastAddress}</span>
+                  <span>Universe {item.universe}: {item.firstAddress}-{item.lastAddress}</span>
                   <strong>{item.usedChannels}/512 · {item.utilization}%</strong>
                 </div>
               ))}
@@ -517,7 +553,7 @@ export default function Toolbox() {
       case 'power':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Zap} title="功率/负荷计算" desc="估算总功率、电流、空开负载和是否超过安全负载。" />
+            <ToolHeader icon={Zap} title="功率/负荷计算" desc="估算总功率、电流、空开负载和安全余量。" />
             <div className={styles.quickList}>
               {POWER_REFERENCES.slice(0, 8).map(item => (
                 <button key={item.name} onClick={() => setPowerW(item.powerW)}>{item.name} · {item.powerW}W</button>
@@ -526,7 +562,7 @@ export default function Toolbox() {
             <div className={styles.formGrid}>
               <Field label="单台功率 W"><input type="number" value={powerW} onChange={event => setPowerW(Number(event.target.value))} /></Field>
               <Field label="数量"><input type="number" value={powerQuantity} onChange={event => setPowerQuantity(Number(event.target.value))} /></Field>
-              <Field label="电压"><input type="number" value={powerVoltage} onChange={event => setPowerVoltage(Number(event.target.value))} /></Field>
+              <Field label="电压 V"><input type="number" value={powerVoltage} onChange={event => setPowerVoltage(Number(event.target.value))} /></Field>
               <Field label="空开 A"><input type="number" value={powerBreaker} onChange={event => setPowerBreaker(Number(event.target.value))} /></Field>
               <Field label="供电类型">
                 <select value={powerPhase} onChange={event => setPowerPhase(event.target.value as 'single' | 'three')}>
@@ -540,6 +576,70 @@ export default function Toolbox() {
               <Result label="电流" value={`${powerResult.currentA} A`} />
               <Result label="建议空开" value={`${powerResult.recommendedBreakerA} A`} />
               <Result label="空开负载" value={`${powerResult.breakerLoadPercent}%`} tone={powerResult.isOverloaded ? 'danger' : 'ok'} />
+            </div>
+          </section>
+        );
+
+      case 'voltageDrop':
+        return (
+          <section className={styles.panel}>
+            <ToolHeader icon={Cable} title="电缆压降计算" desc="按供电方式、电流、线长和线径估算末端电压，辅助现场选线和分电。" />
+            <div className={styles.formGrid}>
+              <Field label="供电类型">
+                <select value={cable.phase} onChange={event => setCable(prev => ({ ...prev, phase: event.target.value as 'single' | 'three' }))}>
+                  <option value="single">单相 220V</option>
+                  <option value="three">三相 380V</option>
+                </select>
+              </Field>
+              <Field label="电压 V"><input type="number" value={cable.voltage} onChange={event => setCable(prev => ({ ...prev, voltage: Number(event.target.value) }))} /></Field>
+              <Field label="负载电流 A"><input type="number" value={cable.current} onChange={event => setCable(prev => ({ ...prev, current: Number(event.target.value) }))} /></Field>
+              <Field label="单程线长 m"><input type="number" value={cable.lengthM} onChange={event => setCable(prev => ({ ...prev, lengthM: Number(event.target.value) }))} /></Field>
+              <Field label="线径 mm2">
+                <select value={cable.sectionMm2} onChange={event => setCable(prev => ({ ...prev, sectionMm2: Number(event.target.value) }))}>
+                  {CABLE_SECTIONS.map(section => <option key={section} value={section}>{section} mm2</option>)}
+                </select>
+              </Field>
+            </div>
+            <div className={styles.resultGrid}>
+              <Result label="压降" value={`${voltageDrop.dropV} V`} tone={voltageDrop.dropPercent > 5 ? 'danger' : voltageDrop.dropPercent > 3 ? 'warn' : 'ok'} />
+              <Result label="压降比例" value={`${voltageDrop.dropPercent}%`} tone={voltageDrop.dropPercent > 5 ? 'danger' : voltageDrop.dropPercent > 3 ? 'warn' : 'ok'} />
+              <Result label="末端电压" value={`${voltageDrop.endVoltage} V`} />
+              <Result label="建议线径" value={`${recommendedCableSection} mm2`} tone={recommendedCableSection > cable.sectionMm2 ? 'warn' : 'ok'} />
+            </div>
+            <div className={styles.quickList}>
+              {CABLE_SECTIONS.map(section => (
+                <button key={section} onClick={() => setCable(prev => ({ ...prev, sectionMm2: section }))}>
+                  {section} mm2 · {calcVoltageDrop({ ...cable, sectionMm2: section }).dropPercent}%
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+
+      case 'artnet':
+        return (
+          <section className={styles.panel}>
+            <ToolHeader icon={Network} title="Art-Net 地址规划" desc="快速换算 Net / Sub-Net / Universe、sACN Universe，并生成现场节点 IP 参考。" />
+            <div className={styles.formGrid}>
+              <Field label="Net 0-127"><input type="number" min={0} max={127} value={artnet.net} onChange={event => setArtnet(prev => ({ ...prev, net: Number(event.target.value) }))} /></Field>
+              <Field label="Sub-Net 0-15"><input type="number" min={0} max={15} value={artnet.subnet} onChange={event => setArtnet(prev => ({ ...prev, subnet: Number(event.target.value) }))} /></Field>
+              <Field label="Universe 0-15"><input type="number" min={0} max={15} value={artnet.universe} onChange={event => setArtnet(prev => ({ ...prev, universe: Number(event.target.value) }))} /></Field>
+              <Field label="起始节点 IP"><input value={artnet.startIp} onChange={event => setArtnet(prev => ({ ...prev, startIp: event.target.value }))} /></Field>
+              <Field label="节点数量"><input type="number" min={1} max={64} value={artnet.nodeCount} onChange={event => setArtnet(prev => ({ ...prev, nodeCount: Number(event.target.value) }))} /></Field>
+            </div>
+            <div className={styles.resultGrid}>
+              <Result label="Art-Net Universe" value={`${artnetUniverseIndex}`} />
+              <Result label="显示编号" value={`U ${artnetUniverseIndex + 1}`} />
+              <Result label="sACN Universe" value={`${artnetUniverseIndex + 1}`} />
+              <Result label="Hex" value={`0x${artnetUniverseIndex.toString(16).toUpperCase().padStart(4, '0')}`} />
+            </div>
+            <div className={styles.tableList}>
+              {artnetIpList.map((ip, index) => (
+                <div className={styles.row} key={`${ip}-${index}`}>
+                  <span>节点 {index + 1}</span>
+                  <strong>{ip}</strong>
+                </div>
+              ))}
             </div>
           </section>
         );
@@ -599,128 +699,58 @@ export default function Toolbox() {
       case 'color':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Palette} title="RGB 调色/色温配色" desc="现场快速记录 RGB、HEX、色温和文旅常用场景配色。" />
+            <ToolHeader icon={Palette} title="RGB 调色/色温取色盘" desc="点击色块或取色器，自动换算 RGB、HEX、DMX 百分比和常用色温参考。" />
             <div className={styles.colorPreview} style={{ background: hexColor }}>
               <strong>{hexColor}</strong>
               <span>RGB({rgb.r}, {rgb.g}, {rgb.b}) · {cct}K</span>
             </div>
             <div className={styles.formGrid}>
+              <Field label="取色盘">
+                <input
+                  className={styles.colorInput}
+                  type="color"
+                  value={hexColor}
+                  onChange={event => {
+                    const next = hexToRgb(event.target.value);
+                    if (next) setRgb(next);
+                  }}
+                />
+              </Field>
               {(['r', 'g', 'b'] as const).map(channel => (
                 <Field key={channel} label={channel.toUpperCase()}>
                   <input type="range" min={0} max={255} value={rgb[channel]} onChange={event => setRgb(prev => ({ ...prev, [channel]: Number(event.target.value) }))} />
                 </Field>
               ))}
-              <Field label="色温 K"><input type="range" min={2000} max={10000} step={100} value={cct} onChange={event => setCct(Number(event.target.value))} /></Field>
+              <Field label="色温 K"><input type="range" min={2000} max={10000} step={100} value={cct} onChange={event => applyCct(Number(event.target.value))} /></Field>
             </div>
+            <div className={styles.resultGrid}>
+              <Result label="RGB" value={`${rgb.r}, ${rgb.g}, ${rgb.b}`} />
+              <Result label="HEX" value={hexColor} />
+              <Result label="DMX 百分比" value={`${Math.round(rgb.r / 255 * 100)} / ${Math.round(rgb.g / 255 * 100)} / ${Math.round(rgb.b / 255 * 100)}%`} />
+              <Result label="色温参考" value={`${cct}K`} />
+            </div>
+            <h4 className={styles.subTitle}>现场常用色</h4>
             <div className={styles.paletteGrid}>
               {PALETTES.map(item => (
-                <button key={item.name} onClick={() => { setRgb({ r: item.rgb[0], g: item.rgb[1], b: item.rgb[2] }); setCct(item.cct); }}>
-                  <span style={{ background: `rgb(${item.rgb.join(',')})` }} />
+                <button key={item.name} onClick={() => applyColor(item.rgb, item.cct)}>
+                  <span style={{ background: rgbToCss(item.rgb) }} />
                   {item.name}
+                  <em>RGB({item.rgb.r}, {item.rgb.g}, {item.rgb.b})</em>
                 </button>
               ))}
             </div>
-          </section>
-        );
-
-      case 'diagnosis':
-        return (
-          <section className={styles.panel}>
-            <ToolHeader icon={ShieldAlert} title="故障诊断流程" desc="按不亮、频闪、不受控、漏电、物理损坏等场景逐步排查，并给出处理建议。" />
-            <div className={styles.quickList}>
-              {diagnosisTypes.map(type => (
-                <button key={type} onClick={() => startDiagnosis(type)} className={type === diagnosisType ? styles.activePill : ''}>{type}</button>
-              ))}
-            </div>
-            {currentDiagnosisNode && !diagnosisConclusion && (
-              <div className={styles.rowLarge}>
-                <span>{currentDiagnosisNode.question}</span>
-                {currentDiagnosisNode.hint && <em>{currentDiagnosisNode.hint}</em>}
-                <div className={styles.inlineActions}>
-                  {currentDiagnosisNode.options.map(option => (
-                    <button
-                      className={styles.secondaryBtn}
-                      key={option.label}
-                      onClick={() => {
-                        if (option.nextNodeId) setDiagnosisNodeId(option.nextNodeId);
-                        if (option.conclusion) setDiagnosisConclusion(option.conclusion);
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {diagnosisConclusion && (
-              <div className={styles.rowLarge}>
-                <span>诊断结论 · 风险 {severityText(diagnosisConclusion.severity)}</span>
-                <code>{diagnosisConclusion.problem}</code>
-                <em>预计处理时间：{diagnosisConclusion.estimatedTime}{diagnosisConclusion.needsExpert ? ' · 建议专业人员处理' : ''}</em>
-                <ol className={styles.orderedList}>
-                  {diagnosisConclusion.solution.map(step => <li key={step}>{step}</li>)}
-                </ol>
-                <div className={styles.inlineActions}>
-                  <button className={styles.secondaryBtn} onClick={() => startDiagnosis(diagnosisType)}>重新诊断</button>
-                </div>
-              </div>
-            )}
-          </section>
-        );
-
-      case 'macro':
-        return (
-          <section className={styles.panel}>
-            <ToolHeader icon={BookOpen} title="MA 宏命令参考" desc="覆盖 grandMA2 / grandMA3 常用命令语法、示例、标签和使用场景，支持分类检索。" />
-            <div className={styles.formGrid}>
-              <SearchBox value={macroQuery} onChange={setMacroQuery} placeholder="搜索 Cue、Executor、Park、Clone、Fixture..." />
-              <Field label="分类">
-                <select value={macroCategory} onChange={event => setMacroCategory(event.target.value)}>
-                  {macroCategories.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-              </Field>
-              <Field label="控台版本">
-                <select value={macroVersion} onChange={event => setMacroVersion(event.target.value as typeof macroVersion)}>
-                  <option value="全部">全部</option>
-                  <option value="MA2">MA2</option>
-                  <option value="MA3">MA3</option>
-                  <option value="BOTH">通用</option>
-                </select>
-              </Field>
-            </div>
-            <div className={styles.tableList}>
-              {macroResults.map(item => (
-                <div className={styles.rowLarge} key={item.id}>
-                  <span>{item.category} · {item.name} · {item.version}</span>
-                  <code>{item.syntax}</code>
-                  <em>{item.description}</em>
-                  <code>{item.example}</code>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-
-      case 'terms':
-        return (
-          <section className={styles.panel}>
-            <ToolHeader icon={Search} title="行业术语翻译" desc="灯光行业中英对照术语库，覆盖设备、控台、协议、演出制作和运维。" />
-            <div className={styles.formGrid}>
-              <SearchBox value={termQuery} onChange={setTermQuery} placeholder="搜索 DMX、照度、控台、灯位、Art-Net..." />
-              <Field label="分类">
-                <select value={termCategory} onChange={event => setTermCategory(event.target.value)}>
-                  {termCategories.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-              </Field>
-            </div>
-            <div className={styles.tableList}>
-              {termResults.map(item => (
-                <div className={styles.rowLarge} key={item.id}>
-                  <span>{item.chinese} · {item.category}{item.abbreviation ? ` · ${item.abbreviation}` : ''}</span>
-                  <code>{item.english}</code>
-                  {item.description && <em>{item.description}</em>}
-                </div>
-              ))}
+            <h4 className={styles.subTitle}>色温快捷</h4>
+            <div className={styles.paletteGrid}>
+              {CCT_PRESETS.map(kelvin => {
+                const presetRgb = cctToRgb(kelvin);
+                return (
+                  <button key={kelvin} onClick={() => applyCct(kelvin)}>
+                    <span style={{ background: rgbToHex(presetRgb) }} />
+                    {kelvin}K
+                    <em>RGB({presetRgb.r}, {presetRgb.g}, {presetRgb.b})</em>
+                  </button>
+                );
+              })}
             </div>
           </section>
         );
@@ -764,7 +794,7 @@ export default function Toolbox() {
             </div>
             <div className={styles.rowLarge}>
               <span>路由用途</span>
-              <em>{activeRoute.useCase}</em>
+              <em>{activeRoute?.useCase || '-'}</em>
             </div>
             {timecodeRange?.warnings?.length ? (
               <div className={styles.warningList}>
@@ -783,7 +813,7 @@ export default function Toolbox() {
       case 'fixture':
         return (
           <section className={styles.panel}>
-            <ToolHeader icon={Library} title="灯库制作草稿" desc="生成基础 fixture profile，可导出 JSON/CSV 作为老虎 D4、金刚控台、MA 等灯库整理草稿。" />
+            <ToolHeader icon={Library} title="灯库制作草稿" desc="生成基础 fixture profile，可导出 JSON/CSV 作为灯库整理草稿。" />
             <div className={styles.quickList}>
               {FIXTURE_PRESETS.slice(0, 10).map(item => (
                 <button key={item.model} onClick={() => setFixture(prev => ({ ...prev, model: item.model, channels: item.channels }))}>{item.model} · {item.channels}ch</button>
@@ -807,62 +837,6 @@ export default function Toolbox() {
           </section>
         );
 
-      case 'layout':
-        return (
-          <section className={styles.panel}>
-            <ToolHeader icon={Sparkles} title="灯位设计参考" desc="按投射距离、吊挂高度、覆盖宽度和灯具数量估算布灯角度与覆盖连续性。" />
-            <div className={styles.quickList}>
-              {LAYOUT_PRESETS.map(preset => (
-                <button
-                  key={preset.name}
-                  onClick={() => setLayout(prev => ({
-                    ...prev,
-                    throwM: preset.throwM,
-                    trimM: preset.trimM,
-                    targetM: preset.targetM,
-                    beamAngle: preset.beamAngle,
-                  }))}
-                  title={preset.note}
-                >
-                  {preset.name} · {preset.beamAngle} deg
-                </button>
-              ))}
-            </div>
-            <div className={styles.formGrid}>
-              <Field label="投射距离 m"><input type="number" value={layout.throwM} onChange={event => setLayout(prev => ({ ...prev, throwM: Number(event.target.value) }))} /></Field>
-              <Field label="吊挂高度 m"><input type="number" value={layout.trimM} onChange={event => setLayout(prev => ({ ...prev, trimM: Number(event.target.value) }))} /></Field>
-              <Field label="目标高度 m"><input type="number" value={layout.targetM} onChange={event => setLayout(prev => ({ ...prev, targetM: Number(event.target.value) }))} /></Field>
-              <Field label="光束角 deg"><input type="number" min={1} max={120} value={layout.beamAngle} onChange={event => setLayout(prev => ({ ...prev, beamAngle: Number(event.target.value) }))} /></Field>
-              <Field label="灯具数量"><input type="number" min={1} value={layout.fixtureCount} onChange={event => setLayout(prev => ({ ...prev, fixtureCount: Number(event.target.value) }))} /></Field>
-              <Field label="覆盖宽度 m"><input type="number" min={1} value={layout.coverageWidth} onChange={event => setLayout(prev => ({ ...prev, coverageWidth: Number(event.target.value) }))} /></Field>
-            </div>
-            <div className={styles.resultGrid}>
-              <Result label="建议 Tilt" value={`${layoutResult.tiltAngle} deg`} />
-              <Result label="单灯光斑" value={`${layoutResult.spotDiameter} m`} />
-              <Result label="布灯间距" value={`${layoutResult.spacingM} m`} />
-              <Result label="横向重叠" value={`${layoutResult.overlap}%`} tone={layoutResult.overlap >= 15 ? 'ok' : 'warn'} />
-            </div>
-            <div className={styles.rowLarge}>
-              <span>覆盖判断</span>
-              <em>
-                当前单灯光斑面积约 {layoutResult.spotArea} m2。
-                {layoutResult.overlap >= 15
-                  ? ' 覆盖较连续，可继续用现场照度和视觉均匀度复核。'
-                  : ' 重叠偏低，建议增加灯具、放大角度或缩小覆盖宽度。'}
-              </em>
-            </div>
-          </section>
-        );
-
-      case 'theory':
-        return <ReferencePanel icon={BookOpen} title="灯光理论速查" desc="现场布光常用灯位、角度和色彩混合基础。" items={[
-          { title: '面光 Front Light', body: '常用 30-45 deg 入射角，保证主体面部可见并控制阴影。' },
-          { title: '侧光 Side Light', body: '强化人物轮廓和动作质感，舞蹈/实景演出常用于身体塑形。' },
-          { title: '逆光 Back Light', body: '把主体从背景中分离，雾效环境中能形成空间层次。' },
-          { title: '顶光 Top Light', body: '用于空间氛围和特殊造型，注意避免面部阴影过重。' },
-          { title: '色彩混合', body: 'RGB 适合 LED 加色混合，CMY 常见于摇头灯减色系统。' },
-        ]} />;
-
       default:
         return null;
     }
@@ -872,7 +846,7 @@ export default function Toolbox() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.pageTitle}>专业工具箱</h1>
-        <p className={styles.pageSubtitle}>Web、桌面端和移动端共用同一套灯光现场计算逻辑，核心工具支持离线使用。</p>
+        <p className={styles.pageSubtitle}>现场常用灯光计算工具，保留实操入口，支持快速取色、地址规划、负荷和时码计算。</p>
       </div>
 
       <div className={styles.toolGrid}>
@@ -914,36 +888,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Result({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'warn' | 'danger' }) {
+function Result({ label, value, tone }: { label: string; value: ReactNode; tone?: 'ok' | 'warn' | 'danger' }) {
   return (
     <div className={`${styles.resultCard} ${tone ? styles[tone] : ''}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
-  );
-}
-
-function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
-  return (
-    <div className={styles.searchBox}>
-      <Search size={16} />
-      <input value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} />
-    </div>
-  );
-}
-
-function ReferencePanel({ icon, title, desc, items }: { icon: LucideIcon; title: string; desc: string; items: Array<{ title: string; body: string }> }) {
-  return (
-    <section className={styles.panel}>
-      <ToolHeader icon={icon} title={title} desc={desc} />
-      <div className={styles.referenceGrid}>
-        {items.map(item => (
-          <div className={styles.referenceItem} key={item.title}>
-            <strong>{item.title}</strong>
-            <p>{item.body}</p>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }

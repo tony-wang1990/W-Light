@@ -45,7 +45,8 @@
 }
 
 .primaryButton,
-.secondaryButton {
+.secondaryButton,
+.dangerButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -79,8 +80,20 @@
   background: #f8fafc;
 }
 
+.dangerButton {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.dangerButton:hover {
+  border-color: #fca5a5;
+  background: #fee2e2;
+}
+
 .primaryButton:disabled,
-.secondaryButton:disabled {
+.secondaryButton:disabled,
+.dangerButton:disabled {
   cursor: wait;
   opacity: 0.6;
 }
@@ -521,6 +534,17 @@
   border-radius: 6px;
   background: #f8fafc;
   color: #475467;
+}
+
+.quickActions .quickDangerButton {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #dc2626;
+}
+
+.quickActions .quickDangerButton:hover {
+  border-color: #fca5a5;
+  background: #ffe4e6;
 }
 
 .formGrid {
