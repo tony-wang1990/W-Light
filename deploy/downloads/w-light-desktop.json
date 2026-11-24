@@ -1,11 +1,11 @@
 {
   "target": "win",
   "file": "W-Light-Setup-latest.exe",
-  "version": "0.9.0-build.68.1",
-  "sourceArtifact": "W-Light-Setup-0.9.0-build.68.1-x64.exe",
-  "builtAt": "2026-07-09T16:53:24Z",
-  "publishedAt": "2026-07-09T16:53:24Z",
-  "commit": "750d072",
-  "sha256": "63d823df098ba3cdac162056eded9513299172a238adce8e1d46cabae4a41ecd",
-  "sizeBytes": 92836390
+  "version": "0.9.0-build.73.1",
+  "sourceArtifact": "W-Light-Setup-0.9.0-build.73.1-x64.exe",
+  "builtAt": "2026-11-24T07:53:52Z",
+  "publishedAt": "2026-11-24T07:53:52Z",
+  "commit": "5a574c1",
+  "sha256": "779b9ab3a584eef6ca1ba16e00b19a8fbb949a9be3344c3916f19a90d9a5d6d9",
+  "sizeBytes": 92837855
 }

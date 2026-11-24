@@ -4,11 +4,11 @@
   "minSdk": 24,
   "signing": "debug-keystore fallback unless W_LIGHT_UPLOAD_* variables are provided",
   "file": "w-light-latest.apk",
-  "version": "0.9.0-build.68.1",
+  "version": "0.9.0-build.73.1",
   "sourceArtifact": "app-release.apk",
-  "builtAt": "2026-07-09T16:59:09Z",
-  "publishedAt": "2026-07-09T16:59:11Z",
-  "commit": "750d072",
-  "sha256": "39d9abc2da02b5685354c3de64350b8ffc2876c0aaf7ecc9d847211a71ae6cc4",
-  "sizeBytes": 87485900
+  "builtAt": "2026-11-24T07:56:56Z",
+  "publishedAt": "2026-11-24T07:56:58Z",
+  "commit": "5a574c1",
+  "sha256": "555c74c1ae356584a12fcd193e946ce539dc6abf0c05cde512add533e26ae013",
+  "sizeBytes": 87485788
 }
