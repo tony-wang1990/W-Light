@@ -46,6 +46,28 @@ scripts           服务器部署、升级、备份、自检、打包脚本
 
 ## 首次部署
 
+> ⚠️ **远程脚本执行风险（请先读再执行）：** 下面的命令会下载 `scripts/server-deploy.sh`
+> 并直接以 shell 执行。脚本被篡改或遭遇中间人攻击时，等同于在服务器上执行任意命令。
+> 校验步骤（推荐）：
+>
+> 1. 先下载、不直接执行：`curl -fsSL https://raw.githubusercontent.com/tony-wang1990/W-Light/main/scripts/server-deploy.sh -o server-deploy.sh`
+> 2. 通读脚本，确认它只做部署相关的事（建 swap、写 `.env`、拉代码、`docker compose build/up`），
+>    尤其确认其中的仓库地址（`REPO_URL`，默认 `https://github.com/tony-wang1990/W-Light.git`）、
+>    分支（`BRANCH`，默认 `main`）和写入 `.env` 的默认值是你预期的。
+> 3. 如仓库发布了该脚本的 SHA256，可用 `sha256sum server-deploy.sh` 核对后再执行；
+>    目前仓库尚未发布官方 SHA256（见下），因此第 2 步的人工通读是主要的校验手段。
+> 4. 执行后用 `bash scripts/server-check.sh` 做一键自检（会检查弱密钥、`DB_SYNCHRONIZE`、备份等）。
+>
+> 更安全的做法：先 `git clone https://github.com/tony-wang1990/W-Light.git`，在本地检出
+> 目标分支并核对 `scripts/server-deploy.sh`，再在服务器上执行仓库内的脚本。
+> 注意：本仓库目前**没有**为 `server-deploy.sh` 发布签名或 SHA256 校验值；
+> 增加官方校验值（随 Release 发布脚本 SHA256）是后续待办。
+>
+> 部署所需的全部环境变量见根目录 [`.env.example`](.env.example)（汇总自
+> `docker-compose.yml`、`scripts/server-deploy.sh` 与
+> `services/backend/.env.development.example`）；其中 `DB_PASSWORD` /
+> `REDIS_PASSWORD` / `JWT_SECRET` / `MINIO_PASSWORD` 在缺失时由部署脚本自动生成随机值。
+
 在服务器上执行：
 
 ```bash
